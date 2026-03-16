@@ -1,0 +1,43 @@
+name: Bug Report
+description: Create a report to help us improve
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to report a bug! Please check if the issue is already tracked in our repository.
+  - type: textarea
+    id: description
+    attributes:
+      label: Description
+      description: A clear and concise description of what the bug is.
+      placeholder: Tell us what went wrong...
+    validations:
+      required: true
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Reproduction
+      description: Steps to reproduce the behavior, or a link to a minimal reproduction repository.
+      placeholder: |
+        1. Define profile '...'
+        2. Map object '...'
+        3. See error '...'
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: AutoMappic Version
+      description: Which version of AutoMappic are you using?
+      placeholder: v0.1.0
+    validations:
+      required: true
+  - type: input
+    id: dotnet-version
+    attributes:
+      label: .NET Version
+      description: Which version of .NET are you using?
+      placeholder: 10.0.101
+    validations:
+      required: true

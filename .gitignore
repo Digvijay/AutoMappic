@@ -1,0 +1,25 @@
+bin/
+obj/
+.DS_Store
+*.user
+.vs/
+.vscode/
+*.DotSettings.user
+learnings.md
+discussion.txt
+
+# Node / VitePress
+node_modules/
+docs/.vitepress/dist/
+docs/.vitepress/cache/
+.npm/
+
+# Testing
+TestResults/
+*.trx
+
+# IDE / Global / Logs
+.idea/
+*.suo
+*.log
+npm-debug.log*

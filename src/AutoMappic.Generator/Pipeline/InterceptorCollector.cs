@@ -1,0 +1,102 @@
+using System.Collections.Generic;
+using System.Linq;
+using AutoMappic.Generator.Models;
+using Microsoft.CodeAnalysis;
+using Microsoft.CodeAnalysis.CSharp.Syntax;
+
+namespace AutoMappic.Generator.Pipeline;
+
+/// <summary>
+///   Finds all <c>IMapper.Map&lt;T&gt;(source)</c> call sites in the user's code and
+///   captures their exact file path, line, and column so the emitter can generate
+///   <c>[InterceptsLocation]</c> attributes pointing at those exact coordinates.
+/// </summary>
+internal static class InterceptorCollector
+{
+    public static bool IsInvocationCandidate(SyntaxNode node, System.Threading.CancellationToken _)
+    {
+        if (node is InvocationExpressionSyntax inv &&
+            inv.Expression is MemberAccessExpressionSyntax ma)
+        {
+            var text = ma.Name.Identifier.Text;
+            return text == "Map" || text == "ProjectTo";
+        }
+        return false;
+    }
+
+    public static InterceptLocation? ExtractInterceptLocation(
+        GeneratorSyntaxContext context,
+        System.Threading.CancellationToken cancellationToken)
+    {
+        var invocation = (InvocationExpressionSyntax)context.Node;
+        var symbol = context.SemanticModel.GetSymbolInfo(invocation, cancellationToken).Symbol as IMethodSymbol;
+
+        if (symbol is null) return null;
+        var name = symbol.Name;
+        if (name != "Map" && name != "ProjectTo") return null;
+
+        var container = symbol.ContainingType?.Name;
+        if (symbol.ContainingType?.ContainingNamespace?.ToDisplayString() != "AutoMappic") return null;
+
+        InterceptKind kind;
+        if (container == "IMapper" && name == "Map") kind = InterceptKind.Map;
+        else if (container == "QueryableExtensions" && name == "ProjectTo") kind = InterceptKind.ProjectTo;
+        else if (container == "DataReaderExtensions" && name == "Map") kind = InterceptKind.DataReaderMap;
+        else return null;
+
+        if (symbol.TypeArguments.Length == 0) return null;
+
+        var destType = symbol.TypeArguments[symbol.TypeArguments.Length == 2 ? 1 : 0] as INamedTypeSymbol;
+        ITypeSymbol? sourceType = null;
+
+        if (kind == InterceptKind.Map)
+        {
+            if (symbol.TypeArguments.Length == 2)
+            {
+                sourceType = symbol.TypeArguments[0];
+            }
+            else if (invocation.ArgumentList.Arguments.Count > 0)
+            {
+                sourceType = context.SemanticModel.GetTypeInfo(invocation.ArgumentList.Arguments[0].Expression, cancellationToken).Type;
+            }
+        }
+        else if (kind == InterceptKind.ProjectTo)
+        {
+            var reduced = symbol.ReducedFrom ?? symbol;
+            if (reduced.Parameters.Length > 0 && reduced.Parameters[0].Type is INamedTypeSymbol queryableType)
+            {
+                sourceType = queryableType.TypeArguments.FirstOrDefault();
+            }
+        }
+        else if (kind == InterceptKind.DataReaderMap)
+        {
+            sourceType = context.SemanticModel.Compilation.GetTypeByMetadataName("System.Data.IDataReader");
+        }
+
+        if (destType is null || sourceType is null) return null;
+
+        var lineSpan = invocation.GetLocation().GetLineSpan();
+        if (!lineSpan.IsValid) return null;
+
+        var memberAccess = (MemberAccessExpressionSyntax)invocation.Expression;
+        var mapNameSpan = memberAccess.Name.GetLocation().GetLineSpan();
+
+        return new InterceptLocation(
+            FilePath: lineSpan.Path,
+            Line: mapNameSpan.StartLinePosition.Line + 1,
+            Column: mapNameSpan.StartLinePosition.Character + 1,
+            SourceTypeFullName: sourceType.ToDisplayString(),
+            DestinationTypeFullName: destType.ToDisplayString(),
+            MethodSignatureKey: BuildSignatureKey(symbol),
+            Kind: kind);
+    }
+
+    private static string BuildSignatureKey(IMethodSymbol method)
+    {
+        var typeArgs = method.TypeArguments.Length > 0
+            ? $"<{string.Join(", ", method.TypeArguments.Select(t => t.ToDisplayString()))}>"
+            : string.Empty;
+        var paramTypes = string.Join(", ", method.Parameters.Select(p => p.Type.ToDisplayString()));
+        return $"{method.Name}{typeArgs}({paramTypes})";
+    }
+}
