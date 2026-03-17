@@ -9,9 +9,10 @@ RUN apk add --no-cache clang build-base zlib-dev
 COPY AutoMappic.sln .
 COPY Directory.Build.props .
 COPY Directory.Packages.props .
+COPY NuGet.Config .
 COPY src/ src/
-COPY samples/samples.sln samples/
 COPY samples/AotBenchmark/ samples/AotBenchmark/
+COPY samples/Directory.Build.props samples/
 
 # Publish as Native AOT
 WORKDIR /source/samples/AotBenchmark

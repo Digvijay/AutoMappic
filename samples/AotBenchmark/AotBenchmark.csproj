@@ -9,6 +9,12 @@
     <InvariantGlobalization>true</InvariantGlobalization>
     <StackTraceSupport>false</StackTraceSupport>
     <OptimizationPreference>Size</OptimizationPreference>
+    
+    <!-- Container Support (OCI) -->
+    <EnableSdkContainerSupport>true</EnableSdkContainerSupport>
+    <ContainerImageName>automappic-aot</ContainerImageName>
+    <ContainerBaseImage>mcr.microsoft.com/dotnet/runtime-deps:9.0-alpine</ContainerBaseImage>
+    <ContainerImageTags>latest;0.1.0</ContainerImageTags>
   </PropertyGroup>
 
   <ItemGroup>
