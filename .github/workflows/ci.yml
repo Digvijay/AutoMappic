@@ -5,9 +5,9 @@ permissions:
 
 on:
   push:
-    branches: [ "master", "main" ]
+    branches: [ "main" ]
   pull_request:
-    branches: [ "master", "main" ]
+    branches: [ "main" ]
 
 jobs:
   build:
@@ -29,12 +29,10 @@ jobs:
       run: dotnet build AutoMappic.sln --no-restore --configuration Release
 
     - name: Test
-      run: dotnet test AutoMappic.sln --no-build --configuration Release --verbosity normal
+      run: dotnet run --project tests/AutoMappic.Tests/AutoMappic.Tests.csproj --configuration Release
 
     - name: Pack
-      run: |
-        dotnet pack src/AutoMappic.Core/AutoMappic.Core.csproj -c Release -o ./artifacts
-        dotnet pack src/AutoMappic.Generator/AutoMappic.Generator.csproj -c Release -o ./artifacts
+      run: dotnet pack src/AutoMappic.Core/AutoMappic.Core.csproj -c Release -o ./artifacts
 
     - name: Upload Artifacts
       uses: actions/upload-artifact@v4
