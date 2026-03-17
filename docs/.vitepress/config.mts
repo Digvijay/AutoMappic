@@ -5,7 +5,6 @@ export default withMermaid(defineConfig({
   title: "AutoMappic",
   description: "Zero-Reflection. Zero-Overhead. Native AOT-First Object-to-Object Mapper for .NET 9+.",
   // Use the repo name or the actual domain if it's hosted at the root of a custom domain
-  // The user said: "hosted at https://automappic.digvijay.dev via github pages"
   // Assuming standard GitHub Pages custom domain routing where it's at the root.
   base: '/',
   themeConfig: {
