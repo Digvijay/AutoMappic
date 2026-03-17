@@ -19,7 +19,8 @@ public class MyProfile : Profile
 {
     public MyProfile() { CreateMap<S, D>(); }
 }";
-        var (diagnostics, _) = GeneratorTestHelper.RunGenerator(source);
+        var result = GeneratorTestHelper.RunGenerator(source);
+        var diagnostics = result.Diagnostics;
 
         var am001 = diagnostics.FirstOrDefault(d => d.Id == "AM001");
         Assert.NotNull(am001);
@@ -40,7 +41,8 @@ public class MyProfile : Profile
 {
     public MyProfile() { CreateMap<S, D>(); }
 }";
-        var (diagnostics, _) = GeneratorTestHelper.RunGenerator(source);
+        var result = GeneratorTestHelper.RunGenerator(source);
+        var diagnostics = result.Diagnostics;
 
         var am002 = diagnostics.FirstOrDefault(d => d.Id == "AM002");
         Assert.NotNull(am002);
@@ -60,7 +62,8 @@ public class MyProfile : Profile
 {
     public MyProfile() { CreateMap<S, D>(); }
 }";
-        var (diagnostics, _) = GeneratorTestHelper.RunGenerator(source);
+        var result = GeneratorTestHelper.RunGenerator(source);
+        var diagnostics = result.Diagnostics;
 
         var am005 = diagnostics.FirstOrDefault(d => d.Id == "AM005");
         Assert.NotNull(am005);

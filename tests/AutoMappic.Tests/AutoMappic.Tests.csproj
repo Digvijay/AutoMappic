@@ -19,6 +19,7 @@
     <!-- Also wire up as Analyzer for interceptors to work during the build of this project -->
     <ProjectReference Include="..\..\src\AutoMappic.Generator\AutoMappic.Generator.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
     <PackageReference Include="Prova" />
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection" />
     <PackageReference Include="Microsoft.Testing.Extensions.CodeCoverage" />
     <PackageReference Include="Microsoft.Testing.Extensions.TrxReport" />
     <PackageReference Include="coverlet.msbuild" />

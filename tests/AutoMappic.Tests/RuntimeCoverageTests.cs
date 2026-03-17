@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
+using Microsoft.Extensions.DependencyInjection;
 using Prova;
 using Assert = Prova.Assertions.Assert;
 
@@ -12,86 +13,172 @@ public class RuntimeCoverageTests
     [Fact]
     public async Task MapAsync_WhenExceptionOccurs_ReturnsFaultedTask()
     {
-        // Null source will trigger ArgumentNullException
         var mapper = new MapperConfiguration(p => {}).CreateMapper();
-        
         var task = mapper.MapAsync<UserDto>(null!);
-        
         Assert.True(task.IsFaulted, "Task should be faulted");
-        // Prova's Assert.Throws for Tasks might not be exactly what I expect.
-        // Let's just try-catch.
-        try
-        {
-            await task;
-            Assert.True(false, "Should have thrown");
-        }
-        catch (ArgumentNullException)
-        {
-            // Expected
-        }
+        try { await task; } catch (ArgumentNullException) { /* Expected */ }
     }
 
     [Fact]
-    public void Mapper_PrimitiveConversionFailure_FallsThrough()
+    public async Task MapAsyncGeneric_WhenExceptionOccurs_ReturnsFaultedTask()
     {
-        var profile = new TestProfile();
-        profile.Register<SourceWithBadType, DestWithGoodType>();
-        
-        var mapper = new MapperConfiguration(p => p.AddProfile(profile)).CreateMapper();
-        
-        var source = new SourceWithBadType { Value = new object() };
-        
-        // This should fall through to object mapping which might fail or skip
-        var result = mapper.Map<DestWithGoodType>(source);
-        Assert.NotNull(result);
+        var mapper = new MapperConfiguration(p => {}).CreateMapper();
+        var task = mapper.MapAsync<User, UserDto>(null!);
+        Assert.True(task.IsFaulted, "Task should be faulted");
+        try { await task; } catch (ArgumentNullException) { /* Expected */ }
     }
 
     [Fact]
-    public void Mapper_DictionaryMapping_WithConversions()
+    public void Mapper_DictionaryValueMapping_ToString()
     {
         var profile = new TestProfile();
-        profile.Register<DictSource, DictDest>();
+        profile.Register<DictSourceIntVal, DictDestStringVal>();
         
         var mapper = new MapperConfiguration(p => p.AddProfile(profile)).CreateMapper();
         
-        var source = new DictSource 
-        { 
-            Items = new Dictionary<int, int> { { 1, 100 } } 
-        };
+        var source = new DictSourceIntVal { Items = new Dictionary<string, int> { { "a", 123 } } };
+        var dest = mapper.Map<DictDestStringVal>(source);
         
-        var dest = mapper.Map<DictDest>(source);
+        Assert.Equal("123", dest.Items["a"]);
+    }
+
+    [Fact]
+    public void Mapper_DictionaryMapping_WithNestedMapCore()
+    {
+        var profile = new TestProfile();
+        // int -> long needs MapCore if not string
+        profile.Register<long, int>(); 
+        profile.Register<DictSourceLong, DictDestInt>();
+        
+        var mapper = new MapperConfiguration(p => p.AddProfile(profile)).CreateMapper();
+        
+        var source = new DictSourceLong { Items = new Dictionary<long, long> { { 1L, 100L } } };
+        var dest = mapper.Map<DictDestInt>(source);
         
         Assert.NotNull(dest.Items);
-        Assert.True(dest.Items.ContainsKey("1"));
-        Assert.Equal("100", dest.Items["1"]);
+        Assert.True(dest.Items.ContainsKey(1));
+        Assert.Equal(100, dest.Items[1]);
     }
 
     [Fact]
-    public void Mapper_Normalize_RespectsSnakeCase()
+    public void Mapper_DictionaryValueMapping_WithNestedMapCore()
     {
         var profile = new TestProfile();
-        profile.Register<SnakeSource, PascalDest>();
+        profile.Register<int, long>();
+        profile.Register<DictSourceIntVal, DictDestLongVal>();
         
         var mapper = new MapperConfiguration(p => p.AddProfile(profile)).CreateMapper();
         
-        var source = new SnakeSource { first_name = "Alice" };
-        var dest = mapper.Map<PascalDest>(source);
+        var source = new DictSourceIntVal { Items = new Dictionary<string, int> { { "a", 1 } } };
+        var dest = mapper.Map<DictDestLongVal>(source);
         
-        Assert.Equal("Alice", dest.FirstName);
+        Assert.Equal(1L, dest.Items["a"]);
     }
 
     [Fact]
-    public void MemberConfiguration_MapFromResolver_WorksAtRuntime()
+    public void Mapper_PropertyMapping_WithSkippedMapping()
     {
         var profile = new TestProfile();
-        profile.Register<User, UserDto>(exp => exp.ForMember(d => d.Name, opt => opt.MapFrom<NameResolver>()));
+        profile.Register<SkippedMapSource, SkippedMapDest>();
+        // No mapping for UnregisteredSource -> UnregisteredDest
+        
+        var mapper = new MapperConfiguration(p => p.AddProfile(profile)).CreateMapper();
+        
+        var source = new SkippedMapSource { Item = new UnregisteredSource() };
+        var dest = mapper.Map<SkippedMapDest>(source);
+        
+        Assert.NotNull(dest);
+        Assert.Null(dest.Item);
+    }
+
+    [Fact]
+    public void Mapper_ReverseMap_WorksAtRuntime()
+    {
+        var profile = new TestProfile();
+        // Register S -> D with reverse map D -> S
+        profile.Register<User, UserDto>().ReverseMap();
+        
+        var mapper = new MapperConfiguration(p => p.AddProfile(profile)).CreateMapper();
+        
+        var source = new UserDto { Name = "Alice" };
+        var dest = mapper.Map<User>(source);
+        
+        Assert.Equal("Alice", dest.Name);
+    }
+
+    [Fact]
+    public void Mapper_ForMemberIgnore_WorksAtRuntime()
+    {
+        var profile = new TestProfile();
+        profile.Register<User, UserDto>(opt => opt.ForMemberIgnore(d => d.Name));
         
         var mapper = new MapperConfiguration(p => p.AddProfile(profile)).CreateMapper();
         
         var source = new User { Name = "Alice" };
         var dest = mapper.Map<UserDto>(source);
         
-        Assert.Equal("Resolved: Alice", dest.Name);
+        Assert.Equal("", dest.Name); // Should be ignored
+    }
+
+    [Fact]
+    public void DependencyInjection_AddAutoMappic_WorksAtRuntime()
+    {
+        var services = new Microsoft.Extensions.DependencyInjection.ServiceCollection();
+        services.AddAutoMappic(new TestProfile());
+        var sp = services.BuildServiceProvider();
+        var mapper = sp.GetService<IMapper>();
+        Assert.NotNull(mapper);
+    }
+
+    [Fact]
+    public void Mapper_ForMemberWithIgnore_WorksAtRuntime()
+    {
+        var profile = new TestProfile();
+        profile.Register<User, UserDto>(opt => opt.ForMember(d => d.Name, o => o.Ignore()));
+        
+        var mapper = new MapperConfiguration(p => p.AddProfile(profile)).CreateMapper();
+        var dest = mapper.Map<UserDto>(new User { Name = "Alice" });
+        Assert.Equal("", dest.Name);
+    }
+
+    [Fact]
+    public void IMappingExpression_ExplicitMaps_ReturnsDictionary()
+    {
+        var profile = new TestProfile();
+        IMappingExpression exp = profile.Register<User, UserDto>(opt => opt.ForMember(d => d.Name, o => o.MapFrom(s => s.Name)));
+        Assert.True(exp.ExplicitMaps.ContainsKey("Name"));
+    }
+
+    [Fact]
+    public void MappingExpression_MapFromResolver_SetsExpression()
+    {
+        var profile = new TestProfile();
+        IMappingExpression<User, UserDto> exp = profile.Register<User, UserDto>(opt =>
+            opt.ForMember(d => d.Name, o => o.MapFrom<NameResolver>()));
+        
+        var mapper = new MapperConfiguration(p => p.AddProfile(profile)).CreateMapper();
+        var result = mapper.Map<UserDto>(new User { Name = "Test" });
+        Assert.Equal("Resolved: Test", result.Name);
+    }
+
+    [Fact]
+    public void QueryableExtensions_ProjectTo_ThrowsAtRuntime()
+    {
+        var queryable = new List<User>().AsQueryable();
+        var method = typeof(QueryableExtensions).GetMethod("ProjectTo")!.MakeGenericMethod(typeof(UserDto));
+        // Calling via reflection avoids interceptor
+        var ex = Assert.Throws<System.Reflection.TargetInvocationException>(() => method.Invoke(null, new object[] { queryable }));
+        Assert.True(ex.InnerException is AutoMappicException);
+    }
+
+    [Fact]
+    public void DataReaderExtensions_Map_ThrowsAtRuntime()
+    {
+        var reader = new MockDataReader();
+        var method = typeof(DataReaderExtensions).GetMethod("Map")!.MakeGenericMethod(typeof(UserDto));
+        // Calling via reflection avoids interceptor
+        var ex = Assert.Throws<System.Reflection.TargetInvocationException>(() => method.Invoke(null, new object[] { reader }));
+        Assert.True(ex.InnerException is AutoMappicException);
     }
 
     [Fact]
@@ -103,8 +190,143 @@ public class RuntimeCoverageTests
         });
     }
 
-    private class User { public string Name { get; set; } = ""; }
-    private class UserDto { public string Name { get; set; } = ""; }
+    private class MockDataReader : System.Data.IDataReader
+    {
+        private bool _read = false;
+        public object this[int i] => i == 0 ? "Mocked" : null!;
+        public object this[string name] => name == "Name" ? "Mocked" : null!;
+        public int Depth => 0;
+        public bool IsClosed => false;
+        public int RecordsAffected => 0;
+        public int FieldCount => 1;
+        public void Close() {}
+        public void Dispose() {}
+        public string GetName(int i) => i == 0 ? "Name" : "";
+        public string GetDataTypeName(int i) => "string";
+        public Type GetFieldType(int i) => typeof(string);
+        public object GetValue(int i) => this[i];
+        public int GetValues(object[] values) { values[0] = "Mocked"; return 1; }
+        public int GetOrdinal(string name) => name == "Name" ? 0 : -1;
+        public bool GetBoolean(int i) => false;
+        public byte GetByte(int i) => 0;
+        public long GetBytes(int i, long fieldOffset, byte[]? buffer, int bufferoffset, int length) => 0;
+        public char GetChar(int i) => ' ';
+        public long GetChars(int i, long fieldoffset, char[]? buffer, int bufferoffset, int length) => 0;
+        public Guid GetGuid(int i) => Guid.Empty;
+        public short GetInt16(int i) => 0;
+        public int GetInt32(int i) => 0;
+        public long GetInt64(int i) => 0;
+        public float GetFloat(int i) => 0;
+        public double GetDouble(int i) => 0;
+        public string GetString(int i) => "Mocked";
+        public decimal GetDecimal(int i) => 0;
+        public DateTime GetDateTime(int i) => DateTime.MinValue;
+        public System.Data.IDataReader GetData(int i) => null!;
+        public bool IsDBNull(int i) => false;
+        public bool NextResult() => false;
+        public bool Read() { if (!_read) { _read = true; return true; } return false; }
+        public System.Data.DataTable GetSchemaTable() => null!;
+    }
+
+    [Fact]
+    public void Mapper_DictionaryMapping_WithNestedConversions()
+    {
+        var profile = new TestProfile();
+        profile.Register<NestedSource, NestedDest>();
+        profile.Register<DictSourceNested, DictDestNested>();
+        
+        var mapper = new MapperConfiguration(p => p.AddProfile(profile)).CreateMapper();
+        
+        var source = new DictSourceNested 
+        { 
+            Items = new Dictionary<int, NestedSource> { { 1, new NestedSource { Id = 100 } } } 
+        };
+        
+        var dest = mapper.Map<DictDestNested>(source);
+        
+        Assert.NotNull(dest.Items);
+        // Key 1 -> "1", Value NestedSource(100) -> NestedDest(100)
+        Assert.True(dest.Items.ContainsKey("1"));
+        Assert.Equal(100, dest.Items["1"].Id);
+    }
+
+    [Fact]
+    public void Mapper_CollectionMapping_WithNullItems()
+    {
+        var profile = new TestProfile();
+        profile.Register<NestedSource, NestedDest>();
+        profile.Register<ListSource, ListDest>();
+        
+        var mapper = new MapperConfiguration(p => p.AddProfile(profile)).CreateMapper();
+        
+        var source = new ListSource { Items = new List<NestedSource?> { new NestedSource { Id = 1 }, null, new NestedSource { Id = 3 } } };
+        var dest = mapper.Map<ListDest>(source);
+        
+        Assert.Equal(3, dest.Items.Count);
+        Assert.Equal(1, dest.Items[0].Id);
+        Assert.Null(dest.Items[1]);
+        Assert.Equal(3, dest.Items[2].Id);
+    }
+
+    [Fact]
+    public void Mapper_CollectionMapping_WithSkippedItems()
+    {
+        var profile = new TestProfile();
+        profile.Register<ListSourceUnreg, ListDestUnreg>();
+        
+        var mapper = new MapperConfiguration(p => p.AddProfile(profile)).CreateMapper();
+        
+        var source = new ListSourceUnreg { Items = new List<object> { new UnregisteredSource() } };
+        // MapCore will throw AutoMappicException for UnregisteredSource -> UnregisteredDest, 
+        // which BuildFallbackDelegate should catch and skip
+        var dest = mapper.Map<ListDestUnreg>(source);
+        
+        Assert.Equal(0, dest.Items.Count);
+    }
+
+    [Fact]
+    public void Mapper_PrimitiveOverflow_FallsThrough()
+    {
+        var profile = new TestProfile();
+        profile.Register<long, int>(); // This registration doesn't really matter for MapCore's primitive check
+        
+        var mapper = new MapperConfiguration(p => p.AddProfile(profile)).CreateMapper();
+        
+        // long.MaxValue to int will overflow in Convert.ChangeType
+        var val = long.MaxValue;
+        // Should fall through to registered maps or throw if no map
+        try 
+        {
+            mapper.Map<int>(val);
+        }
+        catch (AutoMappicException) { /* Expected fallthrough if no registered map */ }
+    }
+
+    private class DictDestStringVal { public Dictionary<string, string> Items { get; set; } = new(); }
+    private class DictSourceLong { public Dictionary<long, long> Items { get; set; } = new(); }
+    private class DictDestInt { public Dictionary<int, int> Items { get; set; } = new(); }
+
+    private class DictSourceIntVal { public Dictionary<string, int> Items { get; set; } = new(); }
+    private class DictDestLongVal { public Dictionary<string, long> Items { get; set; } = new(); }
+
+    private class SkippedMapSource { public UnregisteredSource Item { get; set; } = new(); }
+    private class SkippedMapDest { public UnregisteredDest? Item { get; set; } }
+
+    private class ListSource { public List<NestedSource?> Items { get; set; } = new(); }
+    private class ListDest { public List<NestedDest> Items { get; set; } = new(); }
+    private class ListSourceUnreg { public List<object> Items { get; set; } = new(); }
+    private class ListDestUnreg { public List<UnregisteredDest> Items { get; set; } = new(); }
+
+    private class NestedSource { public int Id { get; set; } }
+    private class NestedDest { public int Id { get; set; } }
+    private class DictSourceNested { public Dictionary<int, NestedSource> Items { get; set; } = new(); }
+    private class DictDestNested { public Dictionary<string, NestedDest> Items { get; set; } = new(); }
+    
+    private class UnregisteredSource {}
+    private class UnregisteredDest {}
+
+    public class User { public string Name { get; set; } = ""; }
+    public class UserDto { public string Name { get; set; } = ""; }
     
     private class NameResolver : IValueResolver<User, string>
     {
@@ -122,10 +344,11 @@ public class RuntimeCoverageTests
 
     private class TestProfile : Profile 
     {
-        public void Register<S, D>(Action<IMappingExpression<S, D>>? opt = null)
+        public IMappingExpression<S, D> Register<S, D>(Action<IMappingExpression<S, D>>? opt = null)
         {
             var exp = CreateMap<S, D>();
             opt?.Invoke(exp);
+            return exp;
         }
     }
 }

@@ -18,7 +18,6 @@ public sealed class AutoMappicGenerator : IIncrementalGenerator
     public void Initialize(IncrementalGeneratorInitializationContext context)
     {
         // ── Pipeline 0: Source-Only Injection ────────────────────────────────────
-
         context.RegisterSourceOutput(context.AnalyzerConfigOptionsProvider, static (spc, options) =>
         {
             options.GlobalOptions.TryGetValue("build_property.automappic_sourceonly", out var v1);

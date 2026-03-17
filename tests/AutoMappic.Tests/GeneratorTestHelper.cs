@@ -9,7 +9,12 @@ namespace AutoMappic.Tests;
 
 public static class GeneratorTestHelper
 {
-    public static (ImmutableArray<Diagnostic> Diagnostics, ImmutableArray<GeneratedSourceResult> Sources) RunGenerator(
+    public record GeneratorResult(
+        ImmutableArray<Diagnostic> Diagnostics, 
+        ImmutableArray<GeneratedSourceResult> Sources,
+        GeneratorDriverRunResult RunResult);
+
+    public static GeneratorResult RunGenerator(
         string source, 
         IReadOnlyDictionary<string, string>? options = null)
     {
@@ -38,17 +43,14 @@ public static class GeneratorTestHelper
             parseOptions: compilation.SyntaxTrees.First().Options as CSharpParseOptions,
             optionsProvider: optionsProvider);
         
-        driver.RunGeneratorsAndUpdateCompilation(compilation, out var outputCompilation, out var diagnostics);
+        var runDriver = driver.RunGenerators(compilation);
+        var runResult = runDriver.GetRunResult();
 
-        var runResult = driver.GetRunResult();
-        var sources = runResult.Results.IsDefaultOrEmpty 
-            ? ImmutableArray<GeneratedSourceResult>.Empty 
-            : runResult.Results
-                .Where(r => !r.GeneratedSources.IsDefault)
-                .SelectMany(r => r.GeneratedSources)
-                .ToImmutableArray();
+        var sources = runResult.Results
+            .SelectMany(r => r.GeneratedSources)
+            .ToImmutableArray();
 
-        return (diagnostics, sources);
+        return new GeneratorResult(runResult.Diagnostics, sources, runResult);
     }
 
     private class TestOptionsProvider : AnalyzerConfigOptionsProvider
