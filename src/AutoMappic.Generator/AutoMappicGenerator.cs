@@ -58,15 +58,18 @@ public sealed class AutoMappicGenerator : IIncrementalGenerator
         var allMappings = mappingModels.Collect();
         var allLocations = interceptLocations.Collect();
 
-        var combined = allMappings.Combine(allLocations);
+        var combined = allMappings.Combine(allLocations).Combine(context.CompilationProvider);
 
-        context.RegisterSourceOutput(combined, static (spc, pair) =>
+        context.RegisterSourceOutput(combined, static (spc, triple) =>
         {
+            var (pair, compilation) = triple;
             var (models, locations) = pair;
             if (locations.IsEmpty) return;
 
             // Use the first registration found for each pair to resolve interception.
             var mappingsByKey = new Dictionary<string, MappingModel>(System.StringComparer.Ordinal);
+
+            // 1. Local mappings
             foreach (var m in models)
             {
                 var key = $"{Sanitise(m.SourceTypeFullName)}_To_{Sanitise(m.DestinationTypeFullName)}";
@@ -76,8 +79,93 @@ public sealed class AutoMappicGenerator : IIncrementalGenerator
                 }
             }
 
+            // 2. Discover mappings from referenced assemblies (Sannr 1.6 style)
+            foreach (var reference in compilation.SourceModule.ReferencedAssemblySymbols)
+            {
+                foreach (var attr in reference.GetAttributes().Where(a => a.AttributeClass?.Name == "MappingDiscoveryAttribute"))
+                {
+                    if (attr.ConstructorArguments.Length == 2 &&
+                        attr.ConstructorArguments[0].Value is INamedTypeSymbol src &&
+                        attr.ConstructorArguments[1].Value is INamedTypeSymbol dest)
+                    {
+                        var srcFull = src.ToDisplayString();
+                        var destFull = dest.ToDisplayString();
+                        var key = $"{Sanitise(srcFull)}_To_{Sanitise(destFull)}";
+
+                        if (!mappingsByKey.ContainsKey(key))
+                        {
+                            // Create a skeleton model for the shim to use.
+                            mappingsByKey[key] = new MappingModel(
+                                srcFull, src.Name,
+                                destFull, dest.Name,
+                                EquatableArray<PropertyMap>.Empty);
+                        }
+                    }
+                }
+            }
+
             var (hintName, source) = SourceEmitter.EmitInterceptors(locations, mappingsByKey);
             // Hint name for the single Interceptors file is constant.
+            spc.AddSource(hintName, source);
+        });
+
+        // ── Pipeline 3: DI Registration ──────────────────────────────────────────
+
+        var profileClasses = context.SyntaxProvider.CreateSyntaxProvider(
+            predicate: static (node, _) => node is Microsoft.CodeAnalysis.CSharp.Syntax.ClassDeclarationSyntax cls && cls.BaseList is not null,
+            transform: static (ctx, ct) =>
+            {
+                var classDecl = (Microsoft.CodeAnalysis.CSharp.Syntax.ClassDeclarationSyntax)ctx.Node;
+                var symbol = ctx.SemanticModel.GetDeclaredSymbol(classDecl, ct) as INamedTypeSymbol;
+                if (symbol is null) return null;
+
+                if (ProfileExtractor.InheritsFromProfile(symbol))
+                {
+                    // Only register types that are accessible to the generated code.
+                    // Private nested classes in tests should be skipped for static registration.
+                    if (symbol.DeclaredAccessibility != Accessibility.Private &&
+                        symbol.DeclaredAccessibility != Accessibility.Protected)
+                    {
+                        return symbol.ToDisplayString();
+                    }
+                }
+                return null;
+            })
+            .Where(static x => x is not null);
+
+        // Combine profiles, compilation, and unique mappings for the registration emitter.
+        var registrationData = profileClasses.Collect()
+            .Combine(context.CompilationProvider)
+            .Combine(uniqueMappingModels.Collect());
+
+        context.RegisterSourceOutput(registrationData, static (spc, data) =>
+        {
+            var (pair, localMappings) = data;
+            var (profiles, compilation) = pair;
+            var assemblyName = compilation.AssemblyName ?? "Unknown";
+
+            // Find referenced assemblies with marker attributes (Sannr-style metadata discovery).
+            var referencedRegistrations = new List<string>();
+            foreach (var reference in compilation.SourceModule.ReferencedAssemblySymbols)
+            {
+                var attributes = reference.GetAttributes();
+                if (attributes.Any(a => a.AttributeClass?.Name == "HasAutoMappicProfilesAttribute"))
+                {
+                    referencedRegistrations.Add(reference.Name);
+                }
+            }
+
+            // Only emit if we have local profiles, local mappings, referenced profiles, or we are the entry point.
+            if (profiles.IsDefaultOrEmpty && localMappings.IsDefaultOrEmpty && referencedRegistrations.Count == 0 && compilation.GetEntryPoint(spc.CancellationToken) == null)
+                return;
+
+            var (hintName, source) = SourceEmitter.EmitRegistration(
+                assemblyName,
+                profiles,
+                localMappings,
+                referencedRegistrations.ToImmutableArray(),
+                compilation.GetEntryPoint(spc.CancellationToken) != null);
+
             spc.AddSource(hintName, source);
         });
     }

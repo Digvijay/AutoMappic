@@ -13,9 +13,11 @@
 
   <PropertyGroup>
     <AssemblyName>AutoMappic.Core</AssemblyName>
+    <PackageId>AutoMappic</PackageId>
     <RootNamespace>AutoMappic</RootNamespace>
-    <Description>Core abstractions and marker types for AutoMappic – the AOT-native successor to AutoMapper.</Description>
+    <Description>AutoMappic is a zero-reflection, Native AOT-friendly object mapper for .NET 9+ powered by Roslyn Interceptors.</Description>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <IsPackable>true</IsPackable>
   </PropertyGroup>
 
   <ItemGroup>
@@ -23,7 +25,17 @@
   </ItemGroup>
 
   <ItemGroup>
-    <None Include="..\..\README.md" Pack="true" PackagePath="\" />
+    <ProjectReference Include="..\AutoMappic.Generator\AutoMappic.Generator.csproj" 
+                      ReferenceOutputAssembly="false" 
+                      PrivateAssets="all" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- Explicitly pack the generator DLL into the correct location -->
+    <None Include="..\AutoMappic.Generator\bin\$(Configuration)\netstandard2.0\AutoMappic.Generator.dll" 
+          Pack="true" 
+          PackagePath="analyzers/dotnet/cs" 
+          Visible="false" />
   </ItemGroup>
 
 </Project>

@@ -59,14 +59,30 @@ public class MyProfile : Profile
 }
 ```
 
-## 5. Use the Mapper
+## 5. Setup & Use the Mapper
+
+For the best performance and Native AOT compatibility, AutoMappic uses a **Zero-Reflection Registration** system. 
+
+### Dependency Injection (Recommended)
+
+Add AutoMappic to your `IServiceCollection`. The source generator automatically discovers all profiles in your project and its references at compile-time.
 
 ```csharp
+using Microsoft.Extensions.DependencyInjection;
 using AutoMappic;
 
-var config = new MapperConfiguration(cfg => cfg.AddProfile<MyProfile>());
-IMapper mapper = config.CreateMapper();
+var services = new ServiceCollection();
 
+// Statically discovery all profiles across your entire solution
+services.AddAutoMappic(); 
+
+var serviceProvider = services.BuildServiceProvider();
+var mapper = serviceProvider.GetRequiredService<IMapper>();
+```
+
+### Direct Usage
+
+```csharp
 var user = new User { Id = 1, Username = "alice", Address = new Address { City = "Seattle" } };
 
 // This call is intercepted at compile-time and replaced with:

@@ -1,4 +1,3 @@
-using System.Reflection;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace AutoMappic;
@@ -9,33 +8,22 @@ namespace AutoMappic;
 public static class AutoMappicDependencyInjection
 {
     /// <summary>
-    ///   Adds AutoMappic to the service collection, scanning the specified assemblies for profiles.
-    ///   This provides the same "zero-touch" DI setup as AutoMapper, but with zero runtime reflection.
+    ///   Legacy support for manually registering profiles. 
+    ///   For zero-reflection, use the parameterless AddAutoMappic() provided by the source generator.
     /// </summary>
-    /// <param name="services">The service collection.</param>
-    /// <param name="assemblies">Assemblies to scan for <see cref="Profile" /> classes.</param>
-    /// <returns>The service collection for chaining.</returns>
-    public static IServiceCollection AddAutoMappic(this IServiceCollection services, params Assembly[] assemblies)
+    public static IServiceCollection AddAutoMappic(this IServiceCollection services, params Profile[] profiles)
     {
-        var config = new MapperConfiguration(cfg =>
+        services.AddSingleton<IMapper>(sp =>
         {
-            foreach (var assembly in assemblies)
+            var config = new MapperConfiguration(cfg =>
             {
-                var profileTypes = assembly.GetTypes()
-                    .Where(t => typeof(Profile).IsAssignableFrom(t) && !t.IsAbstract && t.IsClass);
-
-                foreach (var profileType in profileTypes)
+                foreach (var profile in profiles)
                 {
-                    if (Activator.CreateInstance(profileType) is Profile profile)
-                    {
-                        cfg.AddProfile(profile);
-                    }
+                    cfg.AddProfile(profile);
                 }
-            }
+            });
+            return config.CreateMapper();
         });
-
-        var mapper = config.CreateMapper();
-        services.AddSingleton<IMapper>(mapper);
 
         return services;
     }

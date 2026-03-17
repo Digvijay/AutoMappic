@@ -16,9 +16,7 @@
     <ProjectReference Include="..\..\src\AutoMappic.Core\AutoMappic.Core.csproj" />
     <ProjectReference Include="..\..\src\AutoMappic.Generator\AutoMappic.Generator.csproj" />
     <!-- Also wire up as Analyzer for interceptors to work during the build of this project -->
-    <ProjectReference Include="..\..\src\AutoMappic.Generator\AutoMappic.Generator.csproj" 
-                      OutputItemType="Analyzer" 
-                      ReferenceOutputAssembly="false" />
+    <ProjectReference Include="..\..\src\AutoMappic.Generator\AutoMappic.Generator.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
     <PackageReference Include="Prova" />
   </ItemGroup>
 

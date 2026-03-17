@@ -1,6 +1,12 @@
-![AutoMappic Hero](/Users/digvijay/.gemini/antigravity/brain/193ab200-f83b-488b-bbb7-f317790d9744/automappic_hero_1773693156600.png)
+![AutoMappic Hero](./docs/assets/hero.png)
 
-# AutoMappic v0.1.0 🚀
+# AutoMappic v0.1.0
+
+[![.NET](https://img.shields.io/badge/.NET-9.0+-512bd4?style=flat-square&logo=dotnet)](https://dotnet.microsoft.com/)
+[![License](https://img.shields.io/badge/license-MIT-green?style=flat-square)](LICENSE)
+[![Docs](https://img.shields.io/badge/docs-automappic.digvijay.dev-blue?style=flat-square&logo=vitepress)](https://automappic.digvijay.dev)
+[![Native AOT](https://img.shields.io/badge/Native_AOT-100%25-success?style=flat-square&logo=visual-studio)](https://learn.microsoft.com/en-us/dotnet/core/deploying/native-aot/)
+[![Reflection](https://img.shields.io/badge/Reflection-0%25-red?style=flat-square)](https://github.com/LuckyPennySoftware/AutoMappic)
 
 **Zero-Reflection. Zero-Overhead. Native AOT-First.**
 
@@ -18,18 +24,34 @@ Standard mappers like AutoMapper rely on runtime reflection and `Expression.Comp
 - **Debuggable**: Step through your mapping code just like any other C# file.
 - **Drop-in Migration**: Identical `Profile`, `CreateMap`, and `ForMember` syntax. Simply swap `using AutoMapper;` for `using AutoMappic;` and `AddAutoMapper` for `AddAutoMappic`.
 
-## Core Features
+## Technical Characteristics
 
-- **Bidirectional Mapping**: Supports `ReverseMap()` to automatically generate two-way mappings from a single declaration.
-- **PascalCase & SnakeCase**: `Order.Customer.Name` maps to `OrderDto.CustomerName` and `first_name` maps to `FirstName`.
-- **Deep Collections & Dictionaries**: Automated mapping for lists, arrays, `Dictionary<TKey, TValue>`, and nested collections.
-- **Null-Safe by Design**: Automatically handles nested null navigation without `NullReferenceException`.
-- **Explicit Overrides**: Use `.ForMember()` and runtime fallback map resolutions matching AutoMapper's behavior.
-- **IValueResolver Support**: Fully AOT-compatible `IValueResolver<TSource, TMember>` interceptors that compile purely to `new Interceptor().Resolve(source)` static outputs.
-- **Entity Framework ProjectTo**: Statically expand `IQueryable<T>` `.ProjectTo<TDto>()` into optimized `.Select` LINQ trees allowing EF Core to hit the database with zero reflection.
-- **Native DataReader Support**: `.Map<T>()` over standard `IDataReader` enumerables allowing hyper-optimized data conversion loops directly from the ADO connection context.
-- **Dependency Injection**: One-line setup with `builder.Services.AddAutoMappic(typeof(Program).Assembly);`.
-- **Comprehensive Diagnostics**: Catch unmapped properties (AM001) or ambiguous paths (AM002) at build time.
+AutoMappic is engineered for high-concurrency, low-latency .NET workloads where traditional reflection-based mapping introduces unacceptable overhead and breaks deployment targets like Native AOT.
+
+- **Deterministic Performance**: By utilizing **Roslyn Interceptors**, mapping logic is resolved at compile-time. The JIT compiler receives straight-line static C#, enabling aggressive inlining and optimization that reaches the theoretical limits of manual assignment.
+- **Native AOT & Trimming Integrity**: 100% compatible with Native AOT. AutoMappic generates all necessary code ahead-of-time, eliminating the need for `System.Reflection.Emit` or dynamic assembly loading.
+- **Convention-Driven Automation**: Automated resolution of PascalCase flattening (e.g., `Order.Customer.Name` to `OrderDto.CustomerName`) and snake_case normalization without manual configuration.
+- **Zero-Reflection Dependency Injection**: A unique "Static Registration Chain" discovers profiles across the entire solution at compile-time. `services.AddAutoMappic()` executes as a hard-coded sequence of static calls, providing near-zero startup latency.
+
+## Diagnostic Suite
+
+AutoMappic provides a rigorous build-time validation layer. It transforms traditional runtime mapping failures into actionable compiler errors, ensuring structural integrity before the application even starts.
+
+| ID | Title | Severity | Empirical Impact |
+| :--- | :--- | :--- | :--- |
+| **AM001** | Unmapped Destination | Error | Detects writable properties with no source resolution. |
+| **AM002** | Ambiguous Mapping | Error | Flags collisions between direct matches and flattened paths. |
+| **AM003** | Misplaced CreateMap | Warning | Identifies configurations declared outside of Profile constructors. |
+| **AM004** | Unresolved Interceptor| Warning | Alerts when a map call falls back to the reflection engine. |
+| **AM005** | Missing Constructor | Error | Ensures destination types are instantiable without reflection. |
+
+## Reference Implementations
+
+We provide three reference implementations demonstrating AutoMappic's utility in enterprise-grade architectures:
+
+1.  **SampleApp ([Link](./samples/SampleApp))**: A foundational demonstration of cross-project profile discovery and AOT-safe dependency injection.
+2.  **eShopOnWeb Migration ([Link](./samples/eShopOnWebWin))**: A high-fidelity migration of the classic Microsoft reference architecture, proving drop-in compatibility with legacy `ForMember` and `Profile` configurations.
+3.  **Modern eShop Parity ([Link](./samples/eShopModernWin))**: A performance-focused sample that matches the modern `dotnet/eShop` manual-mapping implementation bit-for-bit, but with the maintenance convenience of a centralized mapper.
 
 ## Quick Start
 
@@ -46,9 +68,9 @@ public class UserProfile : Profile
     }
 }
 
-// 2. Setup Dependency Injection (just like AutoMapper!)
+// 2. Setup Dependency Injection (Zero-Reflection / AOT-Friendly!)
 var services = new ServiceCollection();
-services.AddAutoMappic(typeof(UserProfile).Assembly);
+services.AddAutoMappic(); // Automatic discovery of all profiles in your solution
 
 // 3. Use it
 var serviceProvider = services.BuildServiceProvider();
@@ -64,4 +86,4 @@ For a detailed step-by-step tutorial, see [GettingStarted.md](./GettingStarted.m
 Interested in how we built a Roslyn Incremental Source Generator? Check out our [learnings.md](./learnings.md) for a deep dive into the technical challenges we solved.
 
 ---
-*Built with ❤️ for the .NET Community.*
+*Built for the .NET Community.*

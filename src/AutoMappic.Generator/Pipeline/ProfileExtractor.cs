@@ -72,7 +72,7 @@ internal static class ProfileExtractor
 
     // ─── Private helpers ──────────────────────────────────────────────────────────
 
-    private static bool InheritsFromProfile(INamedTypeSymbol classSymbol)
+    internal static bool InheritsFromProfile(INamedTypeSymbol classSymbol)
     {
         var baseType = classSymbol.BaseType;
         while (baseType is not null)
@@ -229,28 +229,39 @@ internal static class ProfileExtractor
     /// </summary>
     private static string? ExtractMapFromBody(ExpressionSyntax optExpression)
     {
-        // opt => opt.MapFrom(src => ...)
+        // opt => opt.MapFrom(...)
         if (optExpression is not SimpleLambdaExpressionSyntax outerLambda) return null;
 
         var invocation = outerLambda.Body as InvocationExpressionSyntax;
         if (invocation is null) return null;
 
-        var methodName = (invocation.Expression as MemberAccessExpressionSyntax)?.Name.Identifier.Text;
+        var memberAccess = invocation.Expression as MemberAccessExpressionSyntax;
+        var methodName = memberAccess?.Name.Identifier.Text;
         if (methodName != MapFromMethodName) return null;
 
+        // Case 1: lambda-based MapFrom(src => ...)
         var innerLambda = invocation.ArgumentList.Arguments.FirstOrDefault()?.Expression
             as SimpleLambdaExpressionSyntax;
-        if (innerLambda is null) return null;
 
-        var param = innerLambda.Parameter.Identifier.Text;
-        var body = innerLambda.Body.ToString();
+        if (innerLambda is not null)
+        {
+            var param = innerLambda.Parameter.Identifier.Text;
+            var body = innerLambda.Body.ToString();
 
-        // Rewrite the lambda parameter to "source" so it aligns with the generated method.
-        // We use a regex with word boundaries to ensure we only replace the parameter name
-        // when used as an identifier (e.g., "s.Prop" or "(double)s.Prop").
-        return System.Text.RegularExpressions.Regex.Replace(
-            body,
-            $@"\b{System.Text.RegularExpressions.Regex.Escape(param)}(?=\.)",
-            "source");
+            // Rewrite the lambda parameter to "source" so it aligns with the generated method.
+            return System.Text.RegularExpressions.Regex.Replace(
+                body,
+                $@"\b{System.Text.RegularExpressions.Regex.Escape(param)}(?=\.)",
+                "source");
+        }
+
+        // Case 2: Resolver-based MapFrom<TResolver>()
+        if (memberAccess?.Name is GenericNameSyntax gn && gn.TypeArgumentList.Arguments.Count == 1)
+        {
+            var resolverType = gn.TypeArgumentList.Arguments[0].ToString();
+            return $"new {resolverType}().Resolve(source)";
+        }
+
+        return null;
     }
 }

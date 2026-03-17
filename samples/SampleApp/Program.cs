@@ -9,15 +9,13 @@
 // ─────────────────────────────────────────────────────────────────────────────
 
 using AutoMappic;
+using Microsoft.Extensions.DependencyInjection;
 
-// ── Setup (mirrors what AddAutoMappic() would do in an ASP.NET Core host) ──
-var config = new MapperConfiguration(cfg =>
-{
-    cfg.AddProfile<UserMappingProfile>();
-    cfg.AddProfile<OrderMappingProfile>();
-});
-
-IMapper mapper = config.CreateMapper();
+// ── Setup (Zero-Reflection / AOT-Friendly Registration) ──
+var services = new Microsoft.Extensions.DependencyInjection.ServiceCollection();
+services.AddAutoMappic(); // Discovers UserMappingProfile and OrderMappingProfile at compile-time
+var serviceProvider = services.BuildServiceProvider();
+IMapper mapper = serviceProvider.GetRequiredService<IMapper>();
 
 // ── Simulate a service using the mapper (identical to AutoMapper usage) ──────
 var service = new UserService(mapper);

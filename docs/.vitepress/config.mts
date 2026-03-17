@@ -4,7 +4,7 @@ export default defineConfig({
   title: "AutoMappic",
   description: "Zero-Reflection. Zero-Overhead. Native AOT-First Object-to-Object Mapper for .NET 9+.",
   // Use the repo name or the actual domain if it's hosted at the root of a custom domain
-  // The user said: "hosted at https://auomappic.digvijay.dev via github pages"
+  // The user said: "hosted at https://automappic.digvijay.dev via github pages"
   // Assuming standard GitHub Pages custom domain routing where it's at the root.
   base: '/',
   themeConfig: {
@@ -18,8 +18,14 @@ export default defineConfig({
         items: [
           { text: 'Getting Started', link: '/getting-started' },
           { text: 'Benchmarks', link: '/benchmarks' },
-          { text: 'Changelog', link: '/changelog' },
-          { text: 'Compiler Learnings', link: '/learnings' }
+          { text: 'Changelog', link: '/changelog' }
+        ]
+      },
+      {
+        text: 'Reference',
+        items: [
+          { text: 'Diagnostic Suite', link: '/diagnostics' },
+          { text: 'Reference Apps', link: '/reference-apps' }
         ]
       }
     ],

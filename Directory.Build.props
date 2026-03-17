@@ -14,7 +14,14 @@
     <RepositoryUrl>https://github.com/Digvijay/AutoMappic</RepositoryUrl>
     <RepositoryType>git</RepositoryType>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <IsPackable>false</IsPackable>
   </PropertyGroup>
+
+  <!-- Global Packaging Assets -->
+  <ItemGroup Condition="'$(IsPackable)' == 'true'">
+    <None Include="$(MSBuildThisFileDirectory)README.md" Pack="true" PackagePath="\" />
+    <None Include="$(MSBuildThisFileDirectory)LICENSE" Pack="true" PackagePath="\" />
+  </ItemGroup>
 
   <!-- Common build settings for AOT-friendly libraries -->
   <PropertyGroup Condition="'$(IsAotCompatible)' == '' and '$(TargetFrameworkIdentifier)' == '.NETCoreApp'">
