@@ -15,6 +15,7 @@ public sealed class EnumMappingTests
             .CreateMapper();
     }
 
+    /// <summary> Confirm that enum values are correctly copied between matching enum types </summary>
     [Fact]
     public void Map_Enum_CopiedCorrectly()
     {
@@ -35,6 +36,7 @@ public sealed class ValueTypeMappingTests
             .CreateMapper();
     }
 
+    /// <summary> Validate that nullable source primitives are correctly mapped to non-nullable destination types </summary>
     [Theory]
     [InlineData(10, 10)]
     [InlineData(0, 0)]
@@ -46,6 +48,7 @@ public sealed class ValueTypeMappingTests
         Assert.Equal(expected, dto.NonNullableInt);
     }
 
+    /// <summary> Ensure that a null source value is correctly handled by using its default sentinel </summary>
     [Fact]
     public void Map_NullableWithNull_UsesDefault()
     {
@@ -54,6 +57,7 @@ public sealed class ValueTypeMappingTests
         Assert.Equal(0, dto.NonNullableInt);
     }
 
+    /// <summary> Verify that boolean flags are correctly transferred between types </summary>
     [Theory]
     [InlineData(true)]
     [InlineData(false)]
@@ -64,6 +68,7 @@ public sealed class ValueTypeMappingTests
         Assert.Equal(val, dto.Flag);
     }
 
+    /// <summary> Validate mapping from a non-nullable type to its nullable counterpart </summary>
     [Fact]
     public void Map_NonNullableToNullable_CopiedCorrectly()
     {

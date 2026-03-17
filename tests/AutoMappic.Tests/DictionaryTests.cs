@@ -25,6 +25,7 @@ public sealed class DictionaryMappingTests
         }
     }
 
+    /// <summary> Confirm that dictionary values are correctly transformed while maintaining their associated keys </summary>
     [Fact]
     public void Map_Dictionary_ComplexValuesTransformed()
     {

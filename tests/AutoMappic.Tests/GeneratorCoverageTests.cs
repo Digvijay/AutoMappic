@@ -6,6 +6,7 @@ namespace AutoMappic.Tests;
 
 public class GeneratorCoverageTests
 {
+    /// <summary> Ensure the source generator identifies profiles and produces 'IMapper.g.cs' and 'ServiceExtensions.g.cs' </summary>
     [Fact]
     public void Generator_DiagnosticSource_ProducesFiles()
     {
@@ -25,6 +26,7 @@ public class MyProfile : Profile
         Assert.True(fileNames.Count > 0, $"Expected files, got 0. Diagnostics: {string.Join(", ", result.Diagnostics.Select(d => d.Id))}");
     }
 
+    /// <summary> Verify 'automappic_sourceonly' option embeds full library source into the project </summary>
     [Fact]
     public void Generator_SourceOnly_ProducesEmbeddedFiles()
     {
@@ -46,6 +48,7 @@ public class MyProfile : Profile
         Assert.Contains("IMapper.g.cs", fileNames);
     }
 
+    /// <summary> Stress test many generator branches: Resolvers, ReverseMap, ProjectTo, and DataReader </summary>
     [Fact]
     public void Generator_DeepCoverage_TriggerManyBranches()
     {
@@ -119,6 +122,7 @@ public class Program
         Assert.True(interceptors.Contains("MapShim_Map"), $"Interceptors does not contain DataReader Map. Source:\n{interceptors}");
     }
 
+    /// <summary> Validate generation of dictionary map assignments for complex-key/value pairs </summary>
     [Fact]
     public void Generator_DictionaryComplex_TriggerBranches()
     {
@@ -165,6 +169,7 @@ public class Program
         Assert.Contains("kv.Value.MapToDVal()", mapSource);
     }
 
+    /// <summary> Confirm nullability handling logic when mapping nullable types to non-nullable destinations </summary>
     [Fact]
     public void Generator_MixedTypes_TriggerNullabilityBranches()
     {

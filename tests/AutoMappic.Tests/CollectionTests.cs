@@ -29,6 +29,7 @@ public sealed class CollectionMappingTests
         }
     }
 
+    /// <summary> Verify that varied collection types (List, Array, HashSet) are accurately transformed between source and destination </summary>
     [Fact]
     public void Map_Collections_TransformedCorrectly()
     {

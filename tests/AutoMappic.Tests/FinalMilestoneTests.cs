@@ -34,6 +34,7 @@ public sealed class FinalMilestoneTests
             .CreateMapper();
     }
 
+    /// <summary> Verify that enums are correctly converted to their string names </summary>
     [Fact]
     public void Map_EnumToString()
     {
@@ -43,6 +44,7 @@ public sealed class FinalMilestoneTests
         Assert.Equal("Active", dto.Status);
     }
 
+    /// <summary> Validate widening primitive conversions (int to long) </summary>
     [Fact]
     public void Map_IntToLong_Widening()
     {
@@ -52,6 +54,7 @@ public sealed class FinalMilestoneTests
         Assert.Equal(42L, dto.Value);
     }
 
+    /// <summary> Test collection transformation from HashSet source to List destination </summary>
     [Fact]
     public void Map_ArrayToList_Complex()
     {
@@ -65,6 +68,7 @@ public sealed class FinalMilestoneTests
         Assert.Equal("alice", dto.Items[0].Username);
     }
 
+    /// <summary> Confirm that deep flattening logic safely handles null intermediate source objects </summary>
     [Fact]
     public void Map_DeepNull_DoesNotThrow()
     {
@@ -74,6 +78,7 @@ public sealed class FinalMilestoneTests
         Assert.Equal(string.Empty, dto.CustomerName);
     }
 
+    /// <summary> Verify that multiple different enum values are mapped to their correct string counterparts </summary>
     [Fact]
     public void Map_MultipleEnumValues_MapsCorrectStrings()
     {
@@ -84,6 +89,7 @@ public sealed class FinalMilestoneTests
         Assert.Equal("Deleted", _mapper.Map<StatusWrapper, StatusWrapperDto>(s2).Status);
     }
 
+    /// <summary> Validate mapping of large numeric values at the edge of their range </summary>
     [Fact]
     public void Map_LargeLong_ToLong()
     {

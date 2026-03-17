@@ -20,12 +20,14 @@ public sealed class MapperConfigurationTests
         }).CreateMapper();
     }
 
+    /// <summary> Verify that the mapper configuration factory returns a valid IMapper instance </summary>
     [Fact]
     public void CreateMapper_ReturnsNonNullMapper()
     {
         Assert.NotNull(_mapper);
     }
 
+    /// <summary> Confirm that basic property-to-property mapping works on the runtime fallback mapper </summary>
     [Fact]
     public void Map_DirectProperties_AreCopied()
     {
@@ -38,18 +40,21 @@ public sealed class MapperConfigurationTests
         Assert.Equal("alice@example.com", dto.Email);
     }
 
+    /// <summary> Ensure that passing null as a source to the generic Map method throws the appropriate exception </summary>
     [Fact]
     public void Map_WithNullSource_ThrowsArgumentNullException()
     {
         Assert.Throws<ArgumentNullException>(() => _mapper.Map<User, UserDto>(null!));
     }
 
+    /// <summary> Verify that attempting to map between types without a valid Profile registration throws a configuration exception </summary>
     [Fact]
     public void Map_UnregisteredTypePair_ThrowsAutoMappicException()
     {
         Assert.Throws<AutoMappicException>(() => _mapper.Map<User, OrderDto>(new User()));
     }
 
+    /// <summary> Validate that the mapper can correctly update an existing object instance rather than creating a new one </summary>
     [Fact]
     public void Map_IntoExistingDestination_MutatesInPlace()
     {
@@ -63,6 +68,7 @@ public sealed class MapperConfigurationTests
         Assert.Equal("bob", existing.Username);
     }
 
+    /// <summary> Confirm that mapping into a Summary DTO correctly initializes only the requested overlapping fields </summary>
     [Fact]
     public void Map_SummaryDto_OnlyMapsRequestedFields()
     {
@@ -78,6 +84,7 @@ public sealed class MapperConfigurationTests
 /// <summary>Verifies <see cref="MapperConfiguration" /> factory behaviour.</summary>
 public sealed class MapperConfigurationFactoryTests
 {
+    /// <summary> Ensure that Profile instances can be manually added to the configuration </summary>
     [Fact]
     public void AddProfile_ByInstance_IsRegistered()
     {
@@ -90,6 +97,7 @@ public sealed class MapperConfigurationFactoryTests
         Assert.Equal(1, dto.Id);
     }
 
+    /// <summary> Verify that attempting to add a null Profile instance results in an immediate exception </summary>
     [Fact]
     public void AddProfile_NullInstance_ThrowsArgumentNullException()
     {
@@ -101,6 +109,7 @@ public sealed class MapperConfigurationFactoryTests
 /// <summary>Tests for the <see cref="AutoMappicException" /> type.</summary>
 public sealed class AutoMappicExceptionTests
 {
+    /// <summary> Validate that the custom library exception correctly stores and returns its error message </summary>
     [Fact]
     public void Constructor_WithMessage_SetsMessage()
     {
@@ -108,6 +117,7 @@ public sealed class AutoMappicExceptionTests
         Assert.Equal("test message", ex.Message);
     }
 
+    /// <summary> Validate that the custom library exception correctly preserves the inner cause of the failure </summary>
     [Fact]
     public void Constructor_WithInner_SetsInnerException()
     {
@@ -117,6 +127,7 @@ public sealed class AutoMappicExceptionTests
         Assert.Same(inner, ex.InnerException);
     }
 
+    /// <summary> Sanity check to confirm the library exception properly inherits from the base System.Exception class </summary>
     [Fact]
     public void AutoMappicException_IsException()
     {

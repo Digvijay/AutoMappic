@@ -6,6 +6,7 @@ namespace AutoMappic.Tests;
 
 public sealed class AsyncMappingTests
 {
+    /// <summary> Ensure that asynchronous mapping to a newly created instance produces correct results through the interceptor </summary>
     [Fact]
     public async Task MapAsync_ToNewInstance_MapsCorrectly()
     {
@@ -22,6 +23,7 @@ public sealed class AsyncMappingTests
         Assert.Equal("Alice", dto.Name);
     }
 
+    /// <summary> Validate that the non-generic MapAsync overload correctly resolves and executes the generated mapping logic </summary>
     [Fact]
     public async Task MapAsync_NonGeneric_MapsCorrectly()
     {

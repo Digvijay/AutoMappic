@@ -15,6 +15,7 @@ public sealed class DeepFlatteningTests
             .CreateMapper();
     }
 
+    /// <summary> Verify that the generator correctly resolves and flattens deep nested object hierarchies (3+ levels) </summary>
     [Fact]
     public void Map_DeepHierarchy_ResolvesThreeLevelFlattening()
     {

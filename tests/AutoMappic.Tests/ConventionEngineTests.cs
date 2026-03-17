@@ -31,6 +31,7 @@ public sealed class ConventionEngineTests
 
     // ── Direct match ─────────────────────────────────────────────────────────────
 
+    /// <summary> Verify that properties with identical names and types are copied correctly </summary>
     [Fact]
     public void DirectMatch_Id_IsCopied()
     {
@@ -39,6 +40,7 @@ public sealed class ConventionEngineTests
         Assert.Equal(99, dto.Id);
     }
 
+    /// <summary> Verify that string properties are copied with diverse data inputs </summary>
     [Theory]
     [InlineData("alice", "alice@x.com")]
     [InlineData("bob", "bob@y.com")]
@@ -54,6 +56,7 @@ public sealed class ConventionEngineTests
 
     // ── Flattening ───────────────────────────────────────────────────────────────
 
+    /// <summary> Validate that one level of PascalCase flattening works (Customer.Name -> CustomerName) </summary>
     [Fact]
     public void Flattening_OneLevel_CustomerName_ResolvedFromOrder()
     {
@@ -74,6 +77,7 @@ public sealed class ConventionEngineTests
         Assert.Equal("acme@corp.com", dto.CustomerEmail);
     }
 
+    /// <summary> Ensure that navigation through a null nested object produces default values and doesn't throw </summary>
     [Fact]
     public void Flattening_NullNestedObject_ProducesDefault()
     {
@@ -88,6 +92,7 @@ public sealed class ConventionEngineTests
 
     // ── Multiple profile ─────────────────────────────────────────────────────────
 
+    /// <summary> Verify that registrations from multiple profiles can coexist in a single mapper instance </summary>
     [Fact]
     public void MultipleProfiles_CanCoexist()
     {
@@ -109,6 +114,7 @@ public sealed class ConventionEngineTests
 
     // ── Edge: same source, different destinations ─────────────────────────────────
 
+    /// <summary> Ensure that a single source type can be mapped to multiple different DTOs </summary>
     [Fact]
     public void SameSource_DifferentDestinations_BothResolve()
     {

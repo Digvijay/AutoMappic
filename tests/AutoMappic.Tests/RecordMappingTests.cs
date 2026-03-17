@@ -35,6 +35,7 @@ public sealed class RecordMappingTests
         }
     }
 
+    /// <summary> Verify that source records can be mapped to DTOs with 'init-only' properties </summary>
     [Fact]
     public void Map_SimpleRecord_ToInitOnlyDto()
     {
@@ -48,6 +49,7 @@ public sealed class RecordMappingTests
         Assert.Equal("david@ms.com", dto.Email);
     }
 
+    /// <summary> Ensure that nested source records are correctly flattened into a flat DTO structure </summary>
     [Fact]
     public void Map_DeepRecord_FlattenedCorrectly()
     {

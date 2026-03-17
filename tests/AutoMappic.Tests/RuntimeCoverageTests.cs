@@ -10,6 +10,7 @@ namespace AutoMappic.Tests;
 
 public class RuntimeCoverageTests
 {
+    /// <summary> Verify that MapAsync correctly returns a faulted task when an exception occurs during parameter validation </summary>
     [Fact]
     public async Task MapAsync_WhenExceptionOccurs_ReturnsFaultedTask()
     {
@@ -19,6 +20,7 @@ public class RuntimeCoverageTests
         try { await task; } catch (ArgumentNullException) { /* Expected */ }
     }
 
+    /// <summary> Ensure that the generic MapAsync overload maintains consistent error behavior by returning a faulted task </summary>
     [Fact]
     public async Task MapAsyncGeneric_WhenExceptionOccurs_ReturnsFaultedTask()
     {
@@ -28,6 +30,7 @@ public class RuntimeCoverageTests
         try { await task; } catch (ArgumentNullException) { /* Expected */ }
     }
 
+    /// <summary> Test dictionary value transformation where numeric source values are converted to destination strings </summary>
     [Fact]
     public void Mapper_DictionaryValueMapping_ToString()
     {
@@ -42,6 +45,7 @@ public class RuntimeCoverageTests
         Assert.Equal("123", dest.Items["a"]);
     }
 
+    /// <summary> Validate that the runtime mapper can handle dictionary mapping with nested MapCore conversions for keys and values </summary>
     [Fact]
     public void Mapper_DictionaryMapping_WithNestedMapCore()
     {
@@ -75,6 +79,7 @@ public class RuntimeCoverageTests
         Assert.Equal(1L, dest.Items["a"]);
     }
 
+    /// <summary> Verify that properties are safely skipped when a valid mapping for the nested type is missing </summary>
     [Fact]
     public void Mapper_PropertyMapping_WithSkippedMapping()
     {
@@ -91,6 +96,7 @@ public class RuntimeCoverageTests
         Assert.Null(dest.Item);
     }
 
+    /// <summary> Validate that ReverseMap correctly allows mapping from destination back to source at runtime </summary>
     [Fact]
     public void Mapper_ReverseMap_WorksAtRuntime()
     {
@@ -106,6 +112,7 @@ public class RuntimeCoverageTests
         Assert.Equal("Alice", dest.Name);
     }
 
+    /// <summary> Confirm that ForMember(..., opt.Ignore()) is correctly respected by the runtime fallback mapper </summary>
     [Fact]
     public void Mapper_ForMemberIgnore_WorksAtRuntime()
     {
@@ -120,6 +127,7 @@ public class RuntimeCoverageTests
         Assert.Equal("", dest.Name); // Should be ignored
     }
 
+    /// <summary> Verify that AddAutoMappic correctly registers the IMapper service in the .NET DI container </summary>
     [Fact]
     public void DependencyInjection_AddAutoMappic_WorksAtRuntime()
     {
@@ -149,6 +157,7 @@ public class RuntimeCoverageTests
         Assert.True(exp.ExplicitMaps.ContainsKey("Name"));
     }
 
+    /// <summary> Ensure that custom ValueResolvers can be correctly executed by the runtime mapper </summary>
     [Fact]
     public void MappingExpression_MapFromResolver_SetsExpression()
     {
@@ -161,6 +170,7 @@ public class RuntimeCoverageTests
         Assert.Equal("Resolved: Test", result.Name);
     }
 
+    /// <summary> Confirm that calling ProjectTo via reflection (bypassing interceptors) correctly throws the shim exception </summary>
     [Fact]
     public void QueryableExtensions_ProjectTo_ThrowsAtRuntime()
     {
@@ -171,6 +181,7 @@ public class RuntimeCoverageTests
         Assert.True(ex.InnerException is AutoMappicException);
     }
 
+    /// <summary> Confirm that calling IDataReader.Map via reflection correctly throws the shim exception </summary>
     [Fact]
     public void DataReaderExtensions_Map_ThrowsAtRuntime()
     {

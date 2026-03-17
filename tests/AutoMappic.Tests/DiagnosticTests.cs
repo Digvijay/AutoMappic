@@ -6,6 +6,7 @@ namespace AutoMappic.Tests;
 
 public sealed class DiagnosticTests
 {
+    /// <summary> Verify that AM001 is reported when a destination property cannot be mapped from the source </summary>
     [Fact]
     public void Generator_ReportAM001_WhenPropertyIsUnmapped()
     {
@@ -27,6 +28,7 @@ public class MyProfile : Profile
         Assert.Contains("'Name' on 'D'", am001!.GetMessage());
     }
 
+    /// <summary> Ensure AM002 is reported when multiple source paths could resolve to the same destination property </summary>
     [Fact]
     public void Generator_ReportAM002_WhenMappingIsAmbiguous()
     {
@@ -49,6 +51,7 @@ public class MyProfile : Profile
         Assert.Contains("is ambiguous", am002!.GetMessage());
     }
 
+    /// <summary> Confirm AM005 is reported when the destination type lacks a public parameterless constructor </summary>
     [Fact]
     public void Generator_ReportAM005_WhenConstructorIsMissing()
     {
