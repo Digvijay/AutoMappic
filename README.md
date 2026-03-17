@@ -1,4 +1,4 @@
-![AutoMappic Hero](./docs/assets/hero.png)
+![AutoMappic Hero](./docs/public/assets/hero.png)
 
 # AutoMappic v0.1.0
 
