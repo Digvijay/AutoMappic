@@ -62,10 +62,26 @@ internal static class InterceptorCollector
         }
         else if (kind == InterceptKind.ProjectTo)
         {
-            var reduced = symbol.ReducedFrom ?? symbol;
-            if (reduced.Parameters.Length > 0 && reduced.Parameters[0].Type is INamedTypeSymbol queryableType)
+            if (invocation.Expression is MemberAccessExpressionSyntax ma && ma.Expression is ExpressionSyntax expr)
             {
-                sourceType = queryableType.TypeArguments.FirstOrDefault();
+                var typeInfo = context.SemanticModel.GetTypeInfo(expr, cancellationToken).Type;
+                if (typeInfo is INamedTypeSymbol n && n.IsGenericType && n.TypeArguments.Length > 0)
+                {
+                    sourceType = n.TypeArguments[0];
+                }
+                else if (typeInfo is IArrayTypeSymbol array)
+                {
+                    sourceType = array.ElementType;
+                }
+            }
+            // Fallback to symbol parameters if expression analysis failed
+            if (sourceType is null)
+            {
+                var reduced = symbol.ReducedFrom ?? symbol;
+                if (reduced.Parameters.Length > 0 && reduced.Parameters[0].Type is INamedTypeSymbol queryableType && queryableType.TypeArguments.Length > 0)
+                {
+                    sourceType = queryableType.TypeArguments[0];
+                }
             }
         }
         else if (kind == InterceptKind.DataReaderMap)

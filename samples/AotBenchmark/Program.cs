@@ -29,6 +29,7 @@ Console.WriteLine($"✅ Mapped 100,000 objects in: {sw.ElapsedMilliseconds}ms");
 Console.WriteLine($"⏱️ Average: {sw.Elapsed.TotalMicroseconds / 100_000:F4}μs per map");
 Console.WriteLine("----------------------------------");
 Console.WriteLine("Done. Press any key to exit.");
+Console.ReadKey();
 
 public class User
 {

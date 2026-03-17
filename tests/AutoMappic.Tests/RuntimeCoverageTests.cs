@@ -165,7 +165,7 @@ public class RuntimeCoverageTests
     public void QueryableExtensions_ProjectTo_ThrowsAtRuntime()
     {
         var queryable = new List<User>().AsQueryable();
-        var method = typeof(QueryableExtensions).GetMethod("ProjectTo")!.MakeGenericMethod(typeof(UserDto));
+        var method = typeof(QueryableExtensions).GetMethod("ProjectTo")!.MakeGenericMethod(typeof(User), typeof(UserDto));
         // Calling via reflection avoids interceptor
         var ex = Assert.Throws<System.Reflection.TargetInvocationException>(() => method.Invoke(null, new object[] { queryable }));
         Assert.True(ex.InnerException is AutoMappicException);
