@@ -81,9 +81,5 @@ var dto = mapper.Map<User, UserDto>(new User { Name = "Alice" });
 
 For a detailed step-by-step tutorial, see [GettingStarted.md](./GettingStarted.md).
 
-## Implementation Learnings
-
-Interested in how we built a Roslyn Incremental Source Generator? Check out our [learnings.md](./learnings.md) for a deep dive into the technical challenges we solved.
-
 ---
 *Built for the .NET Community.*

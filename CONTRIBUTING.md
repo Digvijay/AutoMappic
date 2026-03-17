@@ -2,7 +2,7 @@
 
 Thank you for your interest in contributing to AutoMappic! We welcome contributions from the community to help make this the standard for AOT-first mapping in .NET.
 
-## 📋 Table of Contents
+## Table of Contents
 - [Code of Conduct](#code-of-conduct)
 - [How to Contribute](#how-to-contribute)
   - [Reporting Bugs](#reporting-bugs)
@@ -29,9 +29,9 @@ We love new ideas! If you want to suggest a new convention (e.g., `Reverse Flatt
 
 ### Pull Requests
 1.  **Fork** the repository.
-2.  **Branch** off `master` (e.g., `feature/add-new-convention` or `fix/flattening-bug`).
-3.  **Commit** your changes. Please use clear, imperative commit messages.
-4.  **Test** your changes. Run `dotnet test` to ensure all standard and generator tests pass.
+2. **Branch** off `main` (e.g., `feature/add-new-convention` or `fix/flattening-bug`).
+3. **Commit** your changes. Please use clear, imperative commit messages.
+4. **Test** your changes. Run `dotnet run --project tests/AutoMappic.Tests` to ensure all standard and generator tests pass.
 5.  **Push** to your fork and submit a Pull Request.
 
 ---
@@ -42,9 +42,9 @@ AutoMappic is a **Source Generator** project heavily leveraging Roslyn Intercept
 
 1.  **Open the Solution**: `AutoMappic.sln`.
 2.  **Build**: `dotnet build`.
-3.  **Test**: The `tests/AutoMappic.Tests` project verifies the generated code.
+3. **Test**: The `tests/AutoMappic.Tests` project verifies the generated code.
     * *Note:* Visual Studio/Rider sometimes requires a restart to pick up changes to the source generator logic itself.
-    * We recommend running `dotnet test` from the CLI for the most reliable results during generator development.
+    * We recommend running `dotnet run --project tests/AutoMappic.Tests` from the CLI for the most reliable results during generator development.
 
 ## Coding Standards
 

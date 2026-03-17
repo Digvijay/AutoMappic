@@ -8,7 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [0.1.0] - 2026-03-16
 
 ### Added
-- **Initial Release:** Welcome to AutoMappic! 🚀
+- **Initial Release:** Welcome to AutoMappic!
 - **Source Generator Engine:** High-performance mapping via C# 12 Interceptors, completely bypassing `System.Reflection` at runtime.
 - **Convention-based Mapping:** Automatic name matching between source and destination types.
 - **PascalCase Flattening:** Automatically resolves things like `Order.Customer.Name` onto `OrderDto.CustomerName`.
