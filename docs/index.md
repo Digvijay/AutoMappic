@@ -4,7 +4,7 @@ layout: home
 hero:
   name: AutoMappic
   text: The Zero-Reflection Mapper.
-  tagline: Native AOT-First Object-to-Object mapping for .NET 9+ powered by Roslyn Interceptors.
+  tagline: Native AOT-First Object-to-Object mapping for .NET 9+ powered by Roslyn Interceptors. ![Sustainable Engineering](https://img.shields.io/badge/Engineering-Sustainable-green?style=flat-square&logo=leaf)
   image:
     src: /assets/hero.png
     alt: AutoMappic Hero
@@ -21,6 +21,6 @@ features:
     details: Build-time protection with AM001–AM005. Catch unmapped properties, missing constructors, and ambiguities before the JIT compiler even starts.
   - title: 100% Native AOT Compatible
     details: AutoMappic generates highly-optimized C# code at compile-time. No runtime reflection, no dynamic IL emission.
-  - title: Enterprise Reference Apps
-    details: Verified against Microsoft's eShop reference architectures. Proof of drop-in compatibility and performance parity with manual code.
+  - title: Sustainable Engineering
+    details: Zero-overhead mapping reduces cold-start energy costs and server CPU density, lowering the carbon footprint of your cloud-native services.
 ---

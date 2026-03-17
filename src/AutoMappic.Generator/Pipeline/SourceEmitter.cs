@@ -145,10 +145,22 @@ internal static class SourceEmitter
             if (key.Kind == InterceptKind.Map)
             {
                 var destMappingMethod = $"MapTo{model!.DestinationTypeName}";
-                sb.AppendLine($"        public static {model.DestinationTypeFullName} {shimName}(this global::AutoMappic.IMapper mapper, {model.SourceTypeFullName} source)");
-                sb.AppendLine("        {");
-                sb.AppendLine($"            return source.{destMappingMethod}();");
-                sb.AppendLine("        }");
+                var isAsync = key.MethodSignatureKey.StartsWith("MapAsync", System.StringComparison.Ordinal);
+
+                if (isAsync)
+                {
+                    sb.AppendLine($"        public static global::System.Threading.Tasks.Task<{model.DestinationTypeFullName}> {shimName}(this global::AutoMappic.IMapper mapper, {model.SourceTypeFullName} source)");
+                    sb.AppendLine("        {");
+                    sb.AppendLine($"            return global::System.Threading.Tasks.Task.FromResult(source.{destMappingMethod}());");
+                    sb.AppendLine("        }");
+                }
+                else
+                {
+                    sb.AppendLine($"        public static {model.DestinationTypeFullName} {shimName}(this global::AutoMappic.IMapper mapper, {model.SourceTypeFullName} source)");
+                    sb.AppendLine("        {");
+                    sb.AppendLine($"            return source.{destMappingMethod}();");
+                    sb.AppendLine("        }");
+                }
             }
             else if (key.Kind == InterceptKind.ProjectTo)
             {

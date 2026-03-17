@@ -31,4 +31,17 @@ public interface IMapper
     /// <param name="destination">The destination object to map into.</param>
     /// <returns>The mutated <paramref name="destination" /> instance.</returns>
     TDestination Map<TSource, TDestination>(TSource source, TDestination destination);
+
+    /// <summary>Asynchronously maps <paramref name="source" /> to a new instance of <typeparamref name="TDestination" />.</summary>
+    /// <typeparam name="TDestination">The destination type to create.</typeparam>
+    /// <param name="source">The source object to map from. Must not be <see langword="null" />.</param>
+    /// <returns>A task representing the mapping operation.</returns>
+    System.Threading.Tasks.Task<TDestination> MapAsync<TDestination>(object source);
+
+    /// <summary>
+    ///  Asynchronously maps <paramref name="source" /> to a new instance of <typeparamref name="TDestination" />.
+    ///  Note: The generated implementation is currently synchronous as mapping is CPU-bound, 
+    ///  but this allows for async-pattern compatibility.
+    /// </summary>
+    System.Threading.Tasks.Task<TDestination> MapAsync<TSource, TDestination>(TSource source);
 }

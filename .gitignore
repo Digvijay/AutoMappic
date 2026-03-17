@@ -1,6 +1,6 @@
 ## [Standard .NET]
-bin/
-obj/
+**/bin/
+**/obj/
 [Bb]in/
 [Oo]bj/
 
@@ -56,20 +56,28 @@ secrets.json
 
 # Testing
 TestResults/
+**/TestResults/
 *.trx
 *.coveragereview
 *.coverage
+*.xml
+*.lcov
 
 # Documentation & Discussions (Drafts)
 learnings.md
 discussion.txt
+all_tracked_files.txt
 
 # Node / VitePress
 node_modules/
+**/node_modules/
 .npm/
 dist/
+**/dist/
 .vitepress/dist/
 .vitepress/cache/
+**/.vitepress/dist/
+**/.vitepress/cache/
 
 # BenchmarkDotNet
 BenchmarkDotNet.Artifacts/
@@ -84,6 +92,7 @@ BenchmarkDotNet.Artifacts/**/*.log
 .agent/
 _agents/
 _agent/
+tools/
 *.log
 npm-debug.log*
 yarn-debug.log*

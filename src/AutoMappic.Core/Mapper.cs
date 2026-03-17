@@ -51,6 +51,36 @@ public sealed class Mapper : IMapper
         return (TDestination)MapCore(typeof(TSource), typeof(TDestination), source, destination);
     }
 
+    /// <inheritdoc />
+    public global::System.Threading.Tasks.Task<TDestination> MapAsync<TDestination>(object source)
+    {
+        try
+        {
+            ArgumentNullException.ThrowIfNull(source);
+            var result = Map<TDestination>(source);
+            return global::System.Threading.Tasks.Task.FromResult(result);
+        }
+        catch (global::System.Exception ex)
+        {
+            return global::System.Threading.Tasks.Task.FromException<TDestination>(ex);
+        }
+    }
+
+    /// <inheritdoc />
+    public global::System.Threading.Tasks.Task<TDestination> MapAsync<TSource, TDestination>(TSource source)
+    {
+        try
+        {
+            ArgumentNullException.ThrowIfNull(source);
+            var result = Map<TSource, TDestination>(source);
+            return global::System.Threading.Tasks.Task.FromResult(result);
+        }
+        catch (global::System.Exception ex)
+        {
+            return global::System.Threading.Tasks.Task.FromException<TDestination>(ex);
+        }
+    }
+
     private object MapCore(Type sourceType, Type destType, object source, object? destination)
     {
         if (destType.IsAssignableFrom(sourceType))

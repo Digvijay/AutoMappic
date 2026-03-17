@@ -66,4 +66,5 @@ public class MyProfile : Profile
         Assert.NotNull(am005);
         Assert.Contains("'D' must have a public parameterless constructor", am005!.GetMessage());
     }
+
 }

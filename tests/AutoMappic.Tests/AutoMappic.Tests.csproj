@@ -9,6 +9,7 @@
     <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
     <!-- Enable interceptors from the generator in this test project -->
     <InterceptorsPreviewNamespaces>$(InterceptorsPreviewNamespaces);AutoMappic.Generated</InterceptorsPreviewNamespaces>
+    <UseTestingPlatform>true</UseTestingPlatform>
   </PropertyGroup>
 
   <ItemGroup>
@@ -18,6 +19,11 @@
     <!-- Also wire up as Analyzer for interceptors to work during the build of this project -->
     <ProjectReference Include="..\..\src\AutoMappic.Generator\AutoMappic.Generator.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
     <PackageReference Include="Prova" />
+    <PackageReference Include="Microsoft.Testing.Extensions.CodeCoverage" />
+    <PackageReference Include="Microsoft.Testing.Extensions.TrxReport" />
+    <PackageReference Include="coverlet.msbuild" />
+    <PackageReference Include="coverlet.collector" />
+    <PackageReference Include="Microsoft.Testing.Platform.MSBuild" />
   </ItemGroup>
 
 </Project>

@@ -17,6 +17,8 @@ export default defineConfig({
         text: 'Guide',
         items: [
           { text: 'Getting Started', link: '/getting-started' },
+          { text: 'How it Works', link: '/how-it-works' },
+          { text: 'Sustainability & ESG', link: '/sustainability' },
           { text: 'Benchmarks', link: '/benchmarks' },
           { text: 'Changelog', link: '/changelog' }
         ]

@@ -19,7 +19,7 @@ internal static class InterceptorCollector
             inv.Expression is MemberAccessExpressionSyntax ma)
         {
             var text = ma.Name.Identifier.Text;
-            return text == "Map" || text == "ProjectTo";
+            return text == "Map" || text == "MapAsync" || text == "ProjectTo";
         }
         return false;
     }
@@ -33,13 +33,13 @@ internal static class InterceptorCollector
 
         if (symbol is null) return null;
         var name = symbol.Name;
-        if (name != "Map" && name != "ProjectTo") return null;
+        if (name != "Map" && name != "MapAsync" && name != "ProjectTo") return null;
 
         var container = symbol.ContainingType?.Name;
         if (symbol.ContainingType?.ContainingNamespace?.ToDisplayString() != "AutoMappic") return null;
 
         InterceptKind kind;
-        if (container == "IMapper" && name == "Map") kind = InterceptKind.Map;
+        if (container == "IMapper" && (name == "Map" || name == "MapAsync")) kind = InterceptKind.Map;
         else if (container == "QueryableExtensions" && name == "ProjectTo") kind = InterceptKind.ProjectTo;
         else if (container == "DataReaderExtensions" && name == "Map") kind = InterceptKind.DataReaderMap;
         else return null;
