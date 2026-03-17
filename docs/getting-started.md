@@ -127,15 +127,20 @@ AutoMappic does this natively at compile time via extension methods:
 using AutoMappic;
 
 IQueryable<User> query = dbContext.Users.Where(u => u.IsActive);
-IQueryable<UserDto> projected = query.ProjectTo<UserDto>();
+// Explicitly providing both types ensures the generator can resolve the mapping perfectly.
+IQueryable<UserDto> projected = query.ProjectTo<User, UserDto>();
 ```
-AutoMappic physically rewrites the call to a static `Select(src => new UserDto{ ... })` tree that EF Core naturally understands, producing extremely optimized SQL effortlessly with 100% Native AOT compliance.
+AutoMappic physically rewrites the call to a static `Select(src => new UserDto{ ... })` tree that EF Core naturally understands.
 
 ### Native DataReader Performance
-Looking for Dapper-like performance natively inside the mapper framework?
+Looking for specialized performance for flat data?
 ```csharp
+using System.Data;
+using AutoMappic;
+
 IDataReader reader = command.ExecuteReader();
-IEnumerable<UserDto> users = reader.Map<UserDto>(); // Statically expanded while loop!
+// Project directly from a reader with a statically expanded map!
+IEnumerable<UserDto> users = reader.Map<UserDto>(); 
 ```
 
 ## 7. Performance & AOT

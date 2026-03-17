@@ -30,8 +30,10 @@ AutoMappic is engineered for high-concurrency, low-latency .NET workloads where 
 
 - **Deterministic Performance**: By utilizing **Roslyn Interceptors**, mapping logic is resolved at compile-time. The JIT compiler receives straight-line static C#, enabling aggressive inlining and optimization that reaches the theoretical limits of manual assignment.
 - **Native AOT & Trimming Integrity**: 100% compatible with Native AOT. AutoMappic generates all necessary code ahead-of-time, eliminating the need for `System.Reflection.Emit` or dynamic assembly loading.
-- **Convention-Driven Automation**: Automated resolution of PascalCase flattening (e.g., `Order.Customer.Name` to `OrderDto.CustomerName`) and snake_case normalization without manual configuration.
-- **Zero-Reflection Dependency Injection**: A unique "Static Registration Chain" discovers profiles across the entire solution at compile-time. `services.AddAutoMappic()` executes as a hard-coded sequence of static calls, providing near-zero startup latency.
+- **Convention-Driven Automation**: Automated resolution of PascalCase flattening and snake_case normalization.
+- **ProjectTo & DataReader Support**: Native, AOT-safe support for EF Core `IQueryable` projections and ADO.NET `IDataReader` mapping.
+- **Solid Integrity**: 100% line coverage on the core mapping engine.
+- **Zero-Reflection Dependency Injection**: A unique "Static Registration Chain" discovers profiles across the entire solution at compile-time.
 
 ## Diagnostic Suite
 

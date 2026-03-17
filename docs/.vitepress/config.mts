@@ -1,6 +1,7 @@
 import { defineConfig } from 'vitepress'
+import { withMermaid } from 'vitepress-plugin-mermaid'
 
-export default defineConfig({
+export default withMermaid(defineConfig({
   title: "AutoMappic",
   description: "Zero-Reflection. Zero-Overhead. Native AOT-First Object-to-Object Mapper for .NET 9+.",
   // Use the repo name or the actual domain if it's hosted at the root of a custom domain
@@ -35,4 +36,4 @@ export default defineConfig({
       { icon: 'github', link: 'https://github.com/Digvijay/AutoMappic' }
     ]
   }
-})
+}))

@@ -29,12 +29,20 @@
                       PrivateAssets="all" />
   </ItemGroup>
 
-  <ItemGroup>
-    <!-- Explicitly pack the generator DLL into the correct location -->
-    <None Include="..\AutoMappic.Generator\bin\$(Configuration)\netstandard2.0\AutoMappic.Generator.dll" 
-          Pack="true" 
-          PackagePath="analyzers/dotnet/cs" 
-          Visible="false" />
-  </ItemGroup>
+  <!-- High-quality packaging: Include generator DLL in the NuGet package -->
+  <Target Name="GetAnalyzer" BeforeTargets="_GetPackageFiles">
+    <ItemGroup>
+      <None Include="$(MSBuildProjectDirectory)\..\AutoMappic.Generator\bin\$(Configuration)\netstandard2.0\AutoMappic.Generator.dll" 
+            Pack="true" 
+            PackagePath="analyzers/dotnet/cs" 
+            Visible="false" />
+    </ItemGroup>
+  </Target>
+
+  <PropertyGroup>
+    <PackageTags>mapper;mapping;source-generator;interceptors;aot;performance;dotnet-9</PackageTags>
+    <IncludeSymbols>true</IncludeSymbols>
+    <SymbolPackageFormat>snupkg</SymbolPackageFormat>
+  </PropertyGroup>
 
 </Project>

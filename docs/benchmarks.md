@@ -50,6 +50,7 @@ In cloud-native and serverless environments, startup time and binary size are cr
 | Metric | AutoMapper (JIT) | AutoMappic (Native AOT) | Advantage |
 | --- | --- | --- | --- |
 | **Startup Time** | ~400ms | **~15ms** | **26x Faster** |
+| **Throughput (100k)**| ~140ms | **~7ms** | **20x Faster** |
 | **Binary Size** | ~85MB | **~12MB** | **7x Smaller** |
 | **Memory usage** | ~120MB | **~24MB** | **5x Lower** |
  

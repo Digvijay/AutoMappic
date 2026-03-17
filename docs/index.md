@@ -4,7 +4,7 @@ layout: home
 hero:
   name: AutoMappic
   text: The Zero-Reflection Mapper.
-  tagline: Native AOT-First Object-to-Object mapping for .NET 9+ powered by Roslyn Interceptors. ![Sustainable Engineering](https://img.shields.io/badge/Engineering-Sustainable-green?style=flat-square&logo=leaf)
+  tagline: High-performance, statically generated object mapping for modern .NET 9+ workflows.
   image:
     src: /assets/hero.png
     alt: AutoMappic Hero
