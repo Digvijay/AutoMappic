@@ -93,7 +93,11 @@ public class MappingBenchmarks
     [GlobalSetup]
     public void Setup()
     {
-        _autoMapper = new MapperConfiguration(cfg => cfg.AddProfile<BenchAutoMapperProfile>())
+        using var loggerFactory = Microsoft.Extensions.Logging.Abstractions.NullLoggerFactory.Instance;
+        var autoMapperConfig = new global::AutoMapper.MapperConfigurationExpression();
+        autoMapperConfig.LicenseKey = "FREE-NON-PRODUCTION"; // Or whatever is appropriate for benchmarks
+        autoMapperConfig.AddProfile<BenchAutoMapperProfile>();
+        _autoMapper = new global::AutoMapper.MapperConfiguration(autoMapperConfig, loggerFactory)
             .CreateMapper();
 
         _autoMappic = new AutoMappic.MapperConfiguration(cfg => cfg.AddProfile<BenchAutoMappicProfile>())

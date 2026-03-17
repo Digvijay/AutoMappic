@@ -19,6 +19,7 @@
 
     <PackageReference Include="BenchmarkDotNet" />
     <PackageReference Include="AutoMapper" />
+    <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" />
     <PackageReference Include="Riok.Mapperly" />
   </ItemGroup>
 
