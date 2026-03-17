@@ -11,6 +11,8 @@
     <IsRoslynComponent>true</IsRoslynComponent>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
     <IsPackable>false</IsPackable>
+    <!-- Source Generators cannot be AOT-compiled -->
+    <PublishAot>false</PublishAot>
   </PropertyGroup>
 
   <PropertyGroup>

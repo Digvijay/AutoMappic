@@ -104,6 +104,7 @@ internal static class InterceptorCollector
             SourceTypeFullName: sourceType.ToDisplayString(),
             DestinationTypeFullName: destType.ToDisplayString(),
             MethodSignatureKey: BuildSignatureKey(symbol),
+            ParameterSourceTypeFullName: symbol.Parameters.Length > 0 ? symbol.Parameters[0].Type.ToDisplayString() : "object",
             Kind: kind);
     }
 

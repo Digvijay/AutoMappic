@@ -123,7 +123,7 @@ internal static class SourceEmitter
         sb.AppendLine("    {");
 
         // Group locations by their MethodSignatureKey and Kind to avoid duplicate method bodies
-        var groupedLocations = locations.GroupBy(l => new { l.MethodSignatureKey, l.DestinationTypeFullName, l.SourceTypeFullName, l.Kind });
+        var groupedLocations = locations.GroupBy(l => new { l.MethodSignatureKey, l.DestinationTypeFullName, l.SourceTypeFullName, l.ParameterSourceTypeFullName, l.Kind });
 
         foreach (var group in groupedLocations)
         {
@@ -146,19 +146,22 @@ internal static class SourceEmitter
             {
                 var destMappingMethod = $"MapTo{model!.DestinationTypeName}";
                 var isAsync = key.MethodSignatureKey.StartsWith("MapAsync", System.StringComparison.Ordinal);
+                var sourceAccess = key.ParameterSourceTypeFullName == model.SourceTypeFullName
+                    ? "source"
+                    : $"(({model.SourceTypeFullName})source)";
 
                 if (isAsync)
                 {
-                    sb.AppendLine($"        public static global::System.Threading.Tasks.Task<{model.DestinationTypeFullName}> {shimName}(this global::AutoMappic.IMapper mapper, {model.SourceTypeFullName} source)");
+                    sb.AppendLine($"        public static global::System.Threading.Tasks.Task<{model.DestinationTypeFullName}> {shimName}(this global::AutoMappic.IMapper mapper, {key.ParameterSourceTypeFullName} source)");
                     sb.AppendLine("        {");
-                    sb.AppendLine($"            return global::System.Threading.Tasks.Task.FromResult(source.{destMappingMethod}());");
+                    sb.AppendLine($"            return global::System.Threading.Tasks.Task.FromResult({sourceAccess}.{destMappingMethod}());");
                     sb.AppendLine("        }");
                 }
                 else
                 {
-                    sb.AppendLine($"        public static {model.DestinationTypeFullName} {shimName}(this global::AutoMappic.IMapper mapper, {model.SourceTypeFullName} source)");
+                    sb.AppendLine($"        public static {model.DestinationTypeFullName} {shimName}(this global::AutoMappic.IMapper mapper, {key.ParameterSourceTypeFullName} source)");
                     sb.AppendLine("        {");
-                    sb.AppendLine($"            return source.{destMappingMethod}();");
+                    sb.AppendLine($"            return {sourceAccess}.{destMappingMethod}();");
                     sb.AppendLine("        }");
                 }
             }

@@ -5,6 +5,9 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <TreatWarningsAsErrors>false</TreatWarningsAsErrors>
     
+    <!-- Enable interceptors globally -->
+    <InterceptorsPreviewNamespaces>$(InterceptorsPreviewNamespaces);AutoMappic.Generated</InterceptorsPreviewNamespaces>
+    
     <!-- Centralize Package Metadata -->
     <Version>0.1.0</Version>
     <Authors>Digvijay Chauhan</Authors>

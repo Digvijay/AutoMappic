@@ -98,7 +98,7 @@ public sealed class Mapper : IMapper
 
         if (destUnderlying.IsPrimitive && sourceUnderlying.IsPrimitive)
         {
-            try { return Convert.ChangeType(source, destUnderlying); } catch { /* Fallthrough */ }
+            try { return Convert.ChangeType(source, destUnderlying, System.Globalization.CultureInfo.InvariantCulture); } catch { /* Fallthrough */ }
         }
 
         var key = (sourceType, destType);

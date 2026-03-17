@@ -103,4 +103,5 @@ internal sealed record InterceptLocation(
     string SourceTypeFullName,
     string DestinationTypeFullName,
     string MethodSignatureKey,
+    string ParameterSourceTypeFullName,
     InterceptKind Kind = InterceptKind.Map);

@@ -16,7 +16,7 @@ COPY samples/Directory.Build.props samples/
 
 # Publish as Native AOT
 WORKDIR /source/samples/AotBenchmark
-RUN dotnet publish -c Release -r linux-musl-x64 --self-contained true /p:PublishAot=true -o /app
+RUN dotnet publish -c Release -r linux-musl-x64 --self-contained true -o /app
 
 # Final Stage
 FROM alpine:latest

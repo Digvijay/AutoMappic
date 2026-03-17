@@ -113,7 +113,7 @@ internal static class ConventionEngine
                 var sourceExpr = $"source.{flatPath}";
                 if (!IsNullable(destProp.Type))
                 {
-                    sourceExpr = AppendNullDefault(sourceExpr, destProp.Type);
+                    sourceExpr = AppendNullDefault($"({sourceExpr})", destProp.Type);
                 }
 
                 result.Add(new PropertyMap(name, sourceExpr, PropertyMapKind.Flattened, isInitOnly));
@@ -306,8 +306,11 @@ internal static class ConventionEngine
 
     private static bool IsNullable(ITypeSymbol type) =>
         type.NullableAnnotation == NullableAnnotation.Annotated
-        || (type is INamedTypeSymbol { IsValueType: true } nt
-            && nt.OriginalDefinition.SpecialType == SpecialType.System_Nullable_T);
+        || IsActuallyNullableValueType(type);
+
+    private static bool IsActuallyNullableValueType(ITypeSymbol type) =>
+        type is INamedTypeSymbol { IsValueType: true } nt
+            && nt.OriginalDefinition.SpecialType == SpecialType.System_Nullable_T;
 
     private static string ApplyNullabilityGuard(string expression, ITypeSymbol sourceType, ITypeSymbol destType)
     {
@@ -316,7 +319,7 @@ internal static class ConventionEngine
 
         if (sourceNullable && !destNullable)
         {
-            if (sourceType.IsValueType)
+            if (IsActuallyNullableValueType(sourceType))
             {
                 return $"{expression}.GetValueOrDefault()";
             }
@@ -334,8 +337,8 @@ internal static class ConventionEngine
         if (destType.TypeKind == TypeKind.Array)
             return $"{sourceExpr} ?? global::System.Array.Empty<{((IArrayTypeSymbol)destType).ElementType.ToDisplayString()}>()";
 
-        if (!destType.IsReferenceType)
-            return sourceExpr;
+        if (destType.IsValueType && !IsNullable(destType))
+            return $"{sourceExpr}.GetValueOrDefault()";
 
         return $"{sourceExpr}!";
     }
