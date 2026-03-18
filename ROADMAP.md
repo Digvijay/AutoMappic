@@ -24,4 +24,11 @@ AutoMappic is a high-performance, AOT-friendly code generator designed to replac
 
 ### Phase 3: Ecosystem & Tooling
 - [ ] **Validation CLI**: A standalone tool to verify all mappings in a CI/CD pipeline without full compilation.
+- [ ] **Dependency Injection Overhaul**: Support for multiple/named mappers and better scoped lifetime management.
 - [ ] **Visualizer**: A tool to visualize the mapping graph and identify bottleneck or complex paths.
+
+### Phase 4: Advanced Optimizations & Parity
+- [ ] **ReverseMap Lifecycle**: Support full configuration (like `ForMember`) for the reversed direction.
+- [ ] **Async Value Resolvers**: Enable true asynchronous resolution during mapping for I/O-bound properties.
+- [ ] **Deep Open Generics**: Support recursive member mapping within `CreateMap(typeof(S<>), typeof(D<>))`.
+- [ ] **High-Performance Memory Buffers**: Optional pooling for collection mapping to further reduce GC allocations.

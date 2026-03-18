@@ -266,8 +266,11 @@ internal static class ProfileExtractor
     /// </summary>
     private static string? ExtractMemberName(ExpressionSyntax selector)
     {
-        if (selector is SimpleLambdaExpressionSyntax lambda &&
-            lambda.Body is MemberAccessExpressionSyntax ma)
+        ExpressionSyntax? body = null;
+        if (selector is SimpleLambdaExpressionSyntax lambda) body = (ExpressionSyntax)lambda.Body;
+        else if (selector is ParenthesizedLambdaExpressionSyntax pLambda) body = (ExpressionSyntax)pLambda.Body;
+
+        if (body is MemberAccessExpressionSyntax ma)
         {
             return ma.Name.Identifier.Text;
         }
@@ -281,28 +284,40 @@ internal static class ProfileExtractor
     private static string? ExtractMapFromBody(ExpressionSyntax optExpression)
     {
         // opt => opt.MapFrom(...)
-        if (optExpression is not SimpleLambdaExpressionSyntax outerLambda) return null;
+        ExpressionSyntax? outerBody = null;
+        if (optExpression is SimpleLambdaExpressionSyntax oLambda) outerBody = (ExpressionSyntax)oLambda.Body;
+        else if (optExpression is ParenthesizedLambdaExpressionSyntax poLambda) outerBody = (ExpressionSyntax)poLambda.Body;
 
-        var invocation = outerLambda.Body as InvocationExpressionSyntax;
-        if (invocation is null) return null;
+        if (outerBody is not InvocationExpressionSyntax invocation) return null;
 
         var memberAccess = invocation.Expression as MemberAccessExpressionSyntax;
         var methodName = memberAccess?.Name.Identifier.Text;
         if (methodName != MapFromMethodName) return null;
 
         // Case 1: lambda-based MapFrom(src => ...)
-        var innerLambda = invocation.ArgumentList.Arguments.FirstOrDefault()?.Expression
-            as SimpleLambdaExpressionSyntax;
-
-        if (innerLambda is not null)
+        var innerGenericLambda = invocation.ArgumentList.Arguments.FirstOrDefault()?.Expression;
+        if (innerGenericLambda is SimpleLambdaExpressionSyntax sLambda || innerGenericLambda is ParenthesizedLambdaExpressionSyntax pLambda)
         {
-            var param = innerLambda.Parameter.Identifier.Text;
-            var body = innerLambda.Body.ToString();
+            string param;
+            string body;
+
+            if (innerGenericLambda is SimpleLambdaExpressionSyntax sl)
+            {
+                param = sl.Parameter.Identifier.Text;
+                body = sl.Body.ToString();
+            }
+            else
+            {
+                var pl = (ParenthesizedLambdaExpressionSyntax)innerGenericLambda;
+                param = pl.ParameterList.Parameters.FirstOrDefault()?.Identifier.Text ?? "src";
+                body = pl.Body.ToString();
+            }
 
             // Rewrite the lambda parameter to "source" so it aligns with the generated method.
+            // Using a boundaries check \b ensures we don't accidentally replace sub-strings.
             return System.Text.RegularExpressions.Regex.Replace(
                 body,
-                $@"\b{System.Text.RegularExpressions.Regex.Escape(param)}(?=\.)",
+                $@"\b{System.Text.RegularExpressions.Regex.Escape(param)}\b",
                 "source");
         }
 

@@ -300,29 +300,15 @@ internal static class SourceEmitter
         // We use typed constructor arguments for robust discovery via assembly metadata.
         foreach (var mapping in localMappings)
         {
-            sb.AppendLine($"[assembly: AutoMappic.Generated.MappingDiscoveryAttribute(typeof(global::{mapping.SourceTypeFullName}), typeof(global::{mapping.DestinationTypeFullName}))]");
+            sb.AppendLine($"[assembly: global::AutoMappic.MappingDiscoveryAttribute(typeof(global::{mapping.SourceTypeFullName}), typeof(global::{mapping.DestinationTypeFullName}))]");
         }
 
         var profileTypeList = profiles.IsDefaultOrEmpty ? "" : string.Join(", ", profiles.Distinct().Where(p => p != null).Select(p => $"typeof(global::{p})"));
-        sb.AppendLine($"[assembly: AutoMappic.Generated.HasAutoMappicProfilesAttribute({profileTypeList})]");
+        sb.AppendLine($"[assembly: global::AutoMappic.HasAutoMappicProfilesAttribute({profileTypeList})]");
         sb.AppendLine();
 
         sb.AppendLine("namespace AutoMappic.Generated");
         sb.AppendLine("{");
-        sb.AppendLine("    /// <summary>Internal marker attribute to enable cross-project mapping discovery.</summary>");
-        sb.AppendLine("    [global::System.AttributeUsage(global::System.AttributeTargets.Assembly, AllowMultiple = true)]");
-        sb.AppendLine("    internal sealed class MappingDiscoveryAttribute : global::System.Attribute");
-        sb.AppendLine("    {");
-        sb.AppendLine("        public MappingDiscoveryAttribute(global::System.Type source, global::System.Type destination) { }");
-        sb.AppendLine("    }");
-        sb.AppendLine();
-        sb.AppendLine("    /// <summary>Internal marker attribute to enable cross-project profile discovery.</summary>");
-        sb.AppendLine("    [global::System.AttributeUsage(global::System.AttributeTargets.Assembly)]");
-        sb.AppendLine("    internal sealed class HasAutoMappicProfilesAttribute : global::System.Attribute");
-        sb.AppendLine("    {");
-        sb.AppendLine("        public HasAutoMappicProfilesAttribute(params global::System.Type[] profiles) { }");
-        sb.AppendLine("    }");
-        sb.AppendLine();
         sb.AppendLine($"    /// <summary>Project-specific registration for {assemblyName}.</summary>");
         sb.AppendLine($"    internal static class {sanitizedAssemblyName}_Registration");
         sb.AppendLine("    {");

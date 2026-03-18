@@ -105,4 +105,16 @@ public class MyProfile : Profile
         Assert.Contains("S<>", mapSource);
         Assert.Contains("D<>", mapSource);
     }
+
+    [Fact]
+    public void Map_WithParenthesizedLambda_Works()
+    {
+        var config = new MapperConfiguration(cfg => cfg.AddProfile<LambdaStyleProfile>());
+        var mapper = config.CreateMapper();
+        var source = new LambdaStyleProfile.Source { SourceValue = 42 };
+
+        var dest = mapper.Map<LambdaStyleProfile.Dest>(source);
+
+        Assert.True(dest.Value == 42, $"Expected 42 but got {dest.Value}");
+    }
 }
