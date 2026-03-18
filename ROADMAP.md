@@ -18,10 +18,10 @@ AutoMappic is a high-performance, AOT-friendly code generator designed to replac
 - [x] **Immediate IDE Feedback**: Leveraging Incremental Generators for as-you-type diagnostics.
 
 ### Phase 2: Advanced Mapping Features
-- [ ] **Constructor Mapping**: Support mapping source properties to destination constructor arguments.
-- [ ] **Global Value Converters**: Define reusable conversion logic for common type pairs (e.g. `DateTime` to `string`).
-- [ ] **Naming Conventions**: Better support for custom naming strategies beyond PascalCase and snake_case.
-- [ ] **Open Generics**: Support `CreateMap(typeof(Source<>), typeof(Dest<>))`.
+- [x] **Constructor Mapping**: Support mapping source properties to destination constructor arguments.
+- [x] **Global Value Converters**: Define reusable conversion logic for common type pairs (e.g. `DateTime` to `string`).
+- [x] **Naming Conventions**: Better support for custom naming strategies beyond PascalCase and snake_case.
+- [x] **Open Generics**: Support `CreateMap(typeof(Source<>), typeof(Dest<>))`.
 
 ### Phase 3: Ecosystem & Tooling
 - [ ] **Validation CLI**: A standalone tool to verify all mappings in a CI/CD pipeline without full compilation.
