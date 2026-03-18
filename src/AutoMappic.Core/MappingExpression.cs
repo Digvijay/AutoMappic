@@ -86,9 +86,17 @@ internal sealed class MappingExpression<TSource, TDestination> :
     }
 
     /// <inheritdoc />
-    public void ConvertUsing<TConverter>() where TConverter : ITypeConverter<TSource, TDestination>, new()
+    public IMappingExpression<TSource, TDestination> ConvertUsing<TConverter>() where TConverter : ITypeConverter<TSource, TDestination>, new()
     {
         _converterType = typeof(TConverter);
+        return this;
+    }
+
+    /// <inheritdoc />
+    public IMappingExpression ConvertUsing(Type converterType)
+    {
+        _converterType = converterType;
+        return this;
     }
 
     private static string GetMemberName<TMember>(Expression<Func<TDestination, TMember>> selector)

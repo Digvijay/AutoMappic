@@ -117,4 +117,29 @@ public class MyProfile : Profile
 
         Assert.True(dest.Value == 42, $"Expected 42 but got {dest.Value}");
     }
+
+
+    [Fact]
+    [Prova.Description("Verify that non-generic ConvertUsing(typeof(T)) is correctly extracted and used.")]
+    public void Generator_NonGenericConverter_Works()
+    {
+        var source = @"
+using AutoMappic;
+
+public class MyProfile : Profile
+{
+    public MyProfile() { CreateMap(typeof(string), typeof(int)).ConvertUsing(typeof(StringToIntConverter)); }
+}
+
+public class StringToIntConverter : ITypeConverter<string, int>
+{
+    public int Convert(string source) => int.Parse(source);
+}";
+        var result = GeneratorTestHelper.RunGenerator(source);
+        var fileNames = result.Sources.Select(s => s.HintName).ToList();
+        var mapFile = result.Sources.FirstOrDefault(f => f.HintName.Contains("_To_"));
+        Assert.NotNull(mapFile, $"No mapping file generated. Found: {string.Join(", ", fileNames)}");
+        var mapSource = mapFile.SourceText.ToString();
+        Assert.Contains("new StringToIntConverter().Convert(source)", mapSource);
+    }
 }

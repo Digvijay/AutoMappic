@@ -200,6 +200,14 @@ internal static class ProfileExtractor
                 {
                     typeConverterFullName = semanticModel.GetTypeInfo(gn.TypeArgumentList.Arguments[0], ct).Type?.ToDisplayString();
                 }
+                else if (invocation.ArgumentList.Arguments.Count == 1)
+                {
+                    var typeOfExpr = invocation.ArgumentList.Arguments[0].Expression as TypeOfExpressionSyntax;
+                    if (typeOfExpr != null)
+                    {
+                        typeConverterFullName = semanticModel.GetTypeInfo(typeOfExpr.Type, ct).Type?.ToDisplayString();
+                    }
+                }
             }
 
             current = invocation.Parent;

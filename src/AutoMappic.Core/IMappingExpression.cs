@@ -22,6 +22,9 @@ public interface IMappingExpression
 
     /// <summary>Custom type converter for the entire mapping.</summary>
     Type? ConverterType { get; }
+
+    /// <summary>Specifies a custom type converter for this mapping (non-generic version).</summary>
+    IMappingExpression ConvertUsing(Type converterType);
 }
 
 /// <summary>
@@ -74,7 +77,7 @@ public interface IMappingExpression<TSource, TDestination> : IMappingExpression
     ///   by the provided converter type.
     /// </summary>
     /// <typeparam name="TConverter">The converter type to use.</typeparam>
-    void ConvertUsing<TConverter>() where TConverter : ITypeConverter<TSource, TDestination>, new();
+    IMappingExpression<TSource, TDestination> ConvertUsing<TConverter>() where TConverter : ITypeConverter<TSource, TDestination>, new();
 }
 
 /// <summary>
