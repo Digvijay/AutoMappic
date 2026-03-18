@@ -27,7 +27,7 @@ internal static class ConventionEngine
     /// <param name="profileLocation">The location of the profile declaration for diagnostics.</param>
     /// <param name="reportDiagnostic">A delegate to report diagnostics.</param>
     /// <returns>A list of resolved <see cref="PropertyMap"/> instances.</returns>
-    public static IReadOnlyList<PropertyMap> Resolve(
+    public static (IReadOnlyList<PropertyMap> Properties, IReadOnlyList<PropertyMap> ConstructorArguments) Resolve(
         ITypeSymbol source,
         ITypeSymbol destination,
         IReadOnlyDictionary<string, string?> explicitMaps,
@@ -35,14 +35,44 @@ internal static class ConventionEngine
         Location? profileLocation,
         Action<Diagnostic> reportDiagnostic)
     {
-        var result = new List<PropertyMap>();
+        var properties = new List<PropertyMap>();
+        var constructorArgs = new List<PropertyMap>();
 
-        // 1. Validate that the destination has a parameterless constructor
+        // 1. Find the best constructor
+        IMethodSymbol? bestCtor = null;
         if (destination is INamedTypeSymbol namedDest && namedDest.TypeKind == TypeKind.Class)
         {
-            var hasParameterlessCtor = namedDest.Constructors.Any(c => c.Parameters.Length == 0 && c.DeclaredAccessibility == Accessibility.Public);
-            if (!hasParameterlessCtor)
+            var publicCtors = namedDest.Constructors
+                .Where(c => c.DeclaredAccessibility == Accessibility.Public)
+                .OrderByDescending(c => c.Parameters.Length)
+                .ToList();
+
+            foreach (var ctor in publicCtors)
             {
+                var candidateArgs = new List<PropertyMap>();
+                bool allSatisfied = true;
+                foreach (var param in ctor.Parameters)
+                {
+                    var paramMap = ResolveSourceForMember(source, param.Name, param.Type, explicitMaps, ignoredMembers, profileLocation, reportDiagnostic);
+                    if (paramMap is null || paramMap.Kind == PropertyMapKind.Ignored)
+                    {
+                        allSatisfied = false;
+                        break;
+                    }
+                    candidateArgs.Add(paramMap);
+                }
+
+                if (allSatisfied)
+                {
+                    bestCtor = ctor;
+                    constructorArgs = candidateArgs;
+                    break;
+                }
+            }
+
+            if (bestCtor is null && publicCtors.Count > 0 && !publicCtors.Any(c => c.Parameters.Length == 0))
+            {
+                // No satisfyable constructor found, and no parameterless constructor exists
                 reportDiagnostic(Diagnostic.Create(
                     AutoMappicDiagnostics.MissingConstructor,
                     profileLocation ?? Location.None,
@@ -50,106 +80,137 @@ internal static class ConventionEngine
             }
         }
 
-        var destProperties = GetAllProperties(destination).Where(p => p.SetMethod is not null && p.SetMethod.DeclaredAccessibility == Accessibility.Public).ToList();
-        var sourceProperties = GetAllProperties(source).Where(p => p.GetMethod is not null).ToList();
-        var sourceMethods = GetAllZeroArgMethods(source);
+        // 2. Resolve properties
+        var destProperties = GetAllProperties(destination)
+            .Where(p => p.SetMethod is not null && p.SetMethod.DeclaredAccessibility == Accessibility.Public)
+            .ToList();
+
+        // If we are using a constructor, we might want to skip properties already set by it?
+        // AutoMapper typically sets them again if they have a setter.
+        var constructorParamNames = new HashSet<string>(constructorArgs.Select(a => a.DestinationProperty), StringComparer.OrdinalIgnoreCase);
 
         foreach (var destProp in destProperties)
         {
             var name = destProp.Name;
-            bool isInitOnly = destProp.SetMethod?.IsInitOnly ?? false;
 
-            if (ignoredMembers.Contains(name))
+            // Skip if it was already used in constructor?
+            // Actually, we usually don't skip unless there's no setter (handled via GetAllProperties).
+            // But if it's 'required', we MUST ensure it's mapped either via ctor or property.
+
+            var map = ResolveSourceForMember(source, name, destProp.Type, explicitMaps, ignoredMembers, profileLocation, reportDiagnostic);
+            if (map is not null)
             {
-                result.Add(new PropertyMap(name, null, PropertyMapKind.Ignored, isInitOnly));
-                continue;
+                var finalMap = map with { IsInitOnly = destProp.SetMethod?.IsInitOnly ?? false };
+                properties.Add(finalMap);
             }
-
-            if (explicitMaps.TryGetValue(name, out var explicitExpression))
+            else
             {
-                result.Add(new PropertyMap(name, explicitExpression ?? $"/* ForMember({name}) */", PropertyMapKind.Explicit, isInitOnly));
-                continue;
-            }
+                var isRequired = destProp.IsRequired || destProp.GetAttributes().Any(a => a.AttributeClass?.Name == "RequiredAttribute");
+                // If it's required but was mapped via constructor, it's satisfied!
+                if (isRequired && constructorParamNames.Contains(name))
+                {
+                    continue;
+                }
 
-            var directMatch = sourceProperties.FirstOrDefault(
-                p => string.Equals(p.Name, name, StringComparison.OrdinalIgnoreCase) ||
-                     string.Equals(Normalize(p.Name), Normalize(name), StringComparison.OrdinalIgnoreCase));
-
-            var methodMatch = sourceMethods.FirstOrDefault(
-                m => string.Equals(m.Name, "Get" + name, StringComparison.OrdinalIgnoreCase) ||
-                     string.Equals(Normalize(m.Name), Normalize("Get" + name), StringComparison.OrdinalIgnoreCase));
-
-            var flatPath = ResolveFlattenedPath(source, name);
-            bool isTrulyFlattened = flatPath is not null && flatPath.Contains('.');
-
-            if (directMatch is not null && isTrulyFlattened)
-            {
+                var messageSuffix = isRequired ? " (This property is marked as [Required] or using the 'required' modifier.)" : "";
                 reportDiagnostic(Diagnostic.Create(
-                    AutoMappicDiagnostics.AmbiguousMapping,
-                    profileLocation ?? Location.None,
-                    name, destination.Name, flatPath));
-                continue;
+                    AutoMappicDiagnostics.UnmappedProperty,
+                    destProp.Locations.Length > 0 ? destProp.Locations[0] : Location.None,
+                    name + messageSuffix, destination.Name, source.Name));
             }
-
-            if (directMatch is not null)
-            {
-                var sourceExpr = $"source.{directMatch.Name}";
-
-                if (directMatch.Type.TypeKind == TypeKind.Enum && destProp.Type.SpecialType == SpecialType.System_String)
-                {
-                    sourceExpr = $"{sourceExpr}.ToString()";
-                    result.Add(new PropertyMap(name, sourceExpr, PropertyMapKind.Direct, isInitOnly));
-                }
-                else if (!SymbolEqualityComparer.Default.Equals(directMatch.Type, destProp.Type))
-                {
-                    var (nestedExpr, nSrc, nDest, isColl, isArr, itemExpr) = WrapWithNestedMapper(sourceExpr, directMatch.Type, destProp.Type);
-                    result.Add(new PropertyMap(
-                        DestinationProperty: name,
-                        SourceExpression: nestedExpr,
-                        Kind: PropertyMapKind.Direct,
-                        IsInitOnly: isInitOnly,
-                        NestedSourceTypeFullName: nSrc,
-                        NestedDestTypeFullName: nDest,
-                        IsCollection: isColl,
-                        IsArray: isArr,
-                        NestedExpression: itemExpr));
-                }
-                else
-                {
-                    sourceExpr = ApplyNullabilityGuard(sourceExpr, directMatch.Type, destProp.Type);
-                    result.Add(new PropertyMap(name, sourceExpr, PropertyMapKind.Direct, isInitOnly));
-                }
-                continue;
-            }
-
-            if (methodMatch is not null)
-            {
-                result.Add(new PropertyMap(name, $"source.{methodMatch.Name}()", PropertyMapKind.Method, isInitOnly));
-                continue;
-            }
-
-            if (isTrulyFlattened)
-            {
-                var sourceExpr = $"source.{flatPath}";
-                if (!IsNullable(destProp.Type))
-                {
-                    sourceExpr = AppendNullDefault($"({sourceExpr})", destProp.Type);
-                }
-
-                result.Add(new PropertyMap(name, sourceExpr, PropertyMapKind.Flattened, isInitOnly));
-                continue;
-            }
-
-            var isRequired = destProp.IsRequired || destProp.GetAttributes().Any(a => a.AttributeClass?.Name == "RequiredAttribute");
-            var messageSuffix = isRequired ? " (This property is marked as [Required] or using the 'required' modifier.)" : "";
-
-            reportDiagnostic(Diagnostic.Create(
-                AutoMappicDiagnostics.UnmappedProperty,
-                destProp.Locations.Length > 0 ? destProp.Locations[0] : Location.None,
-                name + messageSuffix, destination.Name, source.Name));
         }
 
-        return result;
+        return (properties, constructorArgs);
+    }
+
+    private static PropertyMap? ResolveSourceForMember(
+        ITypeSymbol source,
+        string targetName,
+        ITypeSymbol targetType,
+        IReadOnlyDictionary<string, string?> explicitMaps,
+        IReadOnlyCollection<string> ignoredMembers,
+        Location? profileLocation,
+        Action<Diagnostic> reportDiagnostic)
+    {
+        var sourceProperties = GetAllProperties(source).Where(p => p.GetMethod is not null).ToList();
+        var sourceMethods = GetAllZeroArgMethods(source);
+
+        if (ignoredMembers.Contains(targetName))
+        {
+            return new PropertyMap(targetName, null, PropertyMapKind.Ignored);
+        }
+
+        if (explicitMaps.TryGetValue(targetName, out var explicitExpression))
+        {
+            return new PropertyMap(targetName, explicitExpression ?? $"/* ForMember({targetName}) */", PropertyMapKind.Explicit);
+        }
+
+        var directMatch = sourceProperties.FirstOrDefault(
+            p => string.Equals(p.Name, targetName, StringComparison.OrdinalIgnoreCase) ||
+                 string.Equals(Normalize(p.Name), Normalize(targetName), StringComparison.OrdinalIgnoreCase));
+
+        var methodMatch = sourceMethods.FirstOrDefault(
+            m => string.Equals(m.Name, "Get" + targetName, StringComparison.OrdinalIgnoreCase) ||
+                 string.Equals(Normalize(m.Name), Normalize("Get" + targetName), StringComparison.OrdinalIgnoreCase));
+
+        var flatPath = ResolveFlattenedPath(source, targetName);
+        bool isTrulyFlattened = flatPath is not null && flatPath.Contains('.');
+
+        if (directMatch is not null && isTrulyFlattened)
+        {
+            reportDiagnostic(Diagnostic.Create(
+                AutoMappicDiagnostics.AmbiguousMapping,
+                profileLocation ?? Location.None,
+                targetName, "???", flatPath));
+            return null;
+        }
+
+        if (directMatch is not null)
+        {
+            var sourceExpr = $"source.{directMatch.Name}";
+
+            if (directMatch.Type.TypeKind == TypeKind.Enum && targetType.SpecialType == SpecialType.System_String)
+            {
+                sourceExpr = $"{sourceExpr}.ToString()";
+                return new PropertyMap(targetName, sourceExpr, PropertyMapKind.Direct);
+            }
+            else if (!SymbolEqualityComparer.Default.Equals(directMatch.Type, targetType))
+            {
+                var (nestedExpr, nSrc, nDest, isColl, isArr, itemExpr) = WrapWithNestedMapper(sourceExpr, directMatch.Type, targetType);
+                return new PropertyMap(
+                    DestinationProperty: targetName,
+                    SourceExpression: nestedExpr,
+                    Kind: PropertyMapKind.Direct,
+                    NestedSourceTypeFullName: nSrc,
+                    NestedDestTypeFullName: nDest,
+                    IsCollection: isColl,
+                    IsArray: isArr,
+                    NestedExpression: itemExpr);
+            }
+            else
+            {
+                sourceExpr = ApplyNullabilityGuard(sourceExpr, directMatch.Type, targetType);
+                return new PropertyMap(targetName, sourceExpr, PropertyMapKind.Direct);
+            }
+        }
+
+        if (methodMatch is not null)
+        {
+            return new PropertyMap(targetName, $"source.{methodMatch.Name}()", PropertyMapKind.Method);
+        }
+
+        if (isTrulyFlattened)
+        {
+            var sourceExpr = $"source.{flatPath}";
+            if (!IsNullable(targetType))
+            {
+                sourceExpr = AppendNullDefault($"({sourceExpr})", targetType);
+            }
+
+            return new PropertyMap(targetName, sourceExpr, PropertyMapKind.Flattened);
+        }
+
+        return null;
     }
 
     private static string GetMapMethodName(ITypeSymbol type) => $"MapTo{type.Name}";

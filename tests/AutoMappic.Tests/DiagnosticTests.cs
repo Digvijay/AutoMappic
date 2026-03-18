@@ -57,9 +57,10 @@ public class MyProfile : Profile
     {
         var source = @"
 using AutoMappic;
+using System;
 
 public class S { public int Id { get; set; } }
-public class D { public D(int id) {} }
+public class D { public D(Guid unreachable) {} }
 
 public class MyProfile : Profile
 {
@@ -70,7 +71,7 @@ public class MyProfile : Profile
 
         var am005 = diagnostics.FirstOrDefault(d => d.Id == "AM005");
         Assert.NotNull(am005);
-        Assert.Contains("'D' must have a public parameterless constructor", am005!.GetMessage());
+        Assert.Contains("must have a public parameterless constructor or one whose parameters can be satisfied", am005!.GetMessage());
     }
 
 }

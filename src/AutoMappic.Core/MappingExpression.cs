@@ -81,6 +81,12 @@ internal sealed class MappingExpression<TSource, TDestination> :
         return reverse;
     }
 
+    /// <inheritdoc />
+    public void ConvertUsing<TConverter>() where TConverter : ITypeConverter<TSource, TDestination>, new()
+    {
+        // Marketplace for the generator; runtime fallback logic is not yet implemented for custom converters.
+    }
+
     private static string GetMemberName<TMember>(Expression<Func<TDestination, TMember>> selector)
     {
         if (selector.Body is MemberExpression memberExpr)

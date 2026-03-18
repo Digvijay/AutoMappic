@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Linq;
@@ -56,13 +57,42 @@ internal static class SourceEmitter
         sb.AppendLine("    {");
         sb.AppendLine("        if (source is null) throw new global::System.ArgumentNullException(nameof(source));");
         sb.AppendLine();
-        sb.AppendLine($"        return new {model.DestinationTypeFullName}");
+
+        if (model.TypeConverterFullName != null)
+        {
+            sb.AppendLine($"        return new {model.TypeConverterFullName}().Convert(source);");
+            sb.AppendLine("    }");
+            sb.AppendLine("}");
+            return ($"{model.HintName}_Map.g.cs", sb.ToString());
+        }
+        var collectionHelpers = new List<PropertyMap>();
+        var ctorArgExpressions = new List<string>();
+
+        foreach (var arg in model.ConstructorArguments)
+        {
+            var expression = arg.SourceExpression;
+            if (arg.IsCollection)
+            {
+                var helperName = $"MapCollection_{arg.DestinationProperty}_Ctor";
+                expression = $"{helperName}({arg.SourceExpression})";
+                collectionHelpers.Add(arg with { DestinationProperty = arg.DestinationProperty + "_Ctor" });
+            }
+            ctorArgExpressions.Add(expression!);
+        }
+
+        var ctorCall = string.Join(", ", ctorArgExpressions);
+        sb.AppendLine($"        return new {model.DestinationTypeFullName}({ctorCall})");
         sb.AppendLine("        {");
 
-        var collectionHelpers = new List<PropertyMap>();
+        var constructorParamNames = new HashSet<string>(model.ConstructorArguments.Select(a => a.DestinationProperty), StringComparer.OrdinalIgnoreCase);
+
         foreach (var prop in model.Properties)
         {
             if (prop.Kind == PropertyMapKind.Ignored) continue;
+
+            // If the property is also a constructor param, we might want to skip it if it's already set.
+            // But usually we set it anyway if it has a setter, to be safe.
+            // UNLESS it's init-only or has no setter (already filtered in ConventionEngine).
 
             var expression = prop.SourceExpression;
             if (prop.IsCollection)
@@ -182,7 +212,8 @@ internal static class SourceEmitter
                     sb.AppendLine($"            var result = new global::System.Collections.Generic.List<{item.EffectiveDestTypeFullName}>({countExpr});");
                     sb.AppendLine("            foreach (var element in source)");
                     sb.AppendLine("            {");
-                    sb.AppendLine($"                result.Add(element.MapTo{model!.DestinationTypeName}());");
+                    var destName = model?.DestinationTypeName ?? item.DestinationTypeFullName.Split('.').Last();
+                    sb.AppendLine($"                result.Add(element.MapTo{destName}());");
                     sb.AppendLine("            }");
                     if (item.DestinationTypeFullName.EndsWith("[]", System.StringComparison.Ordinal))
                         sb.AppendLine("            return result.ToArray();");
@@ -192,19 +223,20 @@ internal static class SourceEmitter
                 }
                 else
                 {
-                    var destMappingMethod = $"MapTo{model!.DestinationTypeName}";
-                    var sourceAccess = item.ParameterSourceTypeFullName == model.SourceTypeFullName ? "source" : $"(({model.SourceTypeFullName})source)";
+                    var destName = model?.DestinationTypeName ?? item.DestinationTypeFullName.Split('.').Last();
+                    var destMappingMethod = $"MapTo{destName}";
+                    var sourceAccess = (model != null && item.ParameterSourceTypeFullName == model.SourceTypeFullName) ? "source" : (model != null ? $"(({model.SourceTypeFullName})source)" : "source");
 
                     if (isAsync)
                     {
-                        sb.AppendLine($"        public static global::System.Threading.Tasks.Task<{model.DestinationTypeFullName}> {shimName}(this global::AutoMappic.IMapper mapper, {item.ParameterSourceTypeFullName} source)");
+                        sb.AppendLine($"        public static global::System.Threading.Tasks.Task<{item.DestinationTypeFullName}> {shimName}(this global::AutoMappic.IMapper mapper, {item.ParameterSourceTypeFullName} source)");
                         sb.AppendLine("        {");
                         sb.AppendLine($"            return global::System.Threading.Tasks.Task.FromResult({sourceAccess}.{destMappingMethod}());");
                         sb.AppendLine("        }");
                     }
                     else
                     {
-                        sb.AppendLine($"        public static {model.DestinationTypeFullName} {shimName}(this global::AutoMappic.IMapper mapper, {item.ParameterSourceTypeFullName} source)");
+                        sb.AppendLine($"        public static {item.DestinationTypeFullName} {shimName}(this global::AutoMappic.IMapper mapper, {item.ParameterSourceTypeFullName} source)");
                         sb.AppendLine("        {");
                         sb.AppendLine($"            return {sourceAccess}.{destMappingMethod}();");
                         sb.AppendLine("        }");
@@ -213,15 +245,17 @@ internal static class SourceEmitter
             }
             else if (item.Kind == InterceptKind.ProjectTo)
             {
-                var destMappingMethod = $"MapTo{model!.DestinationTypeName}";
-                sb.AppendLine($"        public static global::System.Linq.IQueryable<{model.DestinationTypeFullName}> {shimName}(this global::System.Linq.IQueryable<{model.SourceTypeFullName}> source)");
+                var destName = model?.DestinationTypeName ?? item.DestinationTypeFullName.Split('.').Last();
+                var destMappingMethod = $"MapTo{destName}";
+                sb.AppendLine($"        public static global::System.Linq.IQueryable<{item.DestinationTypeFullName}> {shimName}(this global::System.Linq.IQueryable<{item.SourceTypeFullName}> source)");
                 sb.AppendLine("        {");
                 sb.AppendLine($"            return source.Select(x => x.{destMappingMethod}());");
                 sb.AppendLine("        }");
             }
             else if (item.Kind == InterceptKind.DataReaderMap)
             {
-                var destMappingMethod = $"MapTo{model!.DestinationTypeName}";
+                var destName = model?.DestinationTypeName ?? item.DestinationTypeFullName.Split('.').Last();
+                var destMappingMethod = $"MapTo{destName}";
                 sb.AppendLine($"        public static global::System.Collections.Generic.IEnumerable<{item.DestinationTypeFullName}> {shimName}(this global::System.Data.IDataReader reader)");
                 sb.AppendLine("        {");
                 sb.AppendLine("            while (reader.Read())");

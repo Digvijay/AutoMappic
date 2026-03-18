@@ -125,6 +125,7 @@ public sealed class AutoMappicGenerator : IIncrementalGenerator
                             mappingsByKey[key] = new MappingModel(
                                 srcFull, src.Name,
                                 destFull, dest.Name,
+                                EquatableArray<PropertyMap>.Empty,
                                 EquatableArray<PropertyMap>.Empty);
                         }
                     }

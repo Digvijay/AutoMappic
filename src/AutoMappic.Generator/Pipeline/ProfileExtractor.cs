@@ -108,9 +108,15 @@ internal static class ProfileExtractor
         if (inv.Expression is GenericNameSyntax gn && gn.Identifier.Text == CreateMapMethodName)
             return true;
 
+        if (inv.Expression is IdentifierNameSyntax id && id.Identifier.Text == CreateMapMethodName)
+            return true;
+
         if (inv.Expression is MemberAccessExpressionSyntax ma)
         {
             if (ma.Name is GenericNameSyntax mgn && mgn.Identifier.Text == CreateMapMethodName)
+                return true;
+
+            if (ma.Name is IdentifierNameSyntax mid && mid.Identifier.Text == CreateMapMethodName)
                 return true;
 
             if (ma.Name.Identifier.Text == "ReverseMap")
@@ -129,15 +135,28 @@ internal static class ProfileExtractor
     {
         var results = new List<(MappingModel, IReadOnlyList<Diagnostic>)>();
         var methodSymbol = semanticModel.GetSymbolInfo(createMapCall, ct).Symbol as IMethodSymbol;
-        if (methodSymbol is null || methodSymbol.TypeArguments.Length < 2) return results;
+        if (methodSymbol is null) return results;
 
-        var sourceType = methodSymbol.TypeArguments[0] as INamedTypeSymbol;
-        var destType = methodSymbol.TypeArguments[1] as INamedTypeSymbol;
+        ITypeSymbol? sourceType = null;
+        ITypeSymbol? destType = null;
+
+        if (methodSymbol.IsGenericMethod && methodSymbol.TypeArguments.Length >= 2)
+        {
+            sourceType = methodSymbol.TypeArguments[0];
+            destType = methodSymbol.TypeArguments[1];
+        }
+        else if (createMapCall.ArgumentList.Arguments.Count >= 2)
+        {
+            sourceType = semanticModel.GetTypeInfo((createMapCall.ArgumentList.Arguments[0].Expression as TypeOfExpressionSyntax)?.Type ?? createMapCall.ArgumentList.Arguments[0].Expression, ct).Type;
+            destType = semanticModel.GetTypeInfo((createMapCall.ArgumentList.Arguments[1].Expression as TypeOfExpressionSyntax)?.Type ?? createMapCall.ArgumentList.Arguments[1].Expression, ct).Type;
+        }
+
         if (sourceType is null || destType is null) return results;
 
         // Collect ForMember / ForMemberIgnore chained on this CreateMap call.
         var explicitMaps = new Dictionary<string, string?>(System.StringComparer.Ordinal);
         var ignoredMembers = new HashSet<string>(System.StringComparer.Ordinal);
+        string? typeConverterFullName = null;
         bool hasReverseMap = false;
 
         // Walk up the chain to collect settings and also see if ReverseMap is present.
@@ -175,6 +194,13 @@ internal static class ProfileExtractor
                     if (destName is not null) ignoredMembers.Add(destName);
                 }
             }
+            else if (methodName == "ConvertUsing")
+            {
+                if (memberAccess.Name is GenericNameSyntax gn && gn.TypeArgumentList.Arguments.Count == 1)
+                {
+                    typeConverterFullName = semanticModel.GetTypeInfo(gn.TypeArgumentList.Arguments[0], ct).Type?.ToDisplayString();
+                }
+            }
 
             current = invocation.Parent;
         }
@@ -182,7 +208,7 @@ internal static class ProfileExtractor
         var diagnostics = new List<Diagnostic>();
         var profileLocation = profileClass.Locations.Length > 0 ? profileClass.Locations[0] : Location.None;
 
-        var properties = ConventionEngine.Resolve(
+        var (properties, constructorArgs) = ConventionEngine.Resolve(
             sourceType,
             destType,
             explicitMaps,
@@ -199,6 +225,8 @@ internal static class ProfileExtractor
             DestinationTypeFullName: GetDisplayString(destType),
             DestinationTypeName: destType.Name,
             Properties: new EquatableArray<PropertyMap>(properties),
+            ConstructorArguments: new EquatableArray<PropertyMap>(constructorArgs),
+            TypeConverterFullName: typeConverterFullName,
             FilePath: lineSpan.Path,
             Line: lineSpan.StartLinePosition.Line + 1,
             Column: lineSpan.StartLinePosition.Character + 1);
@@ -208,7 +236,7 @@ internal static class ProfileExtractor
         if (hasReverseMap)
         {
             var revDiags = new List<Diagnostic>();
-            var revProps = ConventionEngine.Resolve(
+            var (revProps, revConstructorArgs) = ConventionEngine.Resolve(
                 destType,
                 sourceType,
                 new Dictionary<string, string?>(),
@@ -222,6 +250,7 @@ internal static class ProfileExtractor
                 DestinationTypeFullName: GetDisplayString(sourceType),
                 DestinationTypeName: sourceType.Name,
                 Properties: new EquatableArray<PropertyMap>(revProps),
+                ConstructorArguments: new EquatableArray<PropertyMap>(revConstructorArgs),
                 FilePath: lineSpan.Path,
                 Line: lineSpan.StartLinePosition.Line + 1,
                 Column: lineSpan.StartLinePosition.Character + 1);

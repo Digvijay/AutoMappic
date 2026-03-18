@@ -34,9 +34,10 @@ public class MyProfile : Profile
     {
         var source = @"
 using AutoMappic;
+using System;
 
 public class S { public int Id { get; set; } }
-public class D { public D(int id) {} }
+public class D { public D(Guid unreachable) {} }
 
 public class MyProfile : Profile
 {

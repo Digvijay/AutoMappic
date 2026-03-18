@@ -78,6 +78,8 @@ internal sealed record MappingModel(
     string DestinationTypeFullName,
     string DestinationTypeName,
     EquatableArray<PropertyMap> Properties,
+    EquatableArray<PropertyMap> ConstructorArguments,
+    string? TypeConverterFullName = null,
     string? FilePath = null,
     int Line = 0,
     int Column = 0)

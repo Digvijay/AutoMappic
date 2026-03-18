@@ -21,6 +21,12 @@ public abstract class Profile
     /// </summary>
     internal IReadOnlyList<IMappingExpression> Mappings => _mappings;
 
+    /// <summary>Naming strategy for source member names (defaults to <see cref="PascalCaseNamingConvention" />).</summary>
+    public INamingConvention SourceNamingConvention { get; set; } = new PascalCaseNamingConvention();
+
+    /// <summary>Naming strategy for destination member names (defaults to <see cref="PascalCaseNamingConvention" />).</summary>
+    public INamingConvention DestinationNamingConvention { get; set; } = new PascalCaseNamingConvention();
+
     internal void AddMapping(IMappingExpression expression) => _mappings.Add(expression);
 
     /// <summary>
@@ -39,4 +45,26 @@ public abstract class Profile
         _mappings.Add(expression);
         return expression;
     }
+
+    /// <summary>
+    ///   Declares a mapping between open generic types or other runtime-resolved types.
+    /// </summary>
+    /// <param name="sourceType">The source type (generic or closed).</param>
+    /// <param name="destinationType">The destination type (generic or closed).</param>
+    /// <returns>A non-generic configuration expression.</returns>
+    protected IMappingExpression CreateMap(Type sourceType, Type destinationType)
+    {
+        var expr = new OpenGenericMappingExpression(sourceType, destinationType);
+        _mappings.Add(expr);
+        return expr;
+    }
+}
+
+internal sealed class OpenGenericMappingExpression(Type s, Type d) : IMappingExpression
+{
+    public Type SourceType => s;
+    public Type DestinationType => d;
+    public IReadOnlyCollection<string> IgnoredMembers => Array.Empty<string>();
+    public IReadOnlyDictionary<string, string?> ExplicitMaps => new Dictionary<string, string?>();
+    public IReadOnlyDictionary<string, Func<object, object?>> RuntimeMaps => new Dictionary<string, Func<object, object?>>();
 }

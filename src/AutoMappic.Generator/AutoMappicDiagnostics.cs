@@ -85,14 +85,15 @@ internal static class AutoMappicDiagnostics
     /// </summary>
     public static readonly DiagnosticDescriptor MissingConstructor = new(
         id: "AM005",
-        title: "Missing parameterless constructor",
-        messageFormat: "Destination type '{0}' must have a public parameterless constructor for AutoMappic to generate an instance mapping",
+        title: "No compatible constructor found",
+        messageFormat: "Destination type '{0}' must have a public parameterless constructor or one whose parameters can be satisfied by matching source members",
         category: Category,
         defaultSeverity: DiagnosticSeverity.Error,
         isEnabledByDefault: true,
         description:
-            "AutoMappic currently requires a public parameterless constructor on the destination " +
-            "type to emit a mapping. Manual constructor mapping is planned for a future release.");
+            "AutoMappic requires a public constructor to instantiate the destination type. " +
+            "It can use a parameterless constructor or a parameterized one if all its arguments " +
+            "can be resolved from the source by name convention or explicit mapping.");
 
     /// <summary>
     ///   Emitted when a circular reference is detected in the mapping graph, which would

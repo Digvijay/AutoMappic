@@ -65,6 +65,13 @@ public interface IMappingExpression<TSource, TDestination> : IMappingExpression
     /// </summary>
     /// <returns>A mapping expression for the reverse direction.</returns>
     IMappingExpression<TDestination, TSource> ReverseMap();
+
+    /// <summary>
+    ///   Specifies that the entire source-to-destination mapping should be handled
+    ///   by the provided converter type.
+    /// </summary>
+    /// <typeparam name="TConverter">The converter type to use.</typeparam>
+    void ConvertUsing<TConverter>() where TConverter : ITypeConverter<TSource, TDestination>, new();
 }
 
 /// <summary>
