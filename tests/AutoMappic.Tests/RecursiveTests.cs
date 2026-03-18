@@ -30,6 +30,7 @@ public sealed class CircularReferenceTests
         }
     }
 
+    /// <summary> Verify that the mapper safely handles objects with potential circular references without stack overflow </summary>
     [Fact]
     public void Map_CircularReference_DoesNotStackOverflowInFallback()
     {

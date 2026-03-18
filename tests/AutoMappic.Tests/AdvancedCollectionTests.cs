@@ -27,6 +27,7 @@ public sealed class AdvancedCollectionMappingTests
         }
     }
 
+    /// <summary> Validate transformation from HashSet source to List destination, ensuring all items are preserved </summary>
     [Fact]
     public void Map_HashSetToList()
     {
@@ -40,6 +41,7 @@ public sealed class AdvancedCollectionMappingTests
         Assert.Equal("alice", dto.Items[0].Username);
     }
 
+    /// <summary> Confirm that dictionary keys can be correctly converted to different types (e.g., int to string) during mapping </summary>
     [Fact]
     public void Map_DictionaryWithKeyTypeChange()
     {
@@ -55,6 +57,7 @@ public sealed class AdvancedCollectionMappingTests
         Assert.Equal("bob", dto.Dict["1"].Username);
     }
 
+    /// <summary> Ensure deep nested collections are mapped with proper null safety for intermediate elements </summary>
     [Fact]
     public void Map_DeepNestedCollection_NullSafety()
     {

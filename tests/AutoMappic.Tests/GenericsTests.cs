@@ -31,6 +31,7 @@ public sealed class GenericsMappingTests
         }
     }
 
+    /// <summary> Verify that generic wrapper types (e.g., Result&lt;T&gt;) can be mapped when their nested generic arguments have valid profiles registered </summary>
     [Fact]
     public void Map_GenericWrapper_MapsNestedGenericArgument()
     {

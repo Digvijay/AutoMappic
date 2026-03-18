@@ -35,6 +35,7 @@ public sealed class AccessibilityTests
         }
     }
 
+    /// <summary> Verify that AutoMappic respects member accessibility and correctly skips internal or private members that it cannot access </summary>
     [Fact]
     public void Map_RespectsAccessibility_SkipsInaccessibleMembers()
     {

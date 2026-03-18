@@ -20,6 +20,7 @@ public sealed class AdvancedFlatteningTests
         }
     }
 
+    /// <summary> Verify that complex multi-level flattening (3 levels) works correctly for deep property resolution </summary>
     [Fact]
     public void Map_DeepFlattening_ThreeLevels()
     {
@@ -38,6 +39,7 @@ public sealed class AdvancedFlatteningTests
         Assert.Equal("Redmond", dto.UserAddressCity);
     }
 
+    /// <summary> Confirm that null safety is maintained during multi-level flattening when an intermediate object is null </summary>
     [Fact]
     public void Map_DeepFlattening_MiddleNull_ReturnsDefault()
     {

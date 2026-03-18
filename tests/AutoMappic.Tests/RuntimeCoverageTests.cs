@@ -64,6 +64,7 @@ public class RuntimeCoverageTests
         Assert.Equal(100, dest.Items[1]);
     }
 
+    /// <summary> Verify dictionary value transformation when nested MapCore logic is required for type conversion </summary>
     [Fact]
     public void Mapper_DictionaryValueMapping_WithNestedMapCore()
     {
@@ -138,6 +139,7 @@ public class RuntimeCoverageTests
         Assert.NotNull(mapper);
     }
 
+    /// <summary> Confirm that the 'Ignore()' option within a 'ForMember' configuration is correctly enforced at runtime </summary>
     [Fact]
     public void Mapper_ForMemberWithIgnore_WorksAtRuntime()
     {
@@ -149,6 +151,7 @@ public class RuntimeCoverageTests
         Assert.Equal("", dest.Name);
     }
 
+    /// <summary> Validate that explicit member mappings are correctly recorded in the mapping expression metadata </summary>
     [Fact]
     public void IMappingExpression_ExplicitMaps_ReturnsDictionary()
     {
@@ -192,6 +195,7 @@ public class RuntimeCoverageTests
         Assert.True(ex.InnerException is AutoMappicException);
     }
 
+    /// <summary> Ensure that providing an invalid expression (non-member access) to 'ForMember' results in a descriptive ArgumentException </summary>
     [Fact]
     public void GetMemberName_InvalidExpression_Throws()
     {
@@ -239,6 +243,7 @@ public class RuntimeCoverageTests
         public System.Data.DataTable GetSchemaTable() => null!;
     }
 
+    /// <summary> Verify that nested type conversions within dictionary mappings are correctly resolved and executed </summary>
     [Fact]
     public void Mapper_DictionaryMapping_WithNestedConversions()
     {
@@ -261,6 +266,7 @@ public class RuntimeCoverageTests
         Assert.Equal(100, dest.Items["1"].Id);
     }
 
+    /// <summary> Confirm that collection mapping correctly handles and preserves null items within the source collection </summary>
     [Fact]
     public void Mapper_CollectionMapping_WithNullItems()
     {
@@ -279,6 +285,7 @@ public class RuntimeCoverageTests
         Assert.Equal(3, dest.Items[2].Id);
     }
 
+    /// <summary> Verify that items are safely skipped during collection mapping if no valid mapping exists for their specific type </summary>
     [Fact]
     public void Mapper_CollectionMapping_WithSkippedItems()
     {
@@ -295,6 +302,7 @@ public class RuntimeCoverageTests
         Assert.Equal(0, dest.Items.Count);
     }
 
+    /// <summary> Validate that primitive overflows during mapping safely fall through to handled error states </summary>
     [Fact]
     public void Mapper_PrimitiveOverflow_FallsThrough()
     {

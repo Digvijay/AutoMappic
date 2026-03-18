@@ -37,7 +37,7 @@ public sealed class InheritanceMappingTests
         }
     }
 
-    /// <summary> Verify that properties from base classes are correctly mapped into the destination DTO </summary>
+    /// <summary>Verify that properties from base classes are correctly mapped into the destination DTO</summary>
     [Fact]
     public void Map_DerivedType_IncludesBaseProperties()
     {

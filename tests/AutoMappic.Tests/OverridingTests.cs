@@ -15,6 +15,7 @@ public sealed class OverridingTests
         }
     }
 
+    /// <summary> Confirm that custom member mapping configurations (ForMember) correctly override automatic PascalCase flattening rules </summary>
     [Fact]
     public void Map_WithForMember_OverridesFlattening()
     {

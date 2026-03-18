@@ -47,6 +47,7 @@ public sealed class ExceedingTests
             .CreateMapper();
     }
 
+    /// <summary> Ensure that property names are correctly resolved when mapping between snake_case and PascalCase structures </summary>
     [Fact]
     public void Map_SnakeCase_To_PascalCase()
     {
@@ -58,6 +59,7 @@ public sealed class ExceedingTests
         Assert.Equal("Doe", dto.LastName);
     }
 
+    /// <summary> Confirm that complex nested collections are recursively mapped with full accuracy </summary>
     [Fact]
     public void Map_NestedCollections_MappedCorrectly()
     {

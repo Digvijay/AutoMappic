@@ -32,6 +32,7 @@ public sealed class IgnoredPropertyTests
         }
     }
 
+    /// <summary> Verify that specific source members can be explicitly ignored using the 'ForMemberIgnore' configuration </summary>
     [Fact]
     public void Map_WithIgnoredMembers_DoesNotCopyThem()
     {
@@ -57,6 +58,7 @@ public sealed class MethodMappingTests
         }
     }
 
+    /// <summary> Confirm that source 'Get' methods are automatically resolved to matching destination properties by convention </summary>
     [Fact]
     public void Map_SourceMethod_MapsToDestinationProperty()
     {
