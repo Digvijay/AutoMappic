@@ -18,14 +18,19 @@ namespace AutoMappic.Generator.Models;
 ///     <see cref="Kind" />: Indicates how this assignment was resolved.
 ///   </para>
 ///   This record is extracted from Roslyn symbols and stored in the Incremental Generator
-///   cache.  It must implement value equality precisely so that the generator pipeline can
+///   cache. It must implement value equality precisely so that the generator pipeline can
 ///   short-circuit and avoid re-emitting code when nothing structurally changed.
 /// </remarks>
 internal sealed record PropertyMap(
     string DestinationProperty,
     string? SourceExpression,
     PropertyMapKind Kind,
-    bool IsInitOnly = false);
+    bool IsInitOnly = false,
+    string? NestedSourceTypeFullName = null,
+    string? NestedDestTypeFullName = null,
+    bool IsCollection = false,
+    bool IsArray = false,
+    string? NestedExpression = null);
 
 /// <summary>Describes how a <see cref="PropertyMap" /> was resolved by the convention engine.</summary>
 internal enum PropertyMapKind
@@ -72,7 +77,10 @@ internal sealed record MappingModel(
     string SourceTypeName,
     string DestinationTypeFullName,
     string DestinationTypeName,
-    EquatableArray<PropertyMap> Properties)
+    EquatableArray<PropertyMap> Properties,
+    string? FilePath = null,
+    int Line = 0,
+    int Column = 0)
 {
     /// <summary>
     ///   A stable, file-system-safe identifier used as the hint name for
@@ -104,4 +112,7 @@ internal sealed record InterceptLocation(
     string DestinationTypeFullName,
     string MethodSignatureKey,
     string ParameterSourceTypeFullName,
-    InterceptKind Kind = InterceptKind.Map);
+    InterceptKind Kind,
+    bool IsCollectionMapping = false,
+    string? EffectiveSourceTypeFullName = null,
+    string? EffectiveDestTypeFullName = null);

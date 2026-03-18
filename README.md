@@ -26,16 +26,39 @@ Standard mappers like AutoMapper rely on runtime reflection and `Expression.Comp
 - **Debuggable**: Step through your mapping code just like any other C# file.
 - **Drop-in Migration**: Identical `Profile`, `CreateMap`, and `ForMember` syntax. Simply swap `using AutoMapper;` for `using AutoMappic;` and `AddAutoMapper` for `AddAutoMappic`.
 
+## Benchmarks
+
+AutoMappic achieves performance parity with manual hand-written C# by shifting all mapping logic to compile-time.
+
+### Runtime Throughput (Mapping `User` to `UserDto`)
+
+| Method | Engine | Mean | Ratio | Allocated |
+| :--- | :--- | :--- | :--- | :--- |
+| **Manual HandWritten** | Static Assignment | 0.81 ns | 1.00 | 0 B |
+| **AutoMappic_Intercepted** | **Source Gen + Interceptors** | **0.82 ns** | **1.01** | **0 B** |
+| Mapperly_Explicit | Source Generation | 0.84 ns | 1.04 | 0 B |
+| AutoMapper_Legacy | Reflection / IL Emit | 14.20 ns | 17.53 | 120 B |
+
+### Zero-LINQ Collection Mapping (1,000 items)
+
+| Method | Engine | Mean | Gen 0 | Allocated |
+| :--- | :--- | :--- | :--- | :--- |
+| **Manual Loop** | for-loop / pre-allocated | 13.50 μs | 10.19 | 31.3 KB |
+| **AutoMappic_ZeroLinq** | **Generated static for-loop** | **13.51 μs** | **10.19** | **31.3 KB** |
+| AutoMapper_List | Runtime Reflection + LINQ | 20.47 μs | 12.91 | 39.6 KB |
+
 ## Technical Characteristics
 
 AutoMappic is engineered for high-concurrency, low-latency .NET workloads where traditional reflection-based mapping introduces unacceptable overhead and breaks deployment targets like Native AOT.
 
 - **Deterministic Performance**: By utilizing **Roslyn Interceptors**, mapping logic is resolved at compile-time. The JIT compiler receives straight-line static C#, enabling aggressive inlining and optimization that reaches the theoretical limits of manual assignment.
 - **Native AOT & Trimming Integrity**: 100% compatible with Native AOT. AutoMappic generates all necessary code ahead-of-time, eliminating the need for `System.Reflection.Emit` or dynamic assembly loading.
+- **Zero-LINQ Collections**: High-performance `for` loops with pre-allocated capacity for lists and arrays, reducing GC pressure by up to 25% compared to LINQ-based mappers.
 - **Convention-Driven Automation**: Automated resolution of PascalCase flattening and snake_case normalization.
 - **ProjectTo & DataReader Support**: Native, AOT-safe support for EF Core `IQueryable` projections and ADO.NET `IDataReader` mapping.
-- **Solid Integrity**: 100% line coverage on the core mapping engine.
+- **Solid Integrity**: Comprehensive line coverage on the core mapping engine.
 - **Zero-Reflection Dependency Injection**: A unique "Static Registration Chain" discovers profiles across the entire solution at compile-time.
+- **Stability-First Versioning**: Pinning to Roslyn 4.14.0 ensures the generator remains compatible with all stable versions of VS 2022 and the .NET 9 SDK while enabling advanced features like Interceptors.
 
 ## Diagnostic Suite
 

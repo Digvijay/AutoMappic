@@ -45,26 +45,39 @@ internal static class ProfileExtractor
 
         var results = new List<(MappingModel, IReadOnlyList<Diagnostic>)>();
 
-        // Only look inside constructors.
-        var ctors = classDecl.Members.OfType<ConstructorDeclarationSyntax>();
-        foreach (var ctor in ctors)
+        // Find all CreateMap calls in this class.
+        var invocations = classDecl.DescendantNodes()
+            .OfType<InvocationExpressionSyntax>()
+            .Where(inv => IsCreateMapCall(inv, context.SemanticModel, cancellationToken));
+
+        foreach (var inv in invocations)
         {
-            var createMapCalls = ctor.DescendantNodes()
-                .OfType<InvocationExpressionSyntax>()
-                .Where(inv => IsCreateMapCall(inv, context.SemanticModel, cancellationToken));
+            cancellationToken.ThrowIfCancellationRequested();
 
-            foreach (var createMapCall in createMapCalls)
+            var isInConstructor = inv.Ancestors().Any(a => a is ConstructorDeclarationSyntax);
+            if (!isInConstructor)
             {
-                cancellationToken.ThrowIfCancellationRequested();
+                var methodSymbol = context.SemanticModel.GetSymbolInfo(inv, cancellationToken).Symbol as IMethodSymbol;
+                var sName = methodSymbol?.TypeArguments.ElementAtOrDefault(0)?.Name ?? "TSource";
+                var dName = methodSymbol?.TypeArguments.ElementAtOrDefault(1)?.Name ?? "TDestination";
 
-                var models = TryExtractModels(
-                    createMapCall,
-                    classSymbol,
-                    context.SemanticModel,
-                    cancellationToken);
-
-                results.AddRange(models);
+                results.Add((null!, new[]
+                {
+                    Diagnostic.Create(
+                        AutoMappicDiagnostics.CreateMapOutsideProfile,
+                        inv.GetLocation(),
+                        sName, dName)
+                }));
+                continue;
             }
+
+            var models = TryExtractModels(
+                inv,
+                classSymbol,
+                context.SemanticModel,
+                cancellationToken);
+
+            results.AddRange(models);
         }
 
         return results;
@@ -177,12 +190,18 @@ internal static class ProfileExtractor
             profileLocation,
             d => diagnostics.Add(d));
 
+        var callLocation = createMapCall.GetLocation();
+        var lineSpan = callLocation.GetLineSpan();
+
         var model = new MappingModel(
-            SourceTypeFullName: sourceType.ToDisplayString(),
+            SourceTypeFullName: GetDisplayString(sourceType),
             SourceTypeName: sourceType.Name,
-            DestinationTypeFullName: destType.ToDisplayString(),
+            DestinationTypeFullName: GetDisplayString(destType),
             DestinationTypeName: destType.Name,
-            Properties: new EquatableArray<PropertyMap>(properties));
+            Properties: new EquatableArray<PropertyMap>(properties),
+            FilePath: lineSpan.Path,
+            Line: lineSpan.StartLinePosition.Line + 1,
+            Column: lineSpan.StartLinePosition.Character + 1);
 
         results.Add((model, diagnostics));
 
@@ -198,11 +217,14 @@ internal static class ProfileExtractor
                 d => revDiags.Add(d));
 
             var revModel = new MappingModel(
-                SourceTypeFullName: destType.ToDisplayString(),
+                SourceTypeFullName: GetDisplayString(destType),
                 SourceTypeName: destType.Name,
-                DestinationTypeFullName: sourceType.ToDisplayString(),
+                DestinationTypeFullName: GetDisplayString(sourceType),
                 DestinationTypeName: sourceType.Name,
-                Properties: new EquatableArray<PropertyMap>(revProps));
+                Properties: new EquatableArray<PropertyMap>(revProps),
+                FilePath: lineSpan.Path,
+                Line: lineSpan.StartLinePosition.Line + 1,
+                Column: lineSpan.StartLinePosition.Character + 1);
 
             results.Add((revModel, revDiags));
         }
@@ -264,4 +286,7 @@ internal static class ProfileExtractor
 
         return null;
     }
+
+    private static string GetDisplayString(ITypeSymbol type) =>
+        type.WithNullableAnnotation(NullableAnnotation.None).ToDisplayString();
 }

@@ -42,7 +42,7 @@ public class MyProfile : Profile
 }";
         var options = new Dictionary<string, string> { ["automappic_sourceonly"] = "true" };
         var result = GeneratorTestHelper.RunGenerator(source, options);
-        
+
         var fileNames = result.Sources.Select(s => s.HintName).ToList();
         Assert.True(fileNames.Count > 0, $"Expected embedded files, got 0. Diagnostics: {string.Join(", ", result.Diagnostics.Select(d => d.Id))}");
         Assert.Contains("IMapper.g.cs", fileNames);
@@ -107,17 +107,17 @@ public class Program
 }
 ";
         var result = GeneratorTestHelper.RunGenerator(source);
-        
+
         var allDiags = string.Join("\n", result.Diagnostics.Select(d => $"{d.Id}: {d.GetMessage()}"));
         var fileNames = result.Sources.Select(s => s.HintName).ToList();
 
         Assert.True(fileNames.Count >= 5, $"Expected many files, got {fileNames.Count}. Files: {string.Join(", ", fileNames)}\nDiags: {allDiags}");
         Assert.True(fileNames.Any(f => f.Contains("Interceptors.g.cs")), "Interceptors should be generated");
-        
+
         var interceptorResult = result.Sources.FirstOrDefault(f => f.HintName.Contains("Interceptors.g.cs"));
         Assert.NotNull(interceptorResult, "Interceptors.g.cs not found");
         var interceptors = interceptorResult.SourceText.ToString();
-        
+
         Assert.True(interceptors.Contains("ProjectTo"), $"Interceptors does not contain ProjectTo. Source:\n{interceptors}\nDiags: {allDiags}");
         Assert.True(interceptors.Contains("MapShim_Map"), $"Interceptors does not contain DataReader Map. Source:\n{interceptors}");
     }

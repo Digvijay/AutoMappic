@@ -93,4 +93,21 @@ internal static class AutoMappicDiagnostics
         description:
             "AutoMappic currently requires a public parameterless constructor on the destination " +
             "type to emit a mapping. Manual constructor mapping is planned for a future release.");
+
+    /// <summary>
+    ///   Emitted when a circular reference is detected in the mapping graph, which would
+    ///   cause a StackOverflowException at runtime.
+    /// </summary>
+    public static readonly DiagnosticDescriptor CircularReference = new(
+        id: "AM006",
+        title: "Circular reference detected",
+        messageFormat: "Circular reference detected: mapping '{0}' -> '{1}' eventually maps back to itself. " +
+                       "For AOT safety and to prevent StackOverflow, circular references are only supported via ForMemberIgnore or explicit manual mapping.",
+        category: Category,
+        defaultSeverity: DiagnosticSeverity.Error,
+        isEnabledByDefault: true,
+        description:
+            "AutoMappic's static generator does not support recursive object graphs by default " +
+            "as they require a runtime object tracker which is expensive for performance and AOT. " +
+            "Ignore the recursive property or use a custom resolver.");
 }

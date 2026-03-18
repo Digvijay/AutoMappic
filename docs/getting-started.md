@@ -1,4 +1,4 @@
-# Getting Started with AutoMappic v0.1.0
+# Getting Started with AutoMappic v0.2.0
 
 AutoMappic is a zero-reflection, Native AOT-friendly object mapper for .NET 9+. It uses Roslyn Interceptors to replace reflection with fast, static code at compile time.
 
@@ -95,7 +95,7 @@ Console.WriteLine(dto.AddressCity); // Seattle
 ## 6. Advanced Features
 
 ### Collection Mapping
-AutoMappic automatically handles `IEnumerable<T>`, `List<T>`, and arrays. It will even project the elements!
+AutoMappic automatically handles `IEnumerable<T>`, `List<T>`, and arrays. Using **Zero-LINQ technology**, it generates high-performance `for` loops with pre-allocated capacity, eliminating the GC pressure and throughput overhead of standard LINQ operators like `.Select()` and `.ToList()`.
 
 ```csharp
 CreateMap<User, UserSummaryDto>(); // Projecting elements

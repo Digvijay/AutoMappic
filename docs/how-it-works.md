@@ -11,7 +11,7 @@ Traditional mappers like AutoMapper follow a **"Plan-at-Runtime"** strategy. Aut
 | **Discovery** | Runtime Reflection (`GetProperties`) | Compile-time Roslyn Symbols |
 | **Execution** | `Expression.Compile()` at Runtime | Static C# Code emitted at Build |
 | **JIT Overhead** | High (First call penalty) | Zero (Direct calls) |
-| **AOT Compatibility**| ❌ Trimming & JIT issues | ✅ 100% Native AOT Friendly |
+| **AOT Compatibility**| Trimming & JIT issues | 100% Native AOT Friendly |
 | **Performance** | O(N) where N is reflection cost | O(1) direct static calls |
 
 ---
@@ -65,6 +65,15 @@ Modern cloud-native applications require small binaries and instant startup.
 *   **No Reflection**: Trimmers can safely remove unused properties because they are never accessed via strings/reflection.
 *   **No JIT**: All code is ready to be compiled to machine code (Native AOT) at build time.
 *   **Sustainability**: Reduced CPU cycles for cold starts means lower carbon footprint for serverless environments.
+
+## 5. Static Analysis & Host Compatibility
+
+Unlike runtime libraries, a Source Generator like AutoMappic must run within the developer's IDE (Visual Studio, JetBrains Rider) and the `dotnet` build server. 
+
+### Why we use Roslyn 4.14.0
+To ensure maximum compatibility without sacrificing performance, we pin our analysis engine to **Microsoft.CodeAnalysis 4.14.0**. 
+- **Backward Compatibility**: Compiling against Roslyn 5.x would break AutoMappic for any developer not yet on the absolute latest preview SDKs. 
+- **Feature Baseline**: This version provides a robust baseline for C# 12 Interceptors and Incremental Generator APIs while ensuring the generator loads correctly across all stable versions of Visual Studio 2022 and .NET 9+.
 
 ---
 

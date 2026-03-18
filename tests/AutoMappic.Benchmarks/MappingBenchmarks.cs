@@ -3,8 +3,7 @@ using BenchmarkDotNet.Attributes;
 using BenchmarkDotNet.Running;
 using Riok.Mapperly.Abstractions;
 
-// Run benchmarks when executed in Release mode.
-BenchmarkRunner.Run<MappingBenchmarks>();
+namespace AutoMappic.Benchmarks;
 
 // ─── Fixtures ────────────────────────────────────────────────────────────────
 

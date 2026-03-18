@@ -6,17 +6,24 @@ In the modern era of cloud computing, performance isn't just about speed—it's 
 
 AutoMappic is built on the principles of **Green Engineering**. By moving the computational cost of object mapping from the "Execution Phase" (runtime) to the "Preparation Phase" (compile-time), we significantly reduce the environmental footprint of .NET applications.
 
-### 1. Reduced Server Density 📉
+### 1. Reduced Server Density
 Traditional mappers use Runtime Reflection and JIT-compilation (`Expression.Compile()`), which causes massive CPU spikes during application startup (Cold Start). In elastic cloud environments (Serverless, K8s), this forces you to provision:
 *   **Higher CPU Limits** just to handle startup.
 *   **More Memory** to store JIT-compiled IL delegates.
 
 **AutoMappic eliminates these spikes**, allowing you to run your services with smaller instances and higher density, leading to lower energy consumption.
 
-### 2. Native AOT & Energy Efficiency ⚡
+### 2. Native AOT & Energy Efficiency
 By being 100% Native AOT compatible, AutoMappic applications achieve:
 *   **Instant Startup**: No JIT compilation means zero energy wasted on JIT'ing the same mapping logic thousands of times.
 *   **Smaller Binary Size**: Reduced storage and network bandwidth for CI/CD pipelines and container registries.
+
+### 3. Zero-LINQ Collection Mapping
+Most mappers rely on LINQ's `.Select().ToList()` for collection mapping, which generates a significant number of internal allocations and garbage collection (GC) pressure. 
+AutoMappic generates specialized `for` loops with pre-allocated capacity for all collection mappings. This leads to:
+- **No LINQ overhead**: Fewer hidden objects and fewer "boxing" conversions.
+- **Lower GC Pressure**: Less energy spent on garbage collection in high-throughput applications. 
+- **Sustainable Throughput**: Consistent performance without the "GC spikes" typical of LINQ-heavy mappers.
 
 ## The ESG (Environmental, Social, and Governance) Impact
 

@@ -26,7 +26,7 @@ public sealed class CircularReferenceTests
     {
         public NodeProfile()
         {
-            CreateMap<Node, NodeDto>();
+            CreateMap<Node, NodeDto>().ForMemberIgnore(d => d.Parent);
         }
     }
 
@@ -45,7 +45,6 @@ public sealed class CircularReferenceTests
         var dto = mapper.Map<Node, NodeDto>(node);
 
         Assert.Equal("Child", dto.Name);
-        Assert.NotNull(dto.Parent);
-        Assert.Equal("Parent", dto.Parent!.Name);
+        Assert.Null(dto.Parent); // Parent is null because we ignored it to break the circular reference
     }
 }

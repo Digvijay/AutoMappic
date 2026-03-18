@@ -1,6 +1,6 @@
+using System.Threading.Tasks;
 using Prova;
 using Assert = Prova.Assertions.Assert;
-using System.Threading.Tasks;
 
 namespace AutoMappic.Tests;
 
@@ -14,7 +14,7 @@ public sealed class AsyncMappingTests
             .CreateMapper();
 
         var source = new User { Id = 1, Name = "Alice" };
-        
+
         // This will be intercepted and use the generated MapToUserDto()
         var dto = await mapper.MapAsync<User, UserDto>(source);
 
@@ -31,7 +31,7 @@ public sealed class AsyncMappingTests
             .CreateMapper();
 
         var source = new User { Id = 2, Name = "Bob" };
-        
+
         // This uses the object-based overload
         var dto = await mapper.MapAsync<UserDto>(source);
 

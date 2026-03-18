@@ -10,12 +10,12 @@ namespace AutoMappic.Tests;
 public static class GeneratorTestHelper
 {
     public record GeneratorResult(
-        ImmutableArray<Diagnostic> Diagnostics, 
+        ImmutableArray<Diagnostic> Diagnostics,
         ImmutableArray<GeneratedSourceResult> Sources,
         GeneratorDriverRunResult RunResult);
 
     public static GeneratorResult RunGenerator(
-        string source, 
+        string source,
         IReadOnlyDictionary<string, string>? options = null)
     {
         var syntaxTree = CSharpSyntaxTree.ParseText(source);
@@ -46,7 +46,7 @@ public static class GeneratorTestHelper
             new[] { generator.AsSourceGenerator() },
             parseOptions: compilation.SyntaxTrees.First().Options as CSharpParseOptions,
             optionsProvider: optionsProvider);
-        
+
         var runDriver = driver.RunGenerators(compilation);
         var runResult = runDriver.GetRunResult();
 
@@ -69,7 +69,7 @@ public static class GeneratorTestHelper
     private class TestOptions : AnalyzerConfigOptions
     {
         private readonly IReadOnlyDictionary<string, string> _options;
-        public TestOptions(IReadOnlyDictionary<string, string> options) 
+        public TestOptions(IReadOnlyDictionary<string, string> options)
             => _options = new Dictionary<string, string>(options, StringComparer.OrdinalIgnoreCase);
         public override bool TryGetValue(string key, [System.Diagnostics.CodeAnalysis.NotNullWhen(true)] out string? value) => _options.TryGetValue(key, out value);
     }

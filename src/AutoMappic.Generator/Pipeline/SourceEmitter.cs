@@ -59,15 +59,30 @@ internal static class SourceEmitter
         sb.AppendLine($"        return new {model.DestinationTypeFullName}");
         sb.AppendLine("        {");
 
+        var collectionHelpers = new List<PropertyMap>();
         foreach (var prop in model.Properties)
         {
             if (prop.Kind == PropertyMapKind.Ignored) continue;
 
-            sb.AppendLine($"            {prop.DestinationProperty} = {prop.SourceExpression}, // {prop.Kind}");
+            var expression = prop.SourceExpression;
+            if (prop.IsCollection)
+            {
+                var helperName = $"MapCollection_{prop.DestinationProperty}";
+                expression = $"{helperName}({prop.SourceExpression})";
+                collectionHelpers.Add(prop);
+            }
+
+            sb.AppendLine($"            {prop.DestinationProperty} = {expression}, // {prop.Kind}");
         }
 
         sb.AppendLine("        };");
         sb.AppendLine("    }");
+
+        // Emit collection helpers
+        foreach (var helper in collectionHelpers)
+        {
+            EmitCollectionHelper(sb, helper);
+        }
 
         // Also emit an in-place overwrite overload.
         sb.AppendLine();
@@ -81,7 +96,15 @@ internal static class SourceEmitter
         foreach (var prop in model.Properties)
         {
             if (prop.Kind == PropertyMapKind.Ignored || prop.IsInitOnly) continue;
-            sb.AppendLine($"        destination.{prop.DestinationProperty} = {prop.SourceExpression}; // {prop.Kind}");
+
+            var expression = prop.SourceExpression;
+            if (prop.IsCollection && prop.NestedSourceTypeFullName != null && prop.NestedDestTypeFullName != null)
+            {
+                var helperName = $"MapCollection_{prop.DestinationProperty}";
+                expression = $"{helperName}({prop.SourceExpression})";
+            }
+
+            sb.AppendLine($"        destination.{prop.DestinationProperty} = {expression}; // {prop.Kind}");
         }
 
         sb.AppendLine("        return destination;");
@@ -122,19 +145,23 @@ internal static class SourceEmitter
         sb.AppendLine("    internal static class MapperInterceptors");
         sb.AppendLine("    {");
 
-        // Group locations by their MethodSignatureKey and Kind to avoid duplicate method bodies
-        var groupedLocations = locations.GroupBy(l => new { l.MethodSignatureKey, l.DestinationTypeFullName, l.SourceTypeFullName, l.ParameterSourceTypeFullName, l.Kind });
+        // Group locations by their MethodSignatureKey and types to avoid duplicate method bodies
+        var groupedLocations = locations.GroupBy(l => new { l.MethodSignatureKey, l.DestinationTypeFullName, l.SourceTypeFullName, l.ParameterSourceTypeFullName, l.Kind, l.IsCollectionMapping, l.EffectiveSourceTypeFullName, l.EffectiveDestTypeFullName });
 
         foreach (var group in groupedLocations)
         {
-            var key = group.Key;
-            var mappingKey = $"{key.SourceTypeFullName}_To_{key.DestinationTypeFullName}";
-            mappingsByKey.TryGetValue(mappingKey, out var model);
+            var item = group.Key;
+            var mappingKey = $"{item.SourceTypeFullName}_To_{item.DestinationTypeFullName}";
+            var effectiveMappingKey = item.IsCollectionMapping
+                ? $"{item.EffectiveSourceTypeFullName}_To_{item.EffectiveDestTypeFullName}"
+                : mappingKey;
+
+            mappingsByKey.TryGetValue(effectiveMappingKey, out var model);
 
             // DataReaderMap does not need a pre-existing profile model.
-            if (key.Kind != InterceptKind.DataReaderMap && model == null) continue;
+            if (item.Kind != InterceptKind.DataReaderMap && model == null) continue;
 
-            var methodSuffix = Sanitise($"{key.Kind}_{mappingKey}");
+            var methodSuffix = Sanitise($"{item.Kind}_{mappingKey}");
             var shimName = $"MapShim_{methodSuffix}";
 
             foreach (var location in group)
@@ -142,72 +169,67 @@ internal static class SourceEmitter
                 sb.AppendLine($"        [global::System.Runtime.CompilerServices.InterceptsLocation(@\"{EscapePath(location.FilePath)}\", {location.Line}, {location.Column})]");
             }
 
-            if (key.Kind == InterceptKind.Map)
+            if (item.Kind == InterceptKind.Map)
             {
-                var destMappingMethod = $"MapTo{model!.DestinationTypeName}";
-                var isAsync = key.MethodSignatureKey.StartsWith("MapAsync", System.StringComparison.Ordinal);
-                var sourceAccess = key.ParameterSourceTypeFullName == model.SourceTypeFullName
-                    ? "source"
-                    : $"(({model.SourceTypeFullName})source)";
+                var isAsync = item.MethodSignatureKey.StartsWith("MapAsync", System.StringComparison.Ordinal);
 
-                if (isAsync)
+                if (item.IsCollectionMapping)
                 {
-                    sb.AppendLine($"        public static global::System.Threading.Tasks.Task<{model.DestinationTypeFullName}> {shimName}(this global::AutoMappic.IMapper mapper, {key.ParameterSourceTypeFullName} source)");
+                    sb.AppendLine($"        public static {item.DestinationTypeFullName} {shimName}(this global::AutoMappic.IMapper mapper, {item.SourceTypeFullName} source)");
                     sb.AppendLine("        {");
-                    sb.AppendLine($"            return global::System.Threading.Tasks.Task.FromResult({sourceAccess}.{destMappingMethod}());");
+                    sb.AppendLine("            if (source is null) return default!;");
+                    var countExpr = item.SourceTypeFullName.EndsWith("[]", System.StringComparison.Ordinal) ? "source.Length" : "source.Count";
+                    sb.AppendLine($"            var result = new global::System.Collections.Generic.List<{item.EffectiveDestTypeFullName}>({countExpr});");
+                    sb.AppendLine("            foreach (var element in source)");
+                    sb.AppendLine("            {");
+                    sb.AppendLine($"                result.Add(element.MapTo{model!.DestinationTypeName}());");
+                    sb.AppendLine("            }");
+                    if (item.DestinationTypeFullName.EndsWith("[]", System.StringComparison.Ordinal))
+                        sb.AppendLine("            return result.ToArray();");
+                    else
+                        sb.AppendLine("            return result;");
                     sb.AppendLine("        }");
                 }
                 else
                 {
-                    sb.AppendLine($"        public static {model.DestinationTypeFullName} {shimName}(this global::AutoMappic.IMapper mapper, {key.ParameterSourceTypeFullName} source)");
-                    sb.AppendLine("        {");
-                    sb.AppendLine($"            return {sourceAccess}.{destMappingMethod}();");
-                    sb.AppendLine("        }");
+                    var destMappingMethod = $"MapTo{model!.DestinationTypeName}";
+                    var sourceAccess = item.ParameterSourceTypeFullName == model.SourceTypeFullName ? "source" : $"(({model.SourceTypeFullName})source)";
+
+                    if (isAsync)
+                    {
+                        sb.AppendLine($"        public static global::System.Threading.Tasks.Task<{model.DestinationTypeFullName}> {shimName}(this global::AutoMappic.IMapper mapper, {item.ParameterSourceTypeFullName} source)");
+                        sb.AppendLine("        {");
+                        sb.AppendLine($"            return global::System.Threading.Tasks.Task.FromResult({sourceAccess}.{destMappingMethod}());");
+                        sb.AppendLine("        }");
+                    }
+                    else
+                    {
+                        sb.AppendLine($"        public static {model.DestinationTypeFullName} {shimName}(this global::AutoMappic.IMapper mapper, {item.ParameterSourceTypeFullName} source)");
+                        sb.AppendLine("        {");
+                        sb.AppendLine($"            return {sourceAccess}.{destMappingMethod}();");
+                        sb.AppendLine("        }");
+                    }
                 }
             }
-            else if (key.Kind == InterceptKind.ProjectTo)
+            else if (item.Kind == InterceptKind.ProjectTo)
             {
                 var destMappingMethod = $"MapTo{model!.DestinationTypeName}";
-                sb.AppendLine($"        public static global::System.Linq.IQueryable<{model.DestinationTypeFullName}> {shimName}(this global::System.Linq.IQueryable source)");
+                sb.AppendLine($"        public static global::System.Linq.IQueryable<{model.DestinationTypeFullName}> {shimName}(this global::System.Linq.IQueryable<{model.SourceTypeFullName}> source)");
                 sb.AppendLine("        {");
-                sb.AppendLine($"            return global::System.Linq.Queryable.Select((global::System.Linq.IQueryable<{model.SourceTypeFullName}>)source, src => new {model.DestinationTypeFullName}");
-                sb.AppendLine("            {");
-                foreach (var prop in model.Properties)
-                {
-                    if (prop.Kind == PropertyMapKind.Ignored || prop.IsInitOnly) continue;
-                    // replace 'source.' with 'src.' for the projection expression
-                    var expr = prop.SourceExpression?.Replace("source.", "src.");
-                    sb.AppendLine($"                {prop.DestinationProperty} = {expr},");
-                }
-                sb.AppendLine("            });");
+                sb.AppendLine($"            return source.Select(x => x.{destMappingMethod}());");
                 sb.AppendLine("        }");
             }
-            else if (key.Kind == InterceptKind.DataReaderMap)
+            else if (item.Kind == InterceptKind.DataReaderMap)
             {
-                sb.AppendLine($"        public static global::System.Collections.Generic.IEnumerable<{key.DestinationTypeFullName}> {shimName}(this global::System.Data.IDataReader reader)");
+                var destMappingMethod = $"MapTo{model!.DestinationTypeName}";
+                sb.AppendLine($"        public static global::System.Collections.Generic.IEnumerable<{item.DestinationTypeFullName}> {shimName}(this global::System.Data.IDataReader reader)");
                 sb.AppendLine("        {");
                 sb.AppendLine("            while (reader.Read())");
                 sb.AppendLine("            {");
-                sb.AppendLine($"                yield return new {key.DestinationTypeFullName}");
-                sb.AppendLine("                {");
-
-                if (model != null)
-                {
-                    foreach (var prop in model.Properties)
-                    {
-                        if (prop.Kind == PropertyMapKind.Ignored || prop.IsInitOnly) continue;
-
-                        var destName = prop.DestinationProperty;
-                        var sourceExpr = prop.SourceExpression?.Replace("source.", "") ?? "default";
-                        sb.AppendLine($"                    {destName} = reader.GetValue(reader.GetOrdinal(\"{destName}\")) is global::System.DBNull ? default : ({sourceExpr})reader.GetValue(reader.GetOrdinal(\"{destName}\")),");
-                    }
-                }
-
-                sb.AppendLine("                };");
+                sb.AppendLine($"                yield return reader.{destMappingMethod}();");
                 sb.AppendLine("            }");
                 sb.AppendLine("        }");
             }
-            sb.AppendLine();
         }
 
         sb.AppendLine("    }");
@@ -352,6 +374,42 @@ internal static class SourceEmitter
         sb.AppendLine("}");
 
         return ("AutoMappic.Registration.g.cs", sb.ToString());
+    }
+
+    private static void EmitCollectionHelper(StringBuilder sb, PropertyMap prop)
+    {
+        var helperName = $"MapCollection_{prop.DestinationProperty}";
+        var sItem = prop.NestedSourceTypeFullName!;
+        var dItem = prop.NestedDestTypeFullName!;
+        var dType = prop.IsArray ? $"{dItem}[]" : $"global::System.Collections.Generic.List<{dItem}>";
+        var returnExpr = prop.IsArray ? "list.ToArray()" : "list";
+        var emptyExpr = prop.IsArray ? $"global::System.Array.Empty<{dItem}>()" : $"new global::System.Collections.Generic.List<{dItem}>(0)";
+        var innerLogic = prop.NestedExpression ?? "x";
+
+        sb.AppendLine();
+        sb.AppendLine($"    private static {dType} {helperName}(global::System.Collections.Generic.IEnumerable<{sItem}>? source)");
+        sb.AppendLine("    {");
+        sb.AppendLine($"        if (source is null) return {emptyExpr};");
+        sb.AppendLine();
+        sb.AppendLine($"        if (source is global::System.Collections.Generic.ICollection<{sItem}> coll)");
+        sb.AppendLine("        {");
+        sb.AppendLine($"            var list = new global::System.Collections.Generic.List<{dItem}>(coll.Count);");
+        sb.AppendLine("            foreach (var item in coll)");
+        sb.AppendLine("            {");
+        sb.AppendLine("                var x = item;");
+        sb.AppendLine($"                list.Add({innerLogic});");
+        sb.AppendLine("            }");
+        sb.AppendLine($"            return {returnExpr};");
+        sb.AppendLine("        }");
+        sb.AppendLine();
+        sb.AppendLine($"        var result = new global::System.Collections.Generic.List<{dItem}>();");
+        sb.AppendLine("        foreach (var item in source)");
+        sb.AppendLine("        {");
+        sb.AppendLine("            var x = item;");
+        sb.AppendLine($"            result.Add({innerLogic});");
+        sb.AppendLine("        }");
+        sb.AppendLine($"        return {(prop.IsArray ? "result.ToArray()" : "result")};");
+        sb.AppendLine("    }");
     }
 
     private static string EscapeXml(string value) =>

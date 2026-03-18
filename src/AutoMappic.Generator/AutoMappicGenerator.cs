@@ -41,7 +41,8 @@ public sealed class AutoMappicGenerator : IIncrementalGenerator
             .WithComparer(MappingResultComparer.Instance);
 
         var mappingModels = mappingResults
-            .Select(static (pair, _) => pair.Model);
+            .Select(static (pair, _) => pair.Model)
+            .Where(static m => m is not null);
 
         var diagnostics = mappingResults
             .SelectMany(static (pair, _) => pair.Diagnostics);
@@ -58,6 +59,19 @@ public sealed class AutoMappicGenerator : IIncrementalGenerator
         {
             var (hintName, source) = SourceEmitter.EmitMappingClass(model);
             spc.AddSource(hintName, source);
+        });
+
+        // ── Pipeline 1.5: Cycle Detection ─────────────────────────────────────────
+
+        var allModels = uniqueMappingModels.Collect();
+        context.RegisterSourceOutput(allModels, static (spc, models) =>
+        {
+            if (models.IsEmpty) return;
+            var cycleDiagnostics = CycleDetector.Detect(models);
+            foreach (var d in cycleDiagnostics)
+            {
+                spc.ReportDiagnostic(d);
+            }
         });
 
         // ── Pipeline 2: Interceptors ──────────────────────────────────────────────

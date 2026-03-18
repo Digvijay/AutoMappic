@@ -8,13 +8,14 @@ using Assert = Prova.Assertions.Assert;
 
 namespace AutoMappic.Tests;
 
+#pragma warning disable AM003 // CreateMap called outside constructor (intentional for runtime-only tests)
 public class RuntimeCoverageTests
 {
     /// <summary> Verify that MapAsync correctly returns a faulted task when an exception occurs during parameter validation </summary>
     [Fact]
     public async Task MapAsync_WhenExceptionOccurs_ReturnsFaultedTask()
     {
-        var mapper = new MapperConfiguration(p => {}).CreateMapper();
+        var mapper = new MapperConfiguration(p => { }).CreateMapper();
         var task = mapper.MapAsync<UserDto>(null!);
         Assert.True(task.IsFaulted, "Task should be faulted");
         try { await task; } catch (ArgumentNullException) { /* Expected */ }
@@ -24,7 +25,7 @@ public class RuntimeCoverageTests
     [Fact]
     public async Task MapAsyncGeneric_WhenExceptionOccurs_ReturnsFaultedTask()
     {
-        var mapper = new MapperConfiguration(p => {}).CreateMapper();
+        var mapper = new MapperConfiguration(p => { }).CreateMapper();
         var task = mapper.MapAsync<User, UserDto>(null!);
         Assert.True(task.IsFaulted, "Task should be faulted");
         try { await task; } catch (ArgumentNullException) { /* Expected */ }
@@ -36,12 +37,12 @@ public class RuntimeCoverageTests
     {
         var profile = new TestProfile();
         profile.Register<DictSourceIntVal, DictDestStringVal>();
-        
+
         var mapper = new MapperConfiguration(p => p.AddProfile(profile)).CreateMapper();
-        
+
         var source = new DictSourceIntVal { Items = new Dictionary<string, int> { { "a", 123 } } };
         var dest = mapper.Map<DictDestStringVal>(source);
-        
+
         Assert.Equal("123", dest.Items["a"]);
     }
 
@@ -51,14 +52,14 @@ public class RuntimeCoverageTests
     {
         var profile = new TestProfile();
         // int -> long needs MapCore if not string
-        profile.Register<long, int>(); 
+        profile.Register<long, int>();
         profile.Register<DictSourceLong, DictDestInt>();
-        
+
         var mapper = new MapperConfiguration(p => p.AddProfile(profile)).CreateMapper();
-        
+
         var source = new DictSourceLong { Items = new Dictionary<long, long> { { 1L, 100L } } };
         var dest = mapper.Map<DictDestInt>(source);
-        
+
         Assert.NotNull(dest.Items);
         Assert.True(dest.Items.ContainsKey(1));
         Assert.Equal(100, dest.Items[1]);
@@ -71,12 +72,12 @@ public class RuntimeCoverageTests
         var profile = new TestProfile();
         profile.Register<int, long>();
         profile.Register<DictSourceIntVal, DictDestLongVal>();
-        
+
         var mapper = new MapperConfiguration(p => p.AddProfile(profile)).CreateMapper();
-        
+
         var source = new DictSourceIntVal { Items = new Dictionary<string, int> { { "a", 1 } } };
         var dest = mapper.Map<DictDestLongVal>(source);
-        
+
         Assert.Equal(1L, dest.Items["a"]);
     }
 
@@ -87,12 +88,12 @@ public class RuntimeCoverageTests
         var profile = new TestProfile();
         profile.Register<SkippedMapSource, SkippedMapDest>();
         // No mapping for UnregisteredSource -> UnregisteredDest
-        
+
         var mapper = new MapperConfiguration(p => p.AddProfile(profile)).CreateMapper();
-        
+
         var source = new SkippedMapSource { Item = new UnregisteredSource() };
         var dest = mapper.Map<SkippedMapDest>(source);
-        
+
         Assert.NotNull(dest);
         Assert.Null(dest.Item);
     }
@@ -104,12 +105,12 @@ public class RuntimeCoverageTests
         var profile = new TestProfile();
         // Register S -> D with reverse map D -> S
         profile.Register<User, UserDto>().ReverseMap();
-        
+
         var mapper = new MapperConfiguration(p => p.AddProfile(profile)).CreateMapper();
-        
+
         var source = new UserDto { Name = "Alice" };
         var dest = mapper.Map<User>(source);
-        
+
         Assert.Equal("Alice", dest.Name);
     }
 
@@ -119,12 +120,12 @@ public class RuntimeCoverageTests
     {
         var profile = new TestProfile();
         profile.Register<User, UserDto>(opt => opt.ForMemberIgnore(d => d.Name));
-        
+
         var mapper = new MapperConfiguration(p => p.AddProfile(profile)).CreateMapper();
-        
+
         var source = new User { Name = "Alice" };
         var dest = mapper.Map<UserDto>(source);
-        
+
         Assert.Equal("", dest.Name); // Should be ignored
     }
 
@@ -145,7 +146,7 @@ public class RuntimeCoverageTests
     {
         var profile = new TestProfile();
         profile.Register<User, UserDto>(opt => opt.ForMember(d => d.Name, o => o.Ignore()));
-        
+
         var mapper = new MapperConfiguration(p => p.AddProfile(profile)).CreateMapper();
         var dest = mapper.Map<UserDto>(new User { Name = "Alice" });
         Assert.Equal("", dest.Name);
@@ -167,7 +168,7 @@ public class RuntimeCoverageTests
         var profile = new TestProfile();
         IMappingExpression<User, UserDto> exp = profile.Register<User, UserDto>(opt =>
             opt.ForMember(d => d.Name, o => o.MapFrom<NameResolver>()));
-        
+
         var mapper = new MapperConfiguration(p => p.AddProfile(profile)).CreateMapper();
         var result = mapper.Map<UserDto>(new User { Name = "Test" });
         Assert.Equal("Resolved: Test", result.Name);
@@ -200,7 +201,8 @@ public class RuntimeCoverageTests
     public void GetMemberName_InvalidExpression_Throws()
     {
         var profile = new TestProfile();
-        Assert.Throws<ArgumentException>(() => {
+        Assert.Throws<ArgumentException>(() =>
+        {
             profile.Register<User, UserDto>(opt => opt.ForMember(d => d.ToString(), o => o.Ignore()));
         });
     }
@@ -214,8 +216,8 @@ public class RuntimeCoverageTests
         public bool IsClosed => false;
         public int RecordsAffected => 0;
         public int FieldCount => 1;
-        public void Close() {}
-        public void Dispose() {}
+        public void Close() { }
+        public void Dispose() { }
         public string GetName(int i) => i == 0 ? "Name" : "";
         public string GetDataTypeName(int i) => "string";
         public Type GetFieldType(int i) => typeof(string);
@@ -250,16 +252,16 @@ public class RuntimeCoverageTests
         var profile = new TestProfile();
         profile.Register<NestedSource, NestedDest>();
         profile.Register<DictSourceNested, DictDestNested>();
-        
+
         var mapper = new MapperConfiguration(p => p.AddProfile(profile)).CreateMapper();
-        
-        var source = new DictSourceNested 
-        { 
-            Items = new Dictionary<int, NestedSource> { { 1, new NestedSource { Id = 100 } } } 
+
+        var source = new DictSourceNested
+        {
+            Items = new Dictionary<int, NestedSource> { { 1, new NestedSource { Id = 100 } } }
         };
-        
+
         var dest = mapper.Map<DictDestNested>(source);
-        
+
         Assert.NotNull(dest.Items);
         // Key 1 -> "1", Value NestedSource(100) -> NestedDest(100)
         Assert.True(dest.Items.ContainsKey("1"));
@@ -273,12 +275,12 @@ public class RuntimeCoverageTests
         var profile = new TestProfile();
         profile.Register<NestedSource, NestedDest>();
         profile.Register<ListSource, ListDest>();
-        
+
         var mapper = new MapperConfiguration(p => p.AddProfile(profile)).CreateMapper();
-        
+
         var source = new ListSource { Items = new List<NestedSource?> { new NestedSource { Id = 1 }, null, new NestedSource { Id = 3 } } };
         var dest = mapper.Map<ListDest>(source);
-        
+
         Assert.Equal(3, dest.Items.Count);
         Assert.Equal(1, dest.Items[0].Id);
         Assert.Null(dest.Items[1]);
@@ -291,14 +293,14 @@ public class RuntimeCoverageTests
     {
         var profile = new TestProfile();
         profile.Register<ListSourceUnreg, ListDestUnreg>();
-        
+
         var mapper = new MapperConfiguration(p => p.AddProfile(profile)).CreateMapper();
-        
+
         var source = new ListSourceUnreg { Items = new List<object> { new UnregisteredSource() } };
         // MapCore will throw AutoMappicException for UnregisteredSource -> UnregisteredDest, 
         // which BuildFallbackDelegate should catch and skip
         var dest = mapper.Map<ListDestUnreg>(source);
-        
+
         Assert.Equal(0, dest.Items.Count);
     }
 
@@ -308,13 +310,13 @@ public class RuntimeCoverageTests
     {
         var profile = new TestProfile();
         profile.Register<long, int>(); // This registration doesn't really matter for MapCore's primitive check
-        
+
         var mapper = new MapperConfiguration(p => p.AddProfile(profile)).CreateMapper();
-        
+
         // long.MaxValue to int will overflow in Convert.ChangeType
         var val = long.MaxValue;
         // Should fall through to registered maps or throw if no map
-        try 
+        try
         {
             mapper.Map<int>(val);
         }
@@ -340,13 +342,13 @@ public class RuntimeCoverageTests
     private class NestedDest { public int Id { get; set; } }
     private class DictSourceNested { public Dictionary<int, NestedSource> Items { get; set; } = new(); }
     private class DictDestNested { public Dictionary<string, NestedDest> Items { get; set; } = new(); }
-    
-    private class UnregisteredSource {}
-    private class UnregisteredDest {}
+
+    private class UnregisteredSource { }
+    private class UnregisteredDest { }
 
     public class User { public string Name { get; set; } = ""; }
     public class UserDto { public string Name { get; set; } = ""; }
-    
+
     private class NameResolver : IValueResolver<User, string>
     {
         public string Resolve(User source) => "Resolved: " + source.Name;
@@ -361,7 +363,7 @@ public class RuntimeCoverageTests
     private class SnakeSource { public string first_name { get; set; } = ""; }
     private class PascalDest { public string FirstName { get; set; } = ""; }
 
-    private class TestProfile : Profile 
+    private class TestProfile : Profile
     {
         public IMappingExpression<S, D> Register<S, D>(Action<IMappingExpression<S, D>>? opt = null)
         {

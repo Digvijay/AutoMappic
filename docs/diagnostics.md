@@ -10,6 +10,7 @@ A diagnostic with **Error** severity will cause the build to fail. This is inten
 *   **Severity**: Error
 *   **Target**: Destination Member
 *   **Description**: Emitted when a writable property on the destination type has no matching source (via convention or explicit `ForMember` configuration). 
+*   **Special Case**: If a property is marked with the `[Required]` attribute or the C# 11 `required` modifier, the error message will specifically highlight this to ensure non-nullability constraints are respected.
 *   **Remediation**: 
     1.  Add a matching source property.
     2.  Use `.ForMember()` to specify a source path.

@@ -46,7 +46,7 @@ internal static class InterceptorCollector
 
         if (symbol.TypeArguments.Length == 0) return null;
 
-        var destType = symbol.TypeArguments[symbol.TypeArguments.Length == 2 ? 1 : 0] as INamedTypeSymbol;
+        var destType = symbol.TypeArguments[symbol.TypeArguments.Length == 2 ? 1 : 0];
         ITypeSymbol? sourceType = null;
 
         if (kind == InterceptKind.Map)
@@ -91,6 +91,18 @@ internal static class InterceptorCollector
 
         if (destType is null || sourceType is null) return null;
 
+        // Collection awareness: if mapping List<S> to List<D>, the effective types for coordination are S and D.
+        var isCollectionMapping = false;
+        var effectiveSource = sourceType;
+        var effectiveDest = destType;
+
+        if (IsCollection(sourceType, out var sItem) && IsCollection(destType, out var dItem))
+        {
+            isCollectionMapping = true;
+            effectiveSource = sItem;
+            effectiveDest = dItem;
+        }
+
         var lineSpan = invocation.GetLocation().GetLineSpan();
         if (!lineSpan.IsValid) return null;
 
@@ -105,7 +117,31 @@ internal static class InterceptorCollector
             DestinationTypeFullName: destType.ToDisplayString(),
             MethodSignatureKey: BuildSignatureKey(symbol),
             ParameterSourceTypeFullName: symbol.Parameters.Length > 0 ? symbol.Parameters[0].Type.ToDisplayString() : "object",
-            Kind: kind);
+            Kind: kind,
+            IsCollectionMapping: isCollectionMapping,
+            EffectiveSourceTypeFullName: effectiveSource.ToDisplayString(),
+            EffectiveDestTypeFullName: effectiveDest.ToDisplayString());
+    }
+
+    private static bool IsCollection(ITypeSymbol type, out ITypeSymbol itemType)
+    {
+        itemType = null!;
+        if (type is IArrayTypeSymbol array)
+        {
+            itemType = array.ElementType;
+            return true;
+        }
+
+        if (type is INamedTypeSymbol named && named.IsGenericType && (named.Name == "List" || named.AllInterfaces.Any(i => i.Name == "IEnumerable")))
+        {
+            if (named.TypeArguments.Length > 0)
+            {
+                itemType = named.TypeArguments[0];
+                return true;
+            }
+        }
+
+        return false;
     }
 
     private static string BuildSignatureKey(IMethodSymbol method)

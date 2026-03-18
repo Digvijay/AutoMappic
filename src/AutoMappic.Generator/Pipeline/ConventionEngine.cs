@@ -17,6 +17,16 @@ internal static class ConventionEngine
     private static readonly Regex PascalSplitter =
         new(@"([A-Z][a-z0-9]*)", RegexOptions.Compiled, TimeSpan.FromMilliseconds(100));
 
+    /// <summary>
+    ///   Resolves the property mappings for a given source and destination type.
+    /// </summary>
+    /// <param name="source">The source type symbol.</param>
+    /// <param name="destination">The destination type symbol.</param>
+    /// <param name="explicitMaps">A dictionary of explicit member mappings.</param>
+    /// <param name="ignoredMembers">A collection of members to ignore.</param>
+    /// <param name="profileLocation">The location of the profile declaration for diagnostics.</param>
+    /// <param name="reportDiagnostic">A delegate to report diagnostics.</param>
+    /// <returns>A list of resolved <see cref="PropertyMap"/> instances.</returns>
     public static IReadOnlyList<PropertyMap> Resolve(
         ITypeSymbol source,
         ITypeSymbol destination,
@@ -88,17 +98,27 @@ internal static class ConventionEngine
                 if (directMatch.Type.TypeKind == TypeKind.Enum && destProp.Type.SpecialType == SpecialType.System_String)
                 {
                     sourceExpr = $"{sourceExpr}.ToString()";
+                    result.Add(new PropertyMap(name, sourceExpr, PropertyMapKind.Direct, isInitOnly));
                 }
                 else if (!SymbolEqualityComparer.Default.Equals(directMatch.Type, destProp.Type))
                 {
-                    sourceExpr = WrapWithNestedMapper(sourceExpr, directMatch.Type, destProp.Type);
+                    var (nestedExpr, nSrc, nDest, isColl, isArr, itemExpr) = WrapWithNestedMapper(sourceExpr, directMatch.Type, destProp.Type);
+                    result.Add(new PropertyMap(
+                        DestinationProperty: name,
+                        SourceExpression: nestedExpr,
+                        Kind: PropertyMapKind.Direct,
+                        IsInitOnly: isInitOnly,
+                        NestedSourceTypeFullName: nSrc,
+                        NestedDestTypeFullName: nDest,
+                        IsCollection: isColl,
+                        IsArray: isArr,
+                        NestedExpression: itemExpr));
                 }
                 else
                 {
                     sourceExpr = ApplyNullabilityGuard(sourceExpr, directMatch.Type, destProp.Type);
+                    result.Add(new PropertyMap(name, sourceExpr, PropertyMapKind.Direct, isInitOnly));
                 }
-
-                result.Add(new PropertyMap(name, sourceExpr, PropertyMapKind.Direct, isInitOnly));
                 continue;
             }
 
@@ -120,10 +140,13 @@ internal static class ConventionEngine
                 continue;
             }
 
+            var isRequired = destProp.IsRequired || destProp.GetAttributes().Any(a => a.AttributeClass?.Name == "RequiredAttribute");
+            var messageSuffix = isRequired ? " (This property is marked as [Required] or using the 'required' modifier.)" : "";
+
             reportDiagnostic(Diagnostic.Create(
                 AutoMappicDiagnostics.UnmappedProperty,
                 destProp.Locations.Length > 0 ? destProp.Locations[0] : Location.None,
-                name, destination.Name, source.Name));
+                name + messageSuffix, destination.Name, source.Name));
         }
 
         return result;
@@ -131,12 +154,20 @@ internal static class ConventionEngine
 
     private static string GetMapMethodName(ITypeSymbol type) => $"MapTo{type.Name}";
 
-    private static string WrapWithNestedMapper(string expression, ITypeSymbol sourceType, ITypeSymbol destType)
+    /// <summary>
+    ///   Wraps an expression with appropriate mapping logic based on type compatibility.
+    /// </summary>
+    /// <param name="expression">The base source expression.</param>
+    /// <param name="sourceType">The type of the source expression.</param>
+    /// <param name="destType">The target destination type.</param>
+    /// <returns> A tuple containing the resolved expression and metadata about the mapping.</returns>
+    private static (string Expression, string? NestedSource, string? NestedDest, bool IsCollection, bool IsArray, string? ItemExpression)
+        WrapWithNestedMapper(string expression, ITypeSymbol sourceType, ITypeSymbol destType)
     {
         // 1. Nullable Value Type Conversion (int? -> int)
         if (sourceType.IsValueType && IsNullable(sourceType) && !IsNullable(destType))
         {
-            return $"{expression}.GetValueOrDefault()";
+            return (Expression: $"{expression}.GetValueOrDefault()", null, null, false, false, null);
         }
 
         // 2. Dictionary Mapping
@@ -146,53 +177,60 @@ internal static class ConventionEngine
 
             // For primitive key/value types, use direct assignment or ToString() if it matches
             var keyExpr = "kv.Key";
+            string? knSrc = null, knDest = null;
             if (!SymbolEqualityComparer.Default.Equals(sKey, dKey))
             {
                 if (dKey.SpecialType == SpecialType.System_String) keyExpr = "kv.Key.ToString()";
-                else if (dKey.TypeKind == TypeKind.Class) keyExpr = $"kv.Key.{GetMapMethodName(dKey)}()";
+                else if (dKey.TypeKind == TypeKind.Class)
+                {
+                    keyExpr = $"kv.Key.{GetMapMethodName(dKey)}()";
+                    knSrc = GetDisplayString(sKey);
+                    knDest = GetDisplayString(dKey);
+                }
                 // Add more implicit coversions if needed. Fallback to cast.
                 else keyExpr = $"({dKey.ToDisplayString()})kv.Key";
             }
 
             var valExpr = "kv.Value";
+            string? vnSrc = null, vnDest = null;
             if (!SymbolEqualityComparer.Default.Equals(sVal, dVal))
             {
                 if (dVal.SpecialType == SpecialType.System_String) valExpr = "kv.Value?.ToString() ?? string.Empty";
-                else if (dVal.TypeKind == TypeKind.Class) valExpr = $"kv.Value.{GetMapMethodName(dVal)}()";
+                else if (dVal.TypeKind == TypeKind.Class)
+                {
+                    valExpr = $"kv.Value.{GetMapMethodName(dVal)}()";
+                    vnSrc = GetDisplayString(sVal);
+                    vnDest = GetDisplayString(dVal);
+                }
                 else valExpr = $"({dVal.ToDisplayString()})kv.Value";
             }
 
             var fallback = !IsNullable(destType) ? $" ?? new global::System.Collections.Generic.Dictionary<{dKey.ToDisplayString()}, {dVal.ToDisplayString()}>()" : "";
-            return $"{expression}{guard}.ToDictionary(kv => {keyExpr}, kv => {valExpr}){fallback}";
+            // Dictionary mapping can have two nested mappings, but PropertyMap only has one.
+            // We prioritize the Value mapping as it's more likely to be recursive.
+            return (Expression: $"{expression}{guard}.ToDictionary(kv => {keyExpr}, kv => {valExpr}){fallback}", vnSrc ?? knSrc, vnDest ?? knDest, false, false, null);
         }
 
         // 3. Collection Mapping
         if (IsCollection(sourceType, out var sourceItemType) && IsCollection(destType, out var destItemType))
         {
             var guard = IsNullable(sourceType) ? "?" : "";
-            var innerExpr = WrapWithNestedMapper("x", sourceItemType, destItemType);
-            var selectExpr = (innerExpr == "x")
-                ? ""
-                : $".Select(x => {innerExpr})";
+            var (innerExpr, nSrc, nDest, iColl, iArr, iItem) = WrapWithNestedMapper("x", sourceItemType, destItemType);
 
-            var terminal = destType.TypeKind == TypeKind.Array ? ".ToArray()" : ".ToList()";
-            var fallback = !IsNullable(destType)
-                ? (destType.TypeKind == TypeKind.Array
-                    ? $" ?? global::System.Array.Empty<{destItemType.ToDisplayString()}>()"
-                    : $" ?? new global::System.Collections.Generic.List<{destItemType.ToDisplayString()}>()")
-                : "";
-
-            return $"{expression}{guard}{selectExpr}{terminal}{fallback}";
+            // We'll replace this LINQ expression in SourceEmitter with a loop-based implementation
+            // and we set the collection flags to guide the emitter.
+            bool isArray = destType.TypeKind == TypeKind.Array || destType.ToDisplayString().Contains("[]");
+            return (Expression: expression, NestedSource: GetDisplayString(sourceItemType), NestedDest: GetDisplayString(destItemType), IsCollection: true, IsArray: isArray, ItemExpression: innerExpr);
         }
 
         // 4. Complex Type Mapping
         if (destType.TypeKind == TypeKind.Class && destType.SpecialType == SpecialType.None)
         {
             var op = IsNullable(sourceType) ? "?." : ".";
-            return $"{expression}{op}{GetMapMethodName(destType)}()";
+            return (Expression: $"{expression}{op}{GetMapMethodName(destType)}()", NestedSource: GetDisplayString(sourceType), NestedDest: GetDisplayString(destType), IsCollection: false, IsArray: false, ItemExpression: null);
         }
 
-        return expression;
+        return (Expression: expression, NestedSource: null, NestedDest: null, IsCollection: false, IsArray: false, ItemExpression: null);
     }
 
     private static bool IsDictionary(ITypeSymbol type, out ITypeSymbol keyType, out ITypeSymbol valueType)
@@ -342,4 +380,7 @@ internal static class ConventionEngine
 
         return $"{sourceExpr}!";
     }
+
+    private static string GetDisplayString(ITypeSymbol type) =>
+        type.WithNullableAnnotation(NullableAnnotation.None).ToDisplayString();
 }
