@@ -2,12 +2,11 @@
 
 AutoMappic is a high-performance, AOT-friendly code generator designed to replace AutoMapper with zero-reflection static code.
 
-## Known Limitations (v0.1)
+## Known Limitations (v0.2.0)
 
-- **Parameterless Constructor Required**: Currently, the destination type MUST have a public parameterless constructor. Constructor mapping (injecting parameters) is not yet supported.
 - **Circular Reference Restrictions**: Circular references are detected at compile-time and reported as an error (AM006) to prevent StackOverflow. You must manually break the cycle using `ForMemberIgnore` or a custom resolver.
-- **Limited Custom Converters**: While `MapFrom` and `IValueResolver` are supported, complex custom type converters that apply globally are not yet implemented.
 - **IQueryable.ProjectTo limitations**: Projection currently supports simple property mappings and flattening; complex expressions inside the mapping profile may not always translate perfectly to every ORM provider.
+- **ReverseMap Configuration**: Explicit configuration (like `ForMember`) currently applies only to the forward map. Full configuration lifecycle for reversed maps is planned for v0.3.0.
 - **Structs**: Mapping to or from `struct` types is partially supported but less tested than `class` types.
 
 ## Roadmap

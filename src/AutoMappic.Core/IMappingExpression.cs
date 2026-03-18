@@ -19,6 +19,9 @@ public interface IMappingExpression
 
     /// <summary>Explicit mapping rules for runtime fallback (dest name -> delegate).</summary>
     IReadOnlyDictionary<string, Func<object, object?>> RuntimeMaps { get; }
+
+    /// <summary>Custom type converter for the entire mapping.</summary>
+    Type? ConverterType { get; }
 }
 
 /// <summary>

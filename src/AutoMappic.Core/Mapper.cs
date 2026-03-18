@@ -116,6 +116,13 @@ public sealed class Mapper : IMapper
 
     private static Func<Mapper, object, object?, object> BuildFallbackDelegate(IMappingExpression mapping)
     {
+        if (mapping.ConverterType != null)
+        {
+            var converter = Activator.CreateInstance(mapping.ConverterType);
+            var method = mapping.ConverterType.GetMethod("Convert")!;
+            return (mapper, src, dst) => method.Invoke(converter, new[] { src })!;
+        }
+
         var sourceProps = mapping.SourceType
             .GetProperties(BindingFlags.Public | BindingFlags.Instance)
             .Where(p => p.CanRead)

@@ -19,6 +19,7 @@ internal sealed class MappingExpression<TSource, TDestination> :
     internal readonly Dictionary<string, Func<object, object?>> RuntimeMaps = new(StringComparer.Ordinal);
     private readonly HashSet<string> _ignoredMembers = new(StringComparer.Ordinal);
     private readonly Profile? _profile;
+    private Type? _converterType;
 
     public MappingExpression(Profile? profile = null)
     {
@@ -39,6 +40,9 @@ internal sealed class MappingExpression<TSource, TDestination> :
 
     /// <inheritdoc />
     IReadOnlyDictionary<string, Func<object, object?>> IMappingExpression.RuntimeMaps => RuntimeMaps;
+
+    /// <inheritdoc />
+    public Type? ConverterType => _converterType;
 
     /// <inheritdoc />
     public IMappingExpression<TSource, TDestination> ForMember<TMember>(
@@ -84,7 +88,7 @@ internal sealed class MappingExpression<TSource, TDestination> :
     /// <inheritdoc />
     public void ConvertUsing<TConverter>() where TConverter : ITypeConverter<TSource, TDestination>, new()
     {
-        // Marketplace for the generator; runtime fallback logic is not yet implemented for custom converters.
+        _converterType = typeof(TConverter);
     }
 
     private static string GetMemberName<TMember>(Expression<Func<TDestination, TMember>> selector)

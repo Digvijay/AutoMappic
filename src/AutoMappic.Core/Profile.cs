@@ -67,4 +67,5 @@ internal sealed class OpenGenericMappingExpression(Type s, Type d) : IMappingExp
     public IReadOnlyCollection<string> IgnoredMembers => Array.Empty<string>();
     public IReadOnlyDictionary<string, string?> ExplicitMaps => new Dictionary<string, string?>();
     public IReadOnlyDictionary<string, Func<object, object?>> RuntimeMaps => new Dictionary<string, Func<object, object?>>();
+    public Type? ConverterType => null;
 }
