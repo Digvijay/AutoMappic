@@ -126,4 +126,17 @@ internal static class AutoMappicDiagnostics
         description:
             "A CreateMap call was identified by syntax but the semantic model couldn't find the corresponding method symbol. " +
             "This usually means the project is missing a reference to AutoMappic.Core or there are compilation errors preventing resolution.");
+
+    /// <summary>
+    ///   Emitted when a ProjectTo call is detected using a profile that contains runtime features
+    ///   unsupported by most LINQ providers (e.g. Conditions, BeforeMap/AfterMap).
+    /// </summary>
+    public static readonly DiagnosticDescriptor UnsupportedProjectToFeature = new(
+        id: "AM008",
+        title: "Unsupported ProjectTo feature",
+        messageFormat: "ProjectTo may fail at runtime for mapping '{0}' -> '{1}' because the profile contains procedural logic (Condition, BeforeMap, or AfterMap) that cannot be translated to SQL",
+        category: Category,
+        defaultSeverity: DiagnosticSeverity.Warning,
+        isEnabledByDefault: true,
+        description: "ProjectTo translates mapping rules into IQueryable expressions. Procedural C# logic like Condition predicates or AfterMap actions cannot be translated into SQL by providers such as EF Core.");
 }

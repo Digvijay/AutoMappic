@@ -166,13 +166,13 @@ internal sealed class MappingExpression<TSource, TDestination> :
     internal async Task ExecuteBeforeAsync(TSource source, TDestination destination)
     {
         _beforeMap?.Invoke(source, destination);
-        if (_beforeMapAsync != null) await _beforeMapAsync(source, destination);
+        if (_beforeMapAsync != null) await _beforeMapAsync(source, destination).ConfigureAwait(false);
     }
 
     internal async Task ExecuteAfterAsync(TSource source, TDestination destination)
     {
         _afterMap?.Invoke(source, destination);
-        if (_afterMapAsync != null) await _afterMapAsync(source, destination);
+        if (_afterMapAsync != null) await _afterMapAsync(source, destination).ConfigureAwait(false);
     }
 
     void IMappingExpression.ExecuteBefore(object source, object destination) => ExecuteBefore((TSource)source, (TDestination)destination);

@@ -9,6 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 - **Asynchronous Mapping Support:** Introduced `MapAsync` and `IAsyncValueResolver<TSource, TMember>` to support non-blocking, I/O-bound mapping workflows without thread-pool starvation.
+- **Custom Construction Support:** Added `.ConstructUsing(src => ...)` to allow manual control over destination type instantiation, ideal for types with specialized constructor dependencies.
+- **Conditional Member Mapping:** Introduced `.Condition((src, dest) => ...)` to gate property assignments with custom predicates, bringing full feature parity for complex business-logic mapping.
+- **Build-Time Shield (AM008):** Added an intelligent diagnostic that warns when using `ProjectTo` with profiles containing procedural logic (Conditions, Lifecycle Hooks) which SQL cannot translate.
+- **Sustainability Refactor:** Native enforcement of `ConfigureAwait(false)` across the entire generated and core library to ensure zero deadlock risk in context-bound environments (WPF, WinForms).
 - **Dual-Emission Generator:** The source generator now emits both synchronous and asynchronous versions of every mapping, allowing for optimal call-site interception.
 - **Enhanced `ReverseMap` Configuration:** Expanded `.ReverseMap()` to support chained member configurations, making it easier to manage complex bidirectional mapping rules.
 - **Deep Open Generics:** Support for recursive member mapping within unbounded generic types like `PagedList<T>`.

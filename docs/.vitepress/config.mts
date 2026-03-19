@@ -27,6 +27,9 @@ export default withMermaid(defineConfig({
         items: [
           { text: 'Basic Mapping', link: '/tutorials/basic-mapping' },
           { text: 'Advanced Configuration', link: '/tutorials/advanced-configuration' },
+          { text: 'Conditional Mapping', link: '/tutorials/conditional-mapping' },
+          { text: 'Custom Constructors', link: '/tutorials/custom-constructors' },
+          { text: 'Async Lifecycle Hooks', link: '/tutorials/async-lifecycle-hooks' },
           { text: 'Collections & Dictionaries', link: '/tutorials/collections-and-dictionaries' },
           { text: 'Queryable Projection', link: '/tutorials/queryable-projection' },
           { text: 'DataReader Mapping', link: '/tutorials/data-reader-mapping' },
@@ -37,6 +40,7 @@ export default withMermaid(defineConfig({
       {
         text: 'Reference',
         items: [
+          { text: 'Mapping API', link: '/mapping-api' },
           { text: 'Diagnostic Suite', link: '/diagnostics' },
           { text: 'Reference Apps', link: '/reference-apps' },
           { text: 'Benchmarks', link: '/benchmarks' },

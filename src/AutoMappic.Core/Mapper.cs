@@ -60,11 +60,11 @@ public sealed class Mapper : IMapper
         try
         {
             ArgumentNullException.ThrowIfNull(source);
-            return (TDestination)await MapCoreAsync(source.GetType(), typeof(TDestination), source, null);
+            return (TDestination)await MapCoreAsync(source.GetType(), typeof(TDestination), source, null).ConfigureAwait(false);
         }
         catch (global::System.Exception ex)
         {
-            return await global::System.Threading.Tasks.Task.FromException<TDestination>(ex);
+            return await global::System.Threading.Tasks.Task.FromException<TDestination>(ex).ConfigureAwait(false);
         }
     }
 
@@ -74,11 +74,11 @@ public sealed class Mapper : IMapper
         try
         {
             ArgumentNullException.ThrowIfNull(source);
-            return (TDestination)await MapCoreAsync(typeof(TSource), typeof(TDestination), source, null);
+            return (TDestination)await MapCoreAsync(typeof(TSource), typeof(TDestination), source, null).ConfigureAwait(false);
         }
         catch (global::System.Exception ex)
         {
-            return await global::System.Threading.Tasks.Task.FromException<TDestination>(ex);
+            return await global::System.Threading.Tasks.Task.FromException<TDestination>(ex).ConfigureAwait(false);
         }
     }
 
@@ -89,11 +89,11 @@ public sealed class Mapper : IMapper
         {
             ArgumentNullException.ThrowIfNull(source);
             ArgumentNullException.ThrowIfNull(destination);
-            return (TDestination)await MapCoreAsync(typeof(TSource), typeof(TDestination), source, destination);
+            return (TDestination)await MapCoreAsync(typeof(TSource), typeof(TDestination), source, destination).ConfigureAwait(false);
         }
         catch (global::System.Exception ex)
         {
-            return await global::System.Threading.Tasks.Task.FromException<TDestination>(ex);
+            return await global::System.Threading.Tasks.Task.FromException<TDestination>(ex).ConfigureAwait(false);
         }
     }
 
@@ -176,8 +176,8 @@ public sealed class Mapper : IMapper
                 $"and the generator has run, or register the mapping explicitly.");
         }
 
-        var result = await entry.Delegate(this, source!, destination);
-        await entry.Mapping.ExecuteAfterAsync(source!, result);
+        var result = await entry.Delegate(this, source!, destination).ConfigureAwait(false);
+        await entry.Mapping.ExecuteAfterAsync(source!, result).ConfigureAwait(false);
         return result;
     }
 
@@ -220,7 +220,7 @@ public sealed class Mapper : IMapper
                 }
             }
 
-            await mapping.ExecuteBeforeAsync(src!, dst!);
+            await mapping.ExecuteBeforeAsync(src!, dst!).ConfigureAwait(false);
 
             foreach (var destProp in destProps)
             {
@@ -233,6 +233,7 @@ public sealed class Mapper : IMapper
                 {
                     if (!(bool)condition.DynamicInvoke(src, dst)!)
                     {
+                        if (destProp.Name == "Age") throw new AutoMappicException($"DEBUG: Age condition failed. src.Age={((dynamic)src!).Age}, dst.Mode={((dynamic)dst!).ConstructionMode}");
                         continue;
                     }
                 }

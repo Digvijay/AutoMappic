@@ -87,7 +87,37 @@ public class UserProfile : Profile
 
 The generator will find the best-matching constructor and generate `new UserDto(source.Name, source.Id)`. This is perfect for **immutable records** and **Domain-Driven Design (DDD)**.
 
-## 6. Lifecycle Hooks (BeforeMap / AfterMap)
+### Custom Construction (`ConstructUsing`)
+
+If you need even more control (e.g., calling a specific constructor overload that doesn't match by convention, or performing logic before instantiation), use `ConstructUsing`.
+
+```csharp
+CreateMap<Order, OrderDto>()
+    .ConstructUsing(src => new OrderDto(src.OrderId, DateTime.UtcNow));
+```
+
+The generator will extract the `new OrderDto(...)` expression and use it as the `var result = ...` assignment in the generated mapping class. This avoids the overhead of a generic `Activator.CreateInstance` or any reflection-based constructor investigation at runtime.
+
+## 6. Conditional Mapping (`Condition`)
+
+Sometimes, you only want to map a property if a certain logical condition is met. `Condition` allows you to specify a predicate that determines if the assignment should happen.
+
+```csharp
+CreateMap<User, UserDto>()
+    .ForMember(d => d.Age, opt => opt.Condition((src, dest) => src.IsPublic));
+```
+
+The source generator will wrap the assignment in an `if` block:
+```csharp
+if (source.IsPublic)
+{
+    result.Age = source.Age;
+}
+```
+
+This is highly efficient as it eliminates the need to execute the mapping logic (including child mappings) if the condition is not met.
+
+## 7. Lifecycle Hooks (BeforeMap / AfterMap)
 
 Sometimes, property mapping isn't enough. You may need to perform side effects, initialize the destination object, or perform complex cross-property calculations.
 
@@ -125,7 +155,7 @@ AutoMappic ensures that these hooks are executed in a predictable sequence:
 
 ---
 
-## 7. Zero-Allocation Enum Mapping
+## 8. Zero-Allocation Enum Mapping
 
 Mapping an Enum to a String is common in API development. AutoMappic handles this natively without any extra configuration.
 

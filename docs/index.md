@@ -18,9 +18,11 @@ hero:
 
 features:
   - title: Rigorous Diagnostic Suite
-    details: Build-time protection with AM001–AM005. Catch unmapped properties, missing constructors, and ambiguities before the JIT compiler even starts.
+    details: Build-time protection with AM001–AM008. Catch unmapped properties, circular references, and ProjectTo incompatibilities before the JIT compiler even starts.
   - title: 100% Native AOT Compatible
     details: AutoMappic generates highly-optimized C# code at compile-time. No runtime reflection, no dynamic IL emission.
+  - title: Advanced Configuration Parity
+    details: Support for ConstructUsing and Condition mapping logic is now fully statically generated. Complex C# rule branches are converted into direct execution paths.
   - title: Asynchronous Mapping
     details: Perform I/O-bound operations during mapping with non-blocking MapAsync. Built-in Task awareness and IAsyncValueResolver support.
   - title: Sustainable Engineering

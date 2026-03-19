@@ -478,13 +478,12 @@ internal static class ProfileExtractor
                         body = pl.Body.ToString();
                     }
 
-                    var expr = System.Text.RegularExpressions.Regex.Replace(
+                    condition = System.Text.RegularExpressions.Regex.Replace(
                         body,
                         $@"\b{System.Text.RegularExpressions.Regex.Escape(srcParam)}\b",
                         "source");
-
                     condition = System.Text.RegularExpressions.Regex.Replace(
-                        expr,
+                        condition,
                         $@"\b{System.Text.RegularExpressions.Regex.Escape(destParam)}\b",
                         "result");
                 }

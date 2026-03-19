@@ -57,6 +57,7 @@ AutoMappic is engineered for high-concurrency, low-latency .NET workloads where 
 - **Native AOT & Trimming Integrity**: 100% compatible with Native AOT. AutoMappic generates all necessary code ahead-of-time, eliminating the need for `System.Reflection.Emit` or dynamic assembly loading.
 - **Zero-LINQ Collections**: High-performance `for` loops with pre-allocated capacity for lists and arrays, reducing GC pressure by up to 25% compared to LINQ-based mappers.
 - **Convention-Driven Automation**: Automated resolution of PascalCase flattening and snake_case normalization.
+- **Advanced Parity**: Full support for `.ConstructUsing()` and `.Condition()` to handle complex object instantiation and predicate-based mapping.
 - **ProjectTo & DataReader Support**: Native, AOT-safe support for EF Core `IQueryable` projections and ADO.NET `IDataReader` mapping.
 - **Solid Integrity**: Comprehensive line coverage on the core mapping engine.
 - **Zero-Reflection Dependency Injection**: A unique "Static Registration Chain" discovers profiles across the entire solution at compile-time.
@@ -73,6 +74,8 @@ AutoMappic provides a rigorous build-time validation layer. It transforms tradit
 | **AM003** | Misplaced CreateMap | Warning | Identifies configurations declared outside of Profile constructors. |
 | **AM004** | Unresolved Interceptor| Warning | Alerts when a map call falls back to the reflection engine. |
 | **AM005** | Missing Constructor | Error | Ensures destination types are instantiable without reflection. |
+| **AM006** | Circular Reference | Error | Detects recursive mapping loops that would cause StackOverflow. |
+| **AM007** | Internal Failure | Warning| Emitted when Roslyn cannot resolve mapping symbols. |
 
 ## Reference Implementations
 

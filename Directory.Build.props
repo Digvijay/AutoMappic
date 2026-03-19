@@ -47,6 +47,6 @@
     <AnalysisLevel>latest</AnalysisLevel>
     <AnalysisMode>Recommended</AnalysisMode>
     <EnforceCodeStyleInBuild>true</EnforceCodeStyleInBuild>
-    <NoWarn>$(NoWarn);CA2007;CA1014</NoWarn>
+    <NoWarn>$(NoWarn)</NoWarn>
   </PropertyGroup>
 </Project>

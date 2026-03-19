@@ -13,6 +13,7 @@ Traditional mappers like AutoMapper follow a **"Plan-at-Runtime"** strategy. Aut
 | **Performance** | O(N) Reflection cost | High (First call penalty) | Extreme (Statically generated) | **Extreme (Fully Inlined)** |
 | **Native AOT** | **No** (Relies on IL Emit) | Limited (Via CodeGen tool) | Full Support | **100% Native AOT Compliance** |
 | **Async Mapping** | No (Synchronous Only) | Partial (Via Mapster.Async) | No (Synchronous Only) | **First-Class Dual-Emission** |
+| **Complex Mapping** | **ConstructUsing / Condition** | Full Support | Full Support | **Full Parity (Statically Generated)** |
 | **IDataReader** | Convention-Based | No Native Support | No Native Support | **High-Performance Static Projections** |
 
 ---
@@ -41,7 +42,7 @@ graph LR
 Because AutoMappic understands your code before it runs, it can provide immediate feedback. If you attempt to map a `Source` to a `Destination` where a property is missing or types are incompatible, you don't find out in Production—you find out in your IDE.
 
 ::: info
-**Diagnostics AM001–AM007** ensure that your mapping profiles are always in sync with your models. If a build passes, the mapping is guaranteed to work.
+**Diagnostics AM001–AM008** ensure that your mapping profiles are always in sync with your models. If a build passes, the mapping is guaranteed to work.
 :::
 
 ## 3. High-Performance Collection Mapping

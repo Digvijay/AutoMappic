@@ -132,6 +132,34 @@ public sealed class AutoMappicGenerator : IIncrementalGenerator
                 }
             }
 
+            // 3. Emit AM008 for potential ProjectTo incompatibilities
+            foreach (var loc in locations.Where(l => l.Kind == InterceptKind.ProjectTo))
+            {
+                var key = $"{Sanitise(loc.SourceTypeFullName)}_To_{Sanitise(loc.DestinationTypeFullName)}";
+                if (mappingsByKey.TryGetValue(key, out var model))
+                {
+                    bool hasRuntimeFeatures = model.Properties.Any(p => !string.IsNullOrEmpty(p.ConditionBody)) ||
+                                              !string.IsNullOrEmpty(model.BeforeMapBody) ||
+                                              !string.IsNullOrEmpty(model.AfterMapBody) ||
+                                              !string.IsNullOrEmpty(model.BeforeMapAsyncBody) ||
+                                              !string.IsNullOrEmpty(model.AfterMapAsyncBody);
+
+                    if (hasRuntimeFeatures)
+                    {
+                        var linePos = new global::Microsoft.CodeAnalysis.Text.LinePosition(loc.Line - 1, loc.Column - 1);
+                        var location = global::Microsoft.CodeAnalysis.Location.Create(loc.FilePath,
+                            new global::Microsoft.CodeAnalysis.Text.TextSpan(0, 0),
+                            new global::Microsoft.CodeAnalysis.Text.LinePositionSpan(linePos, linePos));
+
+                        spc.ReportDiagnostic(global::Microsoft.CodeAnalysis.Diagnostic.Create(
+                            AutoMappicDiagnostics.UnsupportedProjectToFeature,
+                            location,
+                            model.SourceTypeName,
+                            model.DestinationTypeName));
+                    }
+                }
+            }
+
             var (hintName, source) = SourceEmitter.EmitInterceptors(locations, mappingsByKey);
             // Hint name for the single Interceptors file is constant.
             spc.AddSource(hintName, source);

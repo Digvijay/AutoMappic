@@ -9,3 +9,4 @@ AM004 | AutoMappic | Warning | No generated mapping for intercepted IMapper.Map 
 AM005 | AutoMappic | Error | Missing parameterless constructor.
 AM006 | AutoMappic | Error | Circular reference detected.
 AM007 | AutoMappic | Warning | Could not resolve CreateMap symbol.
+AM008 | AutoMappic | Warning | Unsupported ProjectTo feature.

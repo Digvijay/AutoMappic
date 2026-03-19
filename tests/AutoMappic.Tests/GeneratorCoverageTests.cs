@@ -204,4 +204,65 @@ public class Dest
         Assert.Contains("Value2 ?? string.Empty", mapSource);
         Assert.Contains("MapCollection_Value3(source.Value3)", mapSource);
     }
+
+    /// <summary> Explicitly trigger branches for ConstructUsing and Condition in the generator </summary>
+    [Fact]
+    public void Generator_Condition_ConstructUsing_TriggerBranches()
+    {
+        var source = @"
+using AutoMappic;
+
+public class Profile1 : Profile
+{
+    public Profile1()
+    {
+        CreateMap<Source, Dest>()
+            .ConstructUsing(src => new Dest(src.Name))
+            .ForMember(d => d.Age, opt => opt.Condition((src, dest) => src.Id > 0));
+    }
+}
+
+public class Source { public int Id { get; set; } public string Name { get; set; } = """"; public int Age { get; set; } }
+public class Dest { 
+    public Dest(string name) { Name = name; }
+    public string Name { get; set; }
+    public int Age { get; set; }
+}";
+        var result = GeneratorTestHelper.RunGenerator(source);
+        var mapSource = result.Sources.First(f => f.HintName.Contains("Source_To_Dest")).SourceText.ToString();
+        Assert.Contains("new Dest(source.Name)", mapSource);
+        Assert.Contains("if (source.Id > 0)", mapSource);
+    }
+
+    /// <summary> Verify that AM008 is emitted when ProjectTo is used with a profile containing runtime features. </summary>
+    [Fact]
+    public void Generator_AM008_ProjectTo_WarnsOnRuntimeFeatures()
+    {
+        var source = @"
+using AutoMappic;
+using System.Linq;
+
+public class S { public int Id { get; set; } }
+public class D { public int Id { get; set; } }
+
+public class BadProfile : Profile
+{
+    public BadProfile()
+    {
+        CreateMap<S, D>()
+            .ForMember(d => d.Id, opt => opt.Condition((src, dest) => src.Id > 0));
+    }
+}
+
+public class Program
+{
+    public void Run(global::AutoMappic.IMapper mapper, IQueryable<S> query)
+    {
+        var result = query.ProjectTo<S, D>();
+    }
+}";
+        var result = GeneratorTestHelper.RunGenerator(source);
+        var ids = result.Diagnostics.Select(d => d.Id).ToList();
+        Assert.Contains("AM008", ids);
+    }
 }

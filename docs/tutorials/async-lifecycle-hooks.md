@@ -1,0 +1,67 @@
+# Asynchronous Lifecycle Hooks: BeforeMap & AfterMap
+
+AutoMappic v0.2.0 introduces **Asynchronous Lifecycle Hooks**, allowing you to perform I/O-bound operations during the mapping process without blocking.
+
+## The Dual-Emission Engine
+
+AutoMappic's unique **Dual-Emission Engine** generates both synchronous and asynchronous versions of every mapping. 
+
+When you configure a `BeforeMapAsync` or `AfterMapAsync`, the generator handles the complex state-matching for you.
+
+## Basic Usage
+
+To add a lifecycle hook, use `.BeforeMap()` or `.AfterMap()` inside your `CreateMap` configuration:
+
+```csharp
+CreateMap<Order, OrderDto>()
+    .BeforeMapAsync(async (src, dest) => 
+    {
+        // Fetch audit logs as part of the mapping
+        dest.AuditLog = await _auditService.GetLastLogAsync(src.Id);
+    })
+    .AfterMap((src, dest) => 
+    {
+        // Synchronous cleanup logic
+        dest.ProcessedAt = DateTime.UtcNow;
+    });
+```
+
+## How it Works
+
+When you call `await mapper.MapAsync<Order, UserDto>(order)`, the generated code looks something like this:
+
+```csharp
+public static async Task<OrderDto> MapToOrderDtoAsync(this Order source)
+{
+    var result = new OrderDto();
+    
+    // 1. Execute BeforeMap hooks (Async)
+    await source.BeforeMapAsync(result).ConfigureAwait(false);
+    
+    // 2. Perform property mapping...
+    result.Id = source.Id;
+    
+    // 3. Execute AfterMap hooks (Synchronous)
+    source.AfterMap(result);
+    
+    return result;
+}
+```
+
+## Mixing Sync and Async
+
+You can mix `BeforeMap` (sync) and `BeforeMapAsync` (async). AutoMappic ensures that:
+1.  **If `MapAsync` is called**: Both sync and async hooks are executed (async hooks are awaited).
+2.  **If `Map` (sync) is called**: ONLY sync hooks are executed (async hooks are skipped to prevent blocking deadlocks).
+
+## Sustainability & Deadlock Prevention
+
+AutoMappic v0.2.0 has been built with **Sustainable Async Engineering**. Every generated `await` in the source code uses `.ConfigureAwait(false)` to ensure you never have a deadlock in WPF, WinForms, or legacy ASP.NET applications.
+
+## Summary
+| Hook Type | Native AOT | Use Case |
+| :--- | :--- | :--- |
+| **BeforeMap** | 100% | Pre-mapping normalization / clearing values. |
+| **BeforeMapAsync** | 100% | Fetching related entities from a database. |
+| **AfterMap** | 100% | Finalizing timestamps / complex derivation. |
+| **AfterMapAsync** | 100% | Logging or auditing the mapping event asynchronously. |
