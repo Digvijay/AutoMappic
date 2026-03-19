@@ -31,6 +31,7 @@ export default withMermaid(defineConfig({
           { text: 'Custom Constructors', link: '/tutorials/custom-constructors' },
           { text: 'Async Lifecycle Hooks', link: '/tutorials/async-lifecycle-hooks' },
           { text: 'Collections & Dictionaries', link: '/tutorials/collections-and-dictionaries' },
+          { text: 'Unit Testing Your Mappings', link: '/tutorials/unit-testing' },
           { text: 'Queryable Projection', link: '/tutorials/queryable-projection' },
           { text: 'DataReader Mapping', link: '/tutorials/data-reader-mapping' },
           { text: 'CLI Tools & Visualization', link: '/tutorials/cli-tools' },
