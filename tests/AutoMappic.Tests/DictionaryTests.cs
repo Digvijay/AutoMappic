@@ -22,8 +22,13 @@ public sealed class DictionaryMappingTests
         {
             CreateMap<DictSource, DictDto>();
             CreateMap<User, UserSummaryDto>();
+            CreateMap<CustomDictSource, CustomDictDto>();
         }
     }
+
+    public class MyDict : Dictionary<string, int> { }
+    public class CustomDictSource { public MyDict Stats { get; set; } = new(); }
+    public class CustomDictDto { public Dictionary<string, int> Stats { get; set; } = new(); }
 
     /// <summary> Confirm that dictionary values are correctly transformed while maintaining their associated keys </summary>
     [Fact]
@@ -39,5 +44,20 @@ public sealed class DictionaryMappingTests
 
         Assert.Single(dto.Users);
         Assert.Equal("root", dto.Users["admin"].Username);
+    }
+
+    [Fact]
+    [Prova.Description("Verify that custom classes inheriting from generic dictionaries correctly map as dictionaries.")]
+    public void Map_InheritedDictionary_Works()
+    {
+        var config = new MapperConfiguration(cfg => cfg.AddProfile<DictProfile>());
+        var mapper = config.CreateMapper();
+
+        var source = new CustomDictSource { Stats = new MyDict { { "a", 1 }, { "b", 2 } } };
+        var dto = mapper.Map<CustomDictSource, CustomDictDto>(source);
+
+        Assert.Equal(2, dto.Stats.Count);
+        Assert.Equal(1, dto.Stats["a"]);
+        Assert.Equal(2, dto.Stats["b"]);
     }
 }

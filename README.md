@@ -1,6 +1,6 @@
 ![AutoMappic Hero](./docs/public/assets/hero.png)
 
-# AutoMappic v0.1.0
+# AutoMappic v0.2.0
 
 [![NuGet](https://img.shields.io/nuget/v/AutoMappic?style=flat-square&logo=nuget)](https://www.nuget.org/packages/AutoMappic)
 [![CI](https://github.com/Digvijay/AutoMappic/actions/workflows/ci.yml/badge.svg?style=flat-square)](https://github.com/Digvijay/AutoMappic/actions/workflows/ci.yml)
@@ -8,7 +8,7 @@
 [![License](https://img.shields.io/badge/license-MIT-green?style=flat-square)](LICENSE)
 [![Docs](https://img.shields.io/badge/docs-automappic.digvijay.dev-blue?style=flat-square&logo=vitepress)](https://automappic.digvijay.dev)
 [![Native AOT](https://img.shields.io/badge/Native_AOT-100%25-success?style=flat-square&logo=visual-studio)](https://learn.microsoft.com/en-us/dotnet/core/deploying/native-aot/)
-[![Reflection](https://img.shields.io/badge/Reflection-0%25-red?style=flat-square)](https://github.com/LuckyPennySoftware/AutoMappic)
+[![Reflection](https://img.shields.io/badge/Reflection-0%25-red?style=flat-square)](https://github.com/Digvijay/AutoMappic)
 
 **Zero-Reflection. Zero-Overhead. Native AOT-First.**
 
@@ -24,6 +24,7 @@ Standard mappers like AutoMapper rely on runtime reflection and `Expression.Comp
 - **Fast**: Faster than manual mapping because the compiler can optimize the straight-line C# we emit.
 - **AOT Ready**: 100% compatible with Native AOT. No dynamic code generation at runtime.
 - **Debuggable**: Step through your mapping code just like any other C# file.
+- **Asynchronous First**: First-class support for `MapAsync` and `IAsyncValueResolver<TSource, TDestination>` for I/O-bound operations.
 - **Drop-in Migration**: Identical `Profile`, `CreateMap`, and `ForMember` syntax. Simply swap `using AutoMapper;` for `using AutoMappic;` and `AddAutoMapper` for `AddAutoMappic`.
 
 ## Benchmarks
@@ -51,6 +52,7 @@ AutoMappic achieves performance parity with manual hand-written C# by shifting a
 
 AutoMappic is engineered for high-concurrency, low-latency .NET workloads where traditional reflection-based mapping introduces unacceptable overhead and breaks deployment targets like Native AOT.
 
+- **Asynchronous Mapping**: Support for `MapAsync` multi-overloads and typed `IAsyncValueResolver` support for I/O bound properties.
 - **Deterministic Performance**: By utilizing **Roslyn Interceptors**, mapping logic is resolved at compile-time. The JIT compiler receives straight-line static C#, enabling aggressive inlining and optimization that reaches the theoretical limits of manual assignment.
 - **Native AOT & Trimming Integrity**: 100% compatible with Native AOT. AutoMappic generates all necessary code ahead-of-time, eliminating the need for `System.Reflection.Emit` or dynamic assembly loading.
 - **Zero-LINQ Collections**: High-performance `for` loops with pre-allocated capacity for lists and arrays, reducing GC pressure by up to 25% compared to LINQ-based mappers.
@@ -99,11 +101,12 @@ public class UserProfile : Profile
 var services = new ServiceCollection();
 services.AddAutoMappic(); // Automatic discovery of all profiles in your solution
 
-// 3. Use it
+// 3. Use it (Async-Ready!)
 var serviceProvider = services.BuildServiceProvider();
 var mapper = serviceProvider.GetRequiredService<IMapper>();
 
-var dto = mapper.Map<User, UserDto>(new User { Name = "Alice" });
+// Fully static, non-blocking asynchronous mapping
+var dto = await mapper.MapAsync<User, UserDto>(new User { Name = "Digvijay Chauhan" });
 ```
 
 For a detailed step-by-step tutorial, see [GettingStarted.md](./GettingStarted.md).

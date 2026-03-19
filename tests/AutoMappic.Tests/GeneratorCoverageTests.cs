@@ -202,6 +202,6 @@ public class Dest
         var mapSource = result.Sources.First(f => f.HintName.Contains("Source_To_Dest")).SourceText.ToString();
         Assert.Contains("Value1.GetValueOrDefault()", mapSource);
         Assert.Contains("Value2 ?? string.Empty", mapSource);
-        Assert.Contains("Value3 ?? global::System.Array.Empty<int>()", mapSource);
+        Assert.Contains("MapCollection_Value3(source.Value3)", mapSource);
     }
 }

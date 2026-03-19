@@ -111,4 +111,19 @@ internal static class AutoMappicDiagnostics
             "AutoMappic's static generator does not support recursive object graphs by default " +
             "as they require a runtime object tracker which is expensive for performance and AOT. " +
             "Ignore the recursive property or use a custom resolver.");
+
+    /// <summary>
+    ///   Emitted when a <c>CreateMap</c> call is identified by syntax but the semantic model
+    ///   cannot resolve the method symbol.
+    /// </summary>
+    public static readonly DiagnosticDescriptor UnresolvedCreateMapSymbol = new(
+        id: "AM007",
+        title: "Could not resolve CreateMap symbol",
+        messageFormat: "The generator found a CreateMap call but could not resolve its symbol. Ensure AutoMappic.Core is correctly referenced.",
+        category: Category,
+        defaultSeverity: DiagnosticSeverity.Warning,
+        isEnabledByDefault: true,
+        description:
+            "A CreateMap call was identified by syntax but the semantic model couldn't find the corresponding method symbol. " +
+            "This usually means the project is missing a reference to AutoMappic.Core or there are compilation errors preventing resolution.");
 }

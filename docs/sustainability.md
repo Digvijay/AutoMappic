@@ -25,6 +25,11 @@ AutoMappic generates specialized `for` loops with pre-allocated capacity for all
 - **Lower GC Pressure**: Less energy spent on garbage collection in high-throughput applications. 
 - **Sustainable Throughput**: Consistent performance without the "GC spikes" typical of LINQ-heavy mappers.
 
+### 4. Asynchronous Scaling
+By providing first-class support for `MapAsync`, AutoMappic ensures that your mapping rules don't block threads. This is crucial for **Thread Density**:
+- **Non-blocking I/O**: Wait for external data (DB/API) without pinning a thread.
+- **Higher Throughput**: Handle more requests with fewer active threads, reducing context switching and overall server energy load.
+
 ## The ESG (Environmental, Social, and Governance) Impact
 
 For enterprises with ESG targets, switching to AutoMappic is a simple technical decision with measurable sustainability benefits.

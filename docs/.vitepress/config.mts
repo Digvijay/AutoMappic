@@ -17,17 +17,29 @@ export default withMermaid(defineConfig({
         text: 'Guide',
         items: [
           { text: 'Getting Started', link: '/getting-started' },
+          { text: 'Asynchronous Mapping', link: '/asynchronous-mapping' },
           { text: 'How it Works', link: '/how-it-works' },
-          { text: 'Sustainability & ESG', link: '/sustainability' },
-          { text: 'Benchmarks', link: '/benchmarks' },
-          { text: 'Changelog', link: '/changelog' }
+          { text: 'Sustainability & ESG', link: '/sustainability' }
+        ]
+      },
+      {
+        text: 'Tutorials',
+        items: [
+          { text: 'Basic Mapping', link: '/tutorials/basic-mapping' },
+          { text: 'Advanced Configuration', link: '/tutorials/advanced-configuration' },
+          { text: 'Collections & Dictionaries', link: '/tutorials/collections-and-dictionaries' },
+          { text: 'Queryable Projection', link: '/tutorials/queryable-projection' },
+          { text: 'CLI Tools & Visualization', link: '/tutorials/cli-tools' },
+          { text: 'Native AOT Guide', link: '/tutorials/native-aot-guide' }
         ]
       },
       {
         text: 'Reference',
         items: [
           { text: 'Diagnostic Suite', link: '/diagnostics' },
-          { text: 'Reference Apps', link: '/reference-apps' }
+          { text: 'Reference Apps', link: '/reference-apps' },
+          { text: 'Benchmarks', link: '/benchmarks' },
+          { text: 'Changelog', link: '/changelog' }
         ]
       }
     ],

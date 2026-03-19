@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using System.Linq;
 
 namespace AutoMappic.Generator.Models;
 
@@ -30,7 +31,10 @@ internal sealed record PropertyMap(
     string? NestedDestTypeFullName = null,
     bool IsCollection = false,
     bool IsArray = false,
-    string? NestedExpression = null);
+    string? NestedExpression = null,
+    string? SourceRawExpression = null,
+    bool IsReadOnly = false,
+    bool IsAsync = false);
 
 /// <summary>Describes how a <see cref="PropertyMap" /> was resolved by the convention engine.</summary>
 internal enum PropertyMapKind
@@ -82,8 +86,15 @@ internal sealed record MappingModel(
     string? TypeConverterFullName = null,
     string? FilePath = null,
     int Line = 0,
-    int Column = 0)
+    int Column = 0,
+    string? BeforeMapBody = null,
+    string? AfterMapBody = null,
+    string? BeforeMapAsyncBody = null,
+    string? AfterMapAsyncBody = null)
 {
+    /// <summary>Returns true if any property in this mapping is resolved asynchronously.</summary>
+    public bool IsAsync => Properties.Any(p => p.IsAsync) || ConstructorArguments.Any(p => p.IsAsync) || !string.IsNullOrEmpty(BeforeMapAsyncBody) || !string.IsNullOrEmpty(AfterMapAsyncBody);
+
     /// <summary>
     ///   A stable, file-system-safe identifier used as the hint name for
     ///   <c>context.AddSource()</c>, e.g. <c>Order_To_OrderDto</c>.
@@ -92,7 +103,7 @@ internal sealed record MappingModel(
         $"{Sanitise(SourceTypeFullName)}_To_{Sanitise(DestinationTypeFullName)}";
 
     private static string Sanitise(string name) =>
-        name.Replace('.', '_').Replace('<', '_').Replace('>', '_');
+        name.Replace('.', '_').Replace('+', '_').Replace('<', '_').Replace('>', '_');
 }
 
 internal enum InterceptKind
@@ -116,5 +127,6 @@ internal sealed record InterceptLocation(
     string ParameterSourceTypeFullName,
     InterceptKind Kind,
     bool IsCollectionMapping = false,
+    bool IsDestinationMapped = false,
     string? EffectiveSourceTypeFullName = null,
     string? EffectiveDestTypeFullName = null);

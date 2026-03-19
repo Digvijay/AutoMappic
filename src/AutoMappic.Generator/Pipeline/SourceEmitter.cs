@@ -11,29 +11,8 @@ namespace AutoMappic.Generator.Pipeline;
 /// <summary>
 ///   Emits all generated C# source files for AutoMappic.
 /// </summary>
-/// <remarks>
-///   <para>Two kinds of source files are produced:</para>
-///   <list type="number">
-///     <item>
-///       <description>
-///         A static extension class per mapping pair, e.g.
-///         <c>Order_To_OrderDto_Map.g.cs</c>, containing a
-///         <c>MapToOrderDto(this Order source)</c> static method with direct property
-///         assignments.  No reflection.  Fully debuggable.
-///       </description>
-///     </item>
-///     <item>
-///       <description>
-///         A single <c>AutoMappic.Interceptors.g.cs</c> file containing one static method per
-///         intercepted call site, each decorated with an <c>[InterceptsLocation]</c>
-///         attribute that redirects the compiler to our generated static method.
-///       </description>
-///     </item>
-///   </list>
-/// </remarks>
 internal static class SourceEmitter
 {
-    /// <summary>Emits the static mapping class for a single <see cref="MappingModel" />.</summary>
     public static (string HintName, string Source) EmitMappingClass(MappingModel model)
     {
         var sb = new StringBuilder();
@@ -51,119 +30,258 @@ internal static class SourceEmitter
         sb.AppendLine("{");
 
         var methodName = $"MapTo{model.DestinationTypeName}";
+        var isAsync = model.IsAsync;
 
+        // 1. Synchronous instance mapping
         sb.AppendLine($"    /// <summary>Maps a <see cref=\"{EscapeXml(model.SourceTypeFullName)}\" /> to a new <see cref=\"{EscapeXml(model.DestinationTypeFullName)}\" /> instance.</summary>");
         sb.AppendLine($"    public static {model.DestinationTypeFullName} {methodName}(this {model.SourceTypeFullName} source)");
         sb.AppendLine("    {");
-        sb.AppendLine("        if (source is null) throw new global::System.ArgumentNullException(nameof(source));");
-        sb.AppendLine();
-
-        if (model.TypeConverterFullName != null)
+        if (isAsync)
         {
-            sb.AppendLine($"        return new {model.TypeConverterFullName}().Convert(source);");
+            sb.AppendLine($"        return {methodName}Async(source).GetAwaiter().GetResult();");
             sb.AppendLine("    }");
-            sb.AppendLine("}");
-            return ($"{model.HintName}_Map.g.cs", sb.ToString());
         }
-        var collectionHelpers = new List<PropertyMap>();
-        var ctorArgExpressions = new List<string>();
+        else
+        {
+            sb.AppendLine("        if (source is null) throw new global::System.ArgumentNullException(nameof(source));");
+            sb.AppendLine();
+            if (model.TypeConverterFullName != null)
+            {
+                sb.AppendLine($"        return new {model.TypeConverterFullName}().Convert(source);");
+            }
+            else
+            {
+                EmitMappingBody(sb, model, false);
+            }
+            sb.AppendLine("    }");
+        }
 
+        // 2. Asynchronous instance mapping
+        if (isAsync)
+        {
+            sb.AppendLine();
+            sb.AppendLine($"    /// <summary>Asynchronously maps a <see cref=\"{EscapeXml(model.SourceTypeFullName)}\" /> to a new <see cref=\"{EscapeXml(model.DestinationTypeFullName)}\" /> instance.</summary>");
+            sb.AppendLine($"    public static async global::System.Threading.Tasks.Task<{model.DestinationTypeFullName}> {methodName}Async(this {model.SourceTypeFullName} source)");
+            sb.AppendLine("    {");
+            sb.AppendLine("        if (source is null) throw new global::System.ArgumentNullException(nameof(source));");
+            sb.AppendLine();
+            EmitMappingBody(sb, model, true);
+            sb.AppendLine("    }");
+        }
+
+        // 3. Synchronous in-place mapping
+        sb.AppendLine();
+        sb.AppendLine($"    /// <summary>Maps properties from <paramref name=\"source\" /> onto an existing <paramref name=\"destination\" /> instance.</summary>");
+        sb.AppendLine($"    public static {model.DestinationTypeFullName} {methodName}(this {model.SourceTypeFullName} source, {model.DestinationTypeFullName} destination)");
+        sb.AppendLine("    {");
+        if (isAsync)
+        {
+            sb.AppendLine($"        return {methodName}Async(source, destination).GetAwaiter().GetResult();");
+            sb.AppendLine("    }");
+        }
+        else
+        {
+            sb.AppendLine("        if (source is null) throw new global::System.ArgumentNullException(nameof(source));");
+            sb.AppendLine("        if (destination is null) throw new global::System.ArgumentNullException(nameof(destination));");
+            sb.AppendLine();
+            EmitInPlaceBody(sb, model, false);
+            sb.AppendLine("        return destination;");
+            sb.AppendLine("    }");
+        }
+
+        // 4. Asynchronous in-place mapping
+        if (isAsync)
+        {
+            sb.AppendLine();
+            sb.AppendLine($"    /// <summary>Asynchronously maps properties from <paramref name=\"source\" /> onto an existing <paramref name=\"destination\" /> instance.</summary>");
+            sb.AppendLine($"    public static async global::System.Threading.Tasks.Task<{model.DestinationTypeFullName}> {methodName}Async(this {model.SourceTypeFullName} source, {model.DestinationTypeFullName} destination)");
+            sb.AppendLine("    {");
+            sb.AppendLine("        if (source is null) throw new global::System.ArgumentNullException(nameof(source));");
+            sb.AppendLine("        if (destination is null) throw new global::System.ArgumentNullException(nameof(destination));");
+            sb.AppendLine();
+            EmitInPlaceBody(sb, model, true);
+            sb.AppendLine("        return destination;");
+            sb.AppendLine("    }");
+        }
+
+        // 5. Collection Helpers
+        var collectionHelpers = new List<PropertyMap>();
+        CollectCollectionHelpers(model, collectionHelpers);
+        foreach (var helper in collectionHelpers.GroupBy(h => h.DestinationProperty).Select(g => g.First()))
+        {
+            EmitCollectionHelper(sb, helper);
+        }
+
+        sb.AppendLine("}");
+        return ($"{model.HintName}_Map.g.cs", sb.ToString());
+    }
+
+    private static void EmitMappingBody(StringBuilder sb, MappingModel model, bool isAsync)
+    {
+        var ctorArgExpressions = new List<string>();
         foreach (var arg in model.ConstructorArguments)
         {
             var expression = arg.SourceExpression;
             if (arg.IsCollection)
             {
-                var helperName = $"MapCollection_{arg.DestinationProperty}_Ctor";
-                expression = $"{helperName}({arg.SourceExpression})";
-                collectionHelpers.Add(arg with { DestinationProperty = arg.DestinationProperty + "_Ctor" });
+                expression = $"MapCollection_{arg.DestinationProperty}_Ctor({arg.SourceExpression})";
             }
             ctorArgExpressions.Add(expression!);
         }
 
         var ctorCall = string.Join(", ", ctorArgExpressions);
-        sb.AppendLine($"        return new {model.DestinationTypeFullName}({ctorCall})");
-        sb.AppendLine("        {");
+        var initOnlyProps = model.Properties.Where(p => p.IsInitOnly && p.Kind != PropertyMapKind.Ignored).ToList();
+        var otherProps = model.Properties.Where(p => !p.IsInitOnly && p.Kind != PropertyMapKind.Ignored).ToList();
 
-        var constructorParamNames = new HashSet<string>(model.ConstructorArguments.Select(a => a.DestinationProperty), StringComparer.OrdinalIgnoreCase);
-
-        foreach (var prop in model.Properties)
+        if (initOnlyProps.Count > 0)
         {
-            if (prop.Kind == PropertyMapKind.Ignored) continue;
-
-            // If the property is also a constructor param, we might want to skip it if it's already set.
-            // But usually we set it anyway if it has a setter, to be safe.
-            // UNLESS it's init-only or has no setter (already filtered in ConventionEngine).
-
-            var expression = prop.SourceExpression;
-            if (prop.IsCollection)
+            sb.AppendLine($"        var result = new {model.DestinationTypeFullName}({ctorCall})");
+            sb.AppendLine("        {");
+            foreach (var prop in initOnlyProps)
             {
-                var helperName = $"MapCollection_{prop.DestinationProperty}";
-                expression = $"{helperName}({prop.SourceExpression})";
-                collectionHelpers.Add(prop);
+                var expression = prop.IsCollection && prop.NestedSourceTypeFullName != null ? $"MapCollection_{prop.DestinationProperty}({prop.SourceRawExpression ?? prop.SourceExpression})" : prop.SourceExpression;
+                sb.AppendLine($"            {prop.DestinationProperty} = {expression}, // {prop.Kind}");
             }
-
-            sb.AppendLine($"            {prop.DestinationProperty} = {expression}, // {prop.Kind}");
+            sb.AppendLine("        };");
         }
-
-        sb.AppendLine("        };");
-        sb.AppendLine("    }");
-
-        // Emit collection helpers
-        foreach (var helper in collectionHelpers)
+        else
         {
-            EmitCollectionHelper(sb, helper);
+            sb.AppendLine($"        var result = new {model.DestinationTypeFullName}({ctorCall});");
         }
 
-        // Also emit an in-place overwrite overload.
-        sb.AppendLine();
-        sb.AppendLine($"    /// <summary>Maps properties from <paramref name=\"source\" /> onto an existing <paramref name=\"destination\" /> instance.</summary>");
-        sb.AppendLine($"    public static {model.DestinationTypeFullName} {methodName}(this {model.SourceTypeFullName} source, {model.DestinationTypeFullName} destination)");
-        sb.AppendLine("    {");
-        sb.AppendLine("        if (source is null) throw new global::System.ArgumentNullException(nameof(source));");
-        sb.AppendLine("        if (destination is null) throw new global::System.ArgumentNullException(nameof(destination));");
-        sb.AppendLine();
+        // BeforeMap: emit sync first, then async (both run if both configured)
+        if (isAsync)
+        {
+            if (!string.IsNullOrEmpty(model.BeforeMapBody)) sb.AppendLine($"        {model.BeforeMapBody}");
+            if (!string.IsNullOrEmpty(model.BeforeMapAsyncBody)) sb.AppendLine($"        await (global::System.Threading.Tasks.Task.Run(async () => {{ {model.BeforeMapAsyncBody} }}));");
+        }
+        else if (!string.IsNullOrEmpty(model.BeforeMapBody))
+        {
+            sb.AppendLine($"        {model.BeforeMapBody}");
+        }
+
+        foreach (var prop in otherProps)
+        {
+            var expression = prop.IsCollection && prop.NestedSourceTypeFullName != null ? $"MapCollection_{prop.DestinationProperty}({prop.SourceRawExpression ?? prop.SourceExpression})" : prop.SourceExpression;
+            if (prop.IsReadOnly)
+            {
+                if (prop.IsCollection)
+                {
+                    sb.AppendLine($"        var target{prop.DestinationProperty} = result.{prop.DestinationProperty};");
+                    sb.AppendLine($"        if (target{prop.DestinationProperty} != null)");
+                    sb.AppendLine("        {");
+                    sb.AppendLine($"            target{prop.DestinationProperty}.Clear();");
+                    sb.AppendLine($"            foreach (var item in {expression}) target{prop.DestinationProperty}.Add(item);");
+                    sb.AppendLine("        }");
+                }
+            }
+            else
+            {
+                sb.AppendLine($"        result.{prop.DestinationProperty} = {expression}; // {prop.Kind}");
+            }
+        }
+
+        // AfterMap: emit sync first, then async (both run if both configured)
+        if (isAsync)
+        {
+            if (!string.IsNullOrEmpty(model.AfterMapBody)) sb.AppendLine($"        {model.AfterMapBody}");
+            if (!string.IsNullOrEmpty(model.AfterMapAsyncBody)) sb.AppendLine($"        await (global::System.Threading.Tasks.Task.Run(async () => {{ {model.AfterMapAsyncBody} }}));");
+        }
+        else if (!string.IsNullOrEmpty(model.AfterMapBody))
+        {
+            sb.AppendLine($"        {model.AfterMapBody}");
+        }
+        sb.AppendLine("        return result;");
+    }
+
+    private static void EmitInPlaceBody(StringBuilder sb, MappingModel model, bool isAsync)
+    {
+        sb.AppendLine("        var result = destination;");
+        // BeforeMap: emit sync first, then async (both run if both configured)
+        if (isAsync)
+        {
+            if (!string.IsNullOrEmpty(model.BeforeMapBody)) sb.AppendLine($"        {model.BeforeMapBody}");
+            if (!string.IsNullOrEmpty(model.BeforeMapAsyncBody)) sb.AppendLine($"        await (global::System.Threading.Tasks.Task.Run(async () => {{ {model.BeforeMapAsyncBody} }}));");
+        }
+        else if (!string.IsNullOrEmpty(model.BeforeMapBody))
+        {
+            sb.AppendLine($"        {model.BeforeMapBody}");
+        }
 
         foreach (var prop in model.Properties)
         {
             if (prop.Kind == PropertyMapKind.Ignored || prop.IsInitOnly) continue;
-
-            var expression = prop.SourceExpression;
-            if (prop.IsCollection && prop.NestedSourceTypeFullName != null && prop.NestedDestTypeFullName != null)
+            var expression = prop.IsCollection && prop.NestedSourceTypeFullName != null ? $"MapCollection_{prop.DestinationProperty}({prop.SourceRawExpression ?? prop.SourceExpression})" : prop.SourceExpression;
+            if (prop.IsReadOnly)
             {
-                var helperName = $"MapCollection_{prop.DestinationProperty}";
-                expression = $"{helperName}({prop.SourceExpression})";
+                if (prop.IsCollection)
+                {
+                    sb.AppendLine($"        var target{prop.DestinationProperty} = destination.{prop.DestinationProperty};");
+                    sb.AppendLine($"        if (target{prop.DestinationProperty} != null)");
+                    sb.AppendLine("        {");
+                    sb.AppendLine($"            target{prop.DestinationProperty}.Clear();");
+                    sb.AppendLine($"            foreach (var item in {expression}) target{prop.DestinationProperty}.Add(item);");
+                    sb.AppendLine("        }");
+                }
             }
-
-            sb.AppendLine($"        destination.{prop.DestinationProperty} = {expression}; // {prop.Kind}");
+            else
+            {
+                sb.AppendLine($"        result.{prop.DestinationProperty} = {expression}; // {prop.Kind}");
+            }
         }
 
-        sb.AppendLine("        return destination;");
-        sb.AppendLine("    }");
-
-        sb.AppendLine("}");
-
-        return ($"{model.HintName}_Map.g.cs", sb.ToString());
+        // AfterMap: emit sync first, then async (both run if both configured)
+        if (isAsync)
+        {
+            if (!string.IsNullOrEmpty(model.AfterMapBody)) sb.AppendLine($"        {model.AfterMapBody}");
+            if (!string.IsNullOrEmpty(model.AfterMapAsyncBody)) sb.AppendLine($"        await (global::System.Threading.Tasks.Task.Run(async () => {{ {model.AfterMapAsyncBody} }}));");
+        }
+        else if (!string.IsNullOrEmpty(model.AfterMapBody))
+        {
+            sb.AppendLine($"        {model.AfterMapBody}");
+        }
     }
 
-    /// <summary>
-    ///   Emits the single <c>AutoMappic.Interceptors.g.cs</c> file containing all
-    ///   <c>[InterceptsLocation]</c> shims plus the required attribute definition.
-    /// </summary>
+    private static void CollectCollectionHelpers(MappingModel model, List<PropertyMap> collectionHelpers)
+    {
+        foreach (var arg in model.ConstructorArguments.Where(a => a.IsCollection))
+            collectionHelpers.Add(arg with { DestinationProperty = arg.DestinationProperty + "_Ctor" });
+
+        foreach (var prop in model.Properties.Where(p => p.IsCollection && p.NestedSourceTypeFullName != null && p.Kind != PropertyMapKind.Ignored))
+            collectionHelpers.Add(prop);
+    }
+    private static void EmitCollectionHelper(StringBuilder sb, PropertyMap helper)
+    {
+        var sItem = helper.NestedSourceTypeFullName!;
+        var dItem = helper.NestedDestTypeFullName!;
+        var dType = helper.IsArray ? $"{dItem}[]" : $"global::System.Collections.Generic.List<{dItem}>";
+        var returnExpr = helper.IsArray ? "list.ToArray()" : "list";
+        var innerLogic = helper.NestedExpression != null ? helper.NestedExpression.Replace("x", "element") : $"element.MapTo{dItem.Split('.').Last()}()";
+
+        sb.AppendLine();
+        sb.AppendLine($"    private static {dType} MapCollection_{helper.DestinationProperty}(global::System.Collections.Generic.IEnumerable<{sItem}>? source)");
+        sb.AppendLine("    {");
+        sb.AppendLine($"        if (source is null) return {(helper.IsArray ? $"global::System.Array.Empty<{dItem}>()" : $"new global::System.Collections.Generic.List<{dItem}>(0)")};");
+        sb.AppendLine($"        var list = new global::System.Collections.Generic.List<{dItem}>();");
+        sb.AppendLine("        foreach (var element in source)");
+        sb.AppendLine("        {");
+        sb.AppendLine($"            list.Add({innerLogic});");
+        sb.AppendLine("        }");
+        sb.AppendLine($"        return {returnExpr};");
+        sb.AppendLine("    }");
+    }
+
     public static (string HintName, string Source) EmitInterceptors(
         ImmutableArray<InterceptLocation> locations,
         IReadOnlyDictionary<string, MappingModel> mappingsByKey)
     {
         var sb = new StringBuilder();
-
         sb.AppendLine("// <auto-generated/>");
         sb.AppendLine("// Generated by AutoMappic – do not edit manually.");
         sb.AppendLine("#nullable enable");
-        sb.AppendLine("#pragma warning disable CS9113 // Primary constructor parameter is unread");
-        sb.AppendLine("#pragma warning disable CS9270 // InterceptsLocationAttribute is deprecated");
+        sb.AppendLine("#pragma warning disable CS9113");
+        sb.AppendLine("#pragma warning disable CS9270");
         sb.AppendLine();
-
-        // The InterceptsLocationAttribute must be defined in the compilation if the SDK
-        // version doesn't ship one already.  We guard with a conditional compilation.
         sb.AppendLine("namespace System.Runtime.CompilerServices");
         sb.AppendLine("{");
         sb.AppendLine("    [global::System.AttributeUsage(global::System.AttributeTargets.Method, AllowMultiple = true)]");
@@ -175,269 +293,131 @@ internal static class SourceEmitter
         sb.AppendLine("    internal static class MapperInterceptors");
         sb.AppendLine("    {");
 
-        // Group locations by their MethodSignatureKey and types to avoid duplicate method bodies
-        var groupedLocations = locations.GroupBy(l => new { l.MethodSignatureKey, l.DestinationTypeFullName, l.SourceTypeFullName, l.ParameterSourceTypeFullName, l.Kind, l.IsCollectionMapping, l.EffectiveSourceTypeFullName, l.EffectiveDestTypeFullName });
-
-        foreach (var group in groupedLocations)
+        foreach (var group in locations.GroupBy(l => new { l.MethodSignatureKey, l.DestinationTypeFullName, l.SourceTypeFullName, l.ParameterSourceTypeFullName, l.Kind, l.IsCollectionMapping, l.IsDestinationMapped, l.EffectiveSourceTypeFullName, l.EffectiveDestTypeFullName }))
         {
             var item = group.Key;
-            var mappingKey = $"{item.SourceTypeFullName}_To_{item.DestinationTypeFullName}";
+            var mappingKey = $"{Sanitise(item.SourceTypeFullName)}_To_{Sanitise(item.DestinationTypeFullName)}";
             var effectiveMappingKey = item.IsCollectionMapping
-                ? $"{item.EffectiveSourceTypeFullName}_To_{item.EffectiveDestTypeFullName}"
+                ? $"{Sanitise(item.EffectiveSourceTypeFullName ?? item.SourceTypeFullName)}_To_{Sanitise(item.EffectiveDestTypeFullName ?? item.DestinationTypeFullName)}"
                 : mappingKey;
 
             mappingsByKey.TryGetValue(effectiveMappingKey, out var model);
-
-            // DataReaderMap does not need a pre-existing profile model.
             if (item.Kind != InterceptKind.DataReaderMap && model == null) continue;
 
-            var methodSuffix = Sanitise($"{item.Kind}_{mappingKey}");
-            var shimName = $"MapShim_{methodSuffix}";
-
-            foreach (var location in group)
-            {
-                sb.AppendLine($"        [global::System.Runtime.CompilerServices.InterceptsLocation(@\"{EscapePath(location.FilePath)}\", {location.Line}, {location.Column})]");
-            }
+            var shimName = $"MapShim_{Sanitise($"{item.Kind}_{mappingKey}_{item.MethodSignatureKey}")}";
+            foreach (var loc in group)
+                sb.AppendLine($"        [global::System.Runtime.CompilerServices.InterceptsLocation(@\"{EscapePath(loc.FilePath)}\", {loc.Line}, {loc.Column})]");
 
             if (item.Kind == InterceptKind.Map)
             {
-                var isAsync = item.MethodSignatureKey.StartsWith("MapAsync", System.StringComparison.Ordinal);
+                var isAsyncShim = item.MethodSignatureKey.StartsWith("MapAsync", StringComparison.Ordinal);
+                var destName = model?.DestinationTypeName ?? item.DestinationTypeFullName.Split('.').Last();
+                var sourceAccess = item.ParameterSourceTypeFullName == (model?.SourceTypeFullName ?? item.SourceTypeFullName) ? "source" : $"(({model?.SourceTypeFullName ?? item.SourceTypeFullName})source)";
+                var isDestinationMapped = item.IsDestinationMapped;
 
-                if (item.IsCollectionMapping)
+                if (isAsyncShim)
                 {
-                    sb.AppendLine($"        public static {item.DestinationTypeFullName} {shimName}(this global::AutoMappic.IMapper mapper, {item.SourceTypeFullName} source)");
-                    sb.AppendLine("        {");
-                    sb.AppendLine("            if (source is null) return default!;");
-                    var countExpr = item.SourceTypeFullName.EndsWith("[]", System.StringComparison.Ordinal) ? "source.Length" : "source.Count";
-                    sb.AppendLine($"            var result = new global::System.Collections.Generic.List<{item.EffectiveDestTypeFullName}>({countExpr});");
-                    sb.AppendLine("            foreach (var element in source)");
-                    sb.AppendLine("            {");
-                    var destName = model?.DestinationTypeName ?? item.DestinationTypeFullName.Split('.').Last();
-                    sb.AppendLine($"                result.Add(element.MapTo{destName}());");
-                    sb.AppendLine("            }");
-                    if (item.DestinationTypeFullName.EndsWith("[]", System.StringComparison.Ordinal))
-                        sb.AppendLine("            return result.ToArray();");
+                    var method = model?.IsAsync == true ? $"MapTo{destName}Async" : $"MapTo{destName}";
+                    var awaiter = model?.IsAsync == true ? "await " : "";
+                    var resultTask = "";
+                    var resultEnd = "";
+                    var configure = model?.IsAsync == true ? ".ConfigureAwait(false)" : "";
+
+                    if (isDestinationMapped)
+                    {
+                        sb.AppendLine($"        public static async global::System.Threading.Tasks.Task<{item.DestinationTypeFullName}> {shimName}(this global::AutoMappic.IMapper mapper, {item.ParameterSourceTypeFullName} source, {item.DestinationTypeFullName} destination)");
+                        sb.AppendLine("        {");
+                        sb.AppendLine($"            if (source is null) throw new global::System.ArgumentNullException(nameof(source));");
+                        sb.AppendLine($"            return {resultTask}{awaiter}{sourceAccess}.{method}(destination){configure}{resultEnd};");
+                        sb.AppendLine("        }");
+                    }
                     else
-                        sb.AppendLine("            return result;");
-                    sb.AppendLine("        }");
+                    {
+                        sb.AppendLine($"        public static async global::System.Threading.Tasks.Task<{item.DestinationTypeFullName}> {shimName}(this global::AutoMappic.IMapper mapper, {item.ParameterSourceTypeFullName} source)");
+                        sb.AppendLine("        {");
+                        sb.AppendLine($"            if (source is null) throw new global::System.ArgumentNullException(nameof(source));");
+                        sb.AppendLine($"            return {resultTask}{awaiter}{sourceAccess}.{method}(){configure}{resultEnd};");
+                        sb.AppendLine("        }");
+                    }
                 }
                 else
                 {
-                    var destName = model?.DestinationTypeName ?? item.DestinationTypeFullName.Split('.').Last();
-                    var destMappingMethod = $"MapTo{destName}";
-                    var sourceAccess = (model != null && item.ParameterSourceTypeFullName == model.SourceTypeFullName) ? "source" : (model != null ? $"(({model.SourceTypeFullName})source)" : "source");
-
-                    if (isAsync)
+                    if (isDestinationMapped)
                     {
-                        sb.AppendLine($"        public static global::System.Threading.Tasks.Task<{item.DestinationTypeFullName}> {shimName}(this global::AutoMappic.IMapper mapper, {item.ParameterSourceTypeFullName} source)");
+                        sb.AppendLine($"        public static {item.DestinationTypeFullName} {shimName}(this global::AutoMappic.IMapper mapper, {item.ParameterSourceTypeFullName} source, {item.DestinationTypeFullName} destination)");
                         sb.AppendLine("        {");
-                        sb.AppendLine($"            return global::System.Threading.Tasks.Task.FromResult({sourceAccess}.{destMappingMethod}());");
+                        sb.AppendLine($"            if (source is null) throw new global::System.ArgumentNullException(nameof(source));");
+                        sb.AppendLine($"            return {sourceAccess}.MapTo{destName}(destination);");
                         sb.AppendLine("        }");
                     }
                     else
                     {
                         sb.AppendLine($"        public static {item.DestinationTypeFullName} {shimName}(this global::AutoMappic.IMapper mapper, {item.ParameterSourceTypeFullName} source)");
                         sb.AppendLine("        {");
-                        sb.AppendLine($"            return {sourceAccess}.{destMappingMethod}();");
+                        sb.AppendLine($"            if (source is null) throw new global::System.ArgumentNullException(nameof(source));");
+                        sb.AppendLine($"            return {sourceAccess}.MapTo{destName}();");
                         sb.AppendLine("        }");
                     }
                 }
             }
+            // ... (ProjectTo and DataReaderMap omitted for brevity in this cleanup, but they should remain)
             else if (item.Kind == InterceptKind.ProjectTo)
             {
                 var destName = model?.DestinationTypeName ?? item.DestinationTypeFullName.Split('.').Last();
-                var destMappingMethod = $"MapTo{destName}";
                 sb.AppendLine($"        public static global::System.Linq.IQueryable<{item.DestinationTypeFullName}> {shimName}(this global::System.Linq.IQueryable<{item.SourceTypeFullName}> source)");
-                sb.AppendLine("        {");
-                sb.AppendLine($"            return source.Select(x => x.{destMappingMethod}());");
-                sb.AppendLine("        }");
+                sb.AppendLine($"        {{ return source.Select(x => x.MapTo{destName}()); }}");
             }
             else if (item.Kind == InterceptKind.DataReaderMap)
             {
                 var destName = model?.DestinationTypeName ?? item.DestinationTypeFullName.Split('.').Last();
-                var destMappingMethod = $"MapTo{destName}";
                 sb.AppendLine($"        public static global::System.Collections.Generic.IEnumerable<{item.DestinationTypeFullName}> {shimName}(this global::System.Data.IDataReader reader)");
-                sb.AppendLine("        {");
-                sb.AppendLine("            while (reader.Read())");
-                sb.AppendLine("            {");
-                sb.AppendLine($"                yield return reader.{destMappingMethod}();");
-                sb.AppendLine("            }");
-                sb.AppendLine("        }");
+                sb.AppendLine($"        {{ while (reader.Read()) yield return reader.MapTo{destName}(); }}");
             }
         }
-
         sb.AppendLine("    }");
         sb.AppendLine("}");
-
         return ("AutoMappic.Interceptors.g.cs", sb.ToString());
     }
 
-    /// <summary>
-    ///   Emits a static extension method for IServiceCollection that registers
-    ///   all discovered Profile classes without using reflection, supporting
-    ///   cross-project discovery via static chaining.
-    /// </summary>
-    public static (string HintName, string Source) EmitRegistration(
-        string assemblyName,
-        ImmutableArray<string?> profiles,
-        ImmutableArray<MappingModel> localMappings,
-        ImmutableArray<string> referencedAssemblies,
-        bool isEntryPoint)
+    public static (string HintName, string Source) EmitRegistration(string assemblyName, ImmutableArray<string?> profiles, ImmutableArray<MappingModel> localMappings, ImmutableArray<string> referencedAssemblies, bool isEntryPoint)
     {
         var sb = new StringBuilder();
-        var sanitizedAssemblyName = Sanitise(assemblyName);
-
+        var sanitized = Sanitise(assemblyName);
         sb.AppendLine("// <auto-generated/>");
-        sb.AppendLine("// Generated by AutoMappic – do not edit manually.");
         sb.AppendLine("#nullable enable");
-        sb.AppendLine();
-        sb.AppendLine("using System.Linq;");
         sb.AppendLine("using Microsoft.Extensions.DependencyInjection;");
-        sb.AppendLine("using AutoMappic;");
+        foreach (var m in localMappings) sb.AppendLine($"[assembly: global::AutoMappic.MappingDiscoveryAttribute(typeof(global::{m.SourceTypeFullName}), typeof(global::{m.DestinationTypeFullName}))]");
+        var pList = profiles.IsDefaultOrEmpty ? "" : string.Join(", ", profiles.Distinct().Where(p => p != null).Select(p => $"typeof(global::{p})"));
+        sb.AppendLine($"[assembly: global::AutoMappic.HasAutoMappicProfilesAttribute({pList})]");
         sb.AppendLine();
-
-        // 1. Breadcrumbs: Mark this assembly as having AutoMappic profiles and mappings.
-        // We use typed constructor arguments for robust discovery via assembly metadata.
-        foreach (var mapping in localMappings)
-        {
-            sb.AppendLine($"[assembly: global::AutoMappic.MappingDiscoveryAttribute(typeof(global::{mapping.SourceTypeFullName}), typeof(global::{mapping.DestinationTypeFullName}))]");
-        }
-
-        var profileTypeList = profiles.IsDefaultOrEmpty ? "" : string.Join(", ", profiles.Distinct().Where(p => p != null).Select(p => $"typeof(global::{p})"));
-        sb.AppendLine($"[assembly: global::AutoMappic.HasAutoMappicProfilesAttribute({profileTypeList})]");
-        sb.AppendLine();
-
         sb.AppendLine("namespace AutoMappic.Generated");
         sb.AppendLine("{");
-        sb.AppendLine($"    /// <summary>Project-specific registration for {assemblyName}.</summary>");
-        sb.AppendLine($"    internal static class {sanitizedAssemblyName}_Registration");
+        sb.AppendLine($"    internal static class {sanitized}_Registration");
         sb.AppendLine("    {");
-        sb.AppendLine("        /// <summary>Registers profiles from this assembly and all referenced projects.</summary>");
         sb.AppendLine("        public static void AddProfiles(global::Microsoft.Extensions.DependencyInjection.IServiceCollection services)");
         sb.AppendLine("        {");
-
-        // Local profiles
-        if (!profiles.IsDefaultOrEmpty)
-        {
-            sb.AppendLine("            // Local Profiles found in this project");
-            foreach (var profile in profiles.Distinct())
-            {
-                if (profile == null) continue;
-                sb.AppendLine($"            global::Microsoft.Extensions.DependencyInjection.ServiceCollectionServiceExtensions.AddSingleton<global::AutoMappic.Profile, global::{profile}>(services);");
-            }
-        }
-
-        // Referenced projects - chain their registrations
-        if (!referencedAssemblies.IsDefaultOrEmpty)
-        {
-            sb.AppendLine();
-            sb.AppendLine("            // Discover and chain registrations from referenced assemblies");
-            foreach (var reference in referencedAssemblies.Distinct())
-            {
-                var sanitizedRef = Sanitise(reference);
-                sb.AppendLine($"            global::AutoMappic.Generated.{sanitizedRef}_Registration.AddProfiles(services);");
-            }
-        }
-
+        foreach (var p in profiles.Distinct().Where(x => x != null)) sb.AppendLine($"            services.AddSingleton<global::AutoMappic.Profile, global::{p}>();");
+        foreach (var r in referencedAssemblies.Distinct()) sb.AppendLine($"            global::AutoMappic.Generated.{Sanitise(r)}_Registration.AddProfiles(services);");
         sb.AppendLine("        }");
         sb.AppendLine("    }");
         sb.AppendLine("}");
-        sb.AppendLine();
-
-        // 2. The Main Entry Point: generate the public extension method.
-        // We always generate this, but we use a unique name per assembly to avoid collisions
-        // while also providing the standard 'AddAutoMappic' if we're the entry point.
         sb.AppendLine("namespace Microsoft.Extensions.DependencyInjection");
         sb.AppendLine("{");
-        sb.AppendLine($"    /// <summary>Generated dependency injection registration for AutoMappic in {assemblyName}.</summary>");
-        sb.AppendLine($"    public static class AutoMappic_{sanitizedAssemblyName}_Extensions");
+        sb.AppendLine($"    public static class AutoMappic_{sanitized}_Extensions");
         sb.AppendLine("    {");
-
-        // Always provide a project-specific one
-        sb.AppendLine($"        /// <summary>Adds AutoMappic profiles discovered in {assemblyName} and its references.</summary>");
-        sb.AppendLine($"        public static global::Microsoft.Extensions.DependencyInjection.IServiceCollection AddAutoMappicFrom{sanitizedAssemblyName}(this global::Microsoft.Extensions.DependencyInjection.IServiceCollection services)");
-        sb.AppendLine("        {");
-        sb.AppendLine($"            global::AutoMappic.Generated.{sanitizedAssemblyName}_Registration.AddProfiles(services);");
-        sb.AppendLine("            return AddAutoMappicCore(services);");
-        sb.AppendLine("        }");
-
-        // If it's the entry point (or we just want a standard name), provide the parameterless AddAutoMappic
-        if (isEntryPoint)
-        {
-            sb.AppendLine();
-            sb.AppendLine("        /// <summary>Root AutoMappic registration for the application.</summary>");
-            sb.AppendLine("        public static global::Microsoft.Extensions.DependencyInjection.IServiceCollection AddAutoMappic(this global::Microsoft.Extensions.DependencyInjection.IServiceCollection services)");
-            sb.AppendLine("        {");
-            sb.AppendLine($"            return AddAutoMappicFrom{sanitizedAssemblyName}(services);");
-            sb.AppendLine("        }");
-        }
-
-        sb.AppendLine();
-        sb.AppendLine("        private static global::Microsoft.Extensions.DependencyInjection.IServiceCollection AddAutoMappicCore(global::Microsoft.Extensions.DependencyInjection.IServiceCollection services)");
-        sb.AppendLine("        {");
-        sb.AppendLine("            // Ensure the mapper engine is registered as a singleton.");
-        sb.AppendLine("            if (!global::System.Linq.Enumerable.Any(services, s => s.ServiceType == typeof(global::AutoMappic.IMapper)))");
-        sb.AppendLine("            {");
-        sb.AppendLine($"                global::Microsoft.Extensions.DependencyInjection.ServiceCollectionServiceExtensions.AddSingleton<global::AutoMappic.IMapper>(services, sp => ");
-        sb.AppendLine("                {");
-        sb.AppendLine("                    var profileList = global::Microsoft.Extensions.DependencyInjection.ServiceProviderServiceExtensions.GetServices<global::AutoMappic.Profile>(sp);");
-        sb.AppendLine("                    var config = new global::AutoMappic.MapperConfiguration(cfg => ");
-        sb.AppendLine("                    {");
-        sb.AppendLine("                        foreach (var p in profileList) cfg.AddProfile(p);");
-        sb.AppendLine("                    });");
-        sb.AppendLine("                    return config.CreateMapper();");
-        sb.AppendLine("                });");
-        sb.AppendLine("            }");
-        sb.AppendLine("            return services;");
-        sb.AppendLine("        }");
+        sb.AppendLine($"        public static IServiceCollection AddAutoMappicFrom{sanitized}(this IServiceCollection services) {{ global::AutoMappic.Generated.{sanitized}_Registration.AddProfiles(services); return services.AddSingleton<global::AutoMappic.IMapper>(sp => new global::AutoMappic.MapperConfiguration(cfg => {{ foreach(var p in sp.GetServices<global::AutoMappic.Profile>()) cfg.AddProfile(p); }}).CreateMapper()); }}");
+        if (isEntryPoint) sb.AppendLine("        public static IServiceCollection AddAutoMappic(this IServiceCollection services) => AddAutoMappicFrom" + sanitized + "(services);");
         sb.AppendLine("    }");
         sb.AppendLine("}");
-
         return ("AutoMappic.Registration.g.cs", sb.ToString());
     }
 
-    private static void EmitCollectionHelper(StringBuilder sb, PropertyMap prop)
+    private static string EscapeXml(string value) => value.Replace("<", "&lt;").Replace(">", "&gt;");
+    private static string EscapePath(string path) => path.Replace("\"", "\\\"");
+    private static string Sanitise(string name)
     {
-        var helperName = $"MapCollection_{prop.DestinationProperty}";
-        var sItem = prop.NestedSourceTypeFullName!;
-        var dItem = prop.NestedDestTypeFullName!;
-        var dType = prop.IsArray ? $"{dItem}[]" : $"global::System.Collections.Generic.List<{dItem}>";
-        var returnExpr = prop.IsArray ? "list.ToArray()" : "list";
-        var emptyExpr = prop.IsArray ? $"global::System.Array.Empty<{dItem}>()" : $"new global::System.Collections.Generic.List<{dItem}>(0)";
-        var innerLogic = prop.NestedExpression ?? "x";
-
-        sb.AppendLine();
-        sb.AppendLine($"    private static {dType} {helperName}(global::System.Collections.Generic.IEnumerable<{sItem}>? source)");
-        sb.AppendLine("    {");
-        sb.AppendLine($"        if (source is null) return {emptyExpr};");
-        sb.AppendLine();
-        sb.AppendLine($"        if (source is global::System.Collections.Generic.ICollection<{sItem}> coll)");
-        sb.AppendLine("        {");
-        sb.AppendLine($"            var list = new global::System.Collections.Generic.List<{dItem}>(coll.Count);");
-        sb.AppendLine("            foreach (var item in coll)");
-        sb.AppendLine("            {");
-        sb.AppendLine("                var x = item;");
-        sb.AppendLine($"                list.Add({innerLogic});");
-        sb.AppendLine("            }");
-        sb.AppendLine($"            return {returnExpr};");
-        sb.AppendLine("        }");
-        sb.AppendLine();
-        sb.AppendLine($"        var result = new global::System.Collections.Generic.List<{dItem}>();");
-        sb.AppendLine("        foreach (var item in source)");
-        sb.AppendLine("        {");
-        sb.AppendLine("            var x = item;");
-        sb.AppendLine($"            result.Add({innerLogic});");
-        sb.AppendLine("        }");
-        sb.AppendLine($"        return {(prop.IsArray ? "result.ToArray()" : "result")};");
-        sb.AppendLine("    }");
+        var res = new StringBuilder();
+        foreach (var c in name ?? "Default") if (char.IsLetterOrDigit(c)) res.Append(c); else res.Append('_');
+        return res.ToString();
     }
-
-    private static string EscapeXml(string value) =>
-        value.Replace("<", "&lt;").Replace(">", "&gt;");
-
-    private static string EscapePath(string path) =>
-        path.Replace("\"", "\\\"");
-
-    private static string Sanitise(string name) =>
-        name.Replace('.', '_').Replace('<', '_').Replace('>', '_').Replace(',', '_').Replace(' ', '_');
 }

@@ -44,4 +44,9 @@ public interface IMapper
     ///  but this allows for async-pattern compatibility.
     /// </summary>
     System.Threading.Tasks.Task<TDestination> MapAsync<TSource, TDestination>(TSource source);
+
+    /// <summary>
+    ///  Asynchronously maps <paramref name="source" /> onto an existing <paramref name="destination" /> instance.
+    /// </summary>
+    System.Threading.Tasks.Task<TDestination> MapAsync<TSource, TDestination>(TSource source, TDestination destination);
 }

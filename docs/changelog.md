@@ -5,6 +5,21 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.0] - 2026-03-19
+
+### Added
+- **Asynchronous Mapping Support:** Introduced `MapAsync` and `IAsyncValueResolver<TSource, TMember>` to support non-blocking, I/O-bound mapping workflows without thread-pool starvation.
+- **Dual-Emission Generator:** The source generator now emits both synchronous and asynchronous versions of every mapping, allowing for optimal call-site interception.
+- **Enhanced `ReverseMap` Configuration:** Expanded `.ReverseMap()` to support chained member configurations, making it easier to manage complex bidirectional mapping rules.
+- **Deep Open Generics:** Support for recursive member mapping within unbounded generic types like `PagedList<T>`.
+- **Project-to-Project Discovery:** Refined static registration system to ensure zero-reflection metadata propagation across multi-assembly solutions.
+- **Advanced Collection Buffering:** Initial support for pre-allocated list capacity to further reduce GC allocations when mapping large collections.
+
+### Fixed
+- **Interceptor Signature Matching:** Resolved "Signature mismatch" errors by implementing an explicit tracking flag for destination-mapped (`Map(S, D)`) calls.
+- **Nullable Type Mapping:** Fixed type conversion warnings for when mapping between nullable and non-nullable value types.
+- **Ambiguity Detection:** Improved AM002 diagnostics to prevent false positives when direct property matches exist alongside potential flattening paths.
+
 ## [0.1.0] - 2026-03-16
 
 ### Added

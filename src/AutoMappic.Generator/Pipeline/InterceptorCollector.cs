@@ -119,6 +119,7 @@ internal static class InterceptorCollector
             ParameterSourceTypeFullName: symbol.Parameters.Length > 0 ? symbol.Parameters[0].Type.ToDisplayString() : "object",
             Kind: kind,
             IsCollectionMapping: isCollectionMapping,
+            IsDestinationMapped: symbol.Parameters.Length > 1,
             EffectiveSourceTypeFullName: effectiveSource.ToDisplayString(),
             EffectiveDestTypeFullName: effectiveDest.ToDisplayString());
     }

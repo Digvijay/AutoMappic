@@ -10,6 +10,7 @@
     <!-- Enable interceptors from the generator in this test project -->
     <InterceptorsPreviewNamespaces>$(InterceptorsPreviewNamespaces);AutoMappic.Generated</InterceptorsPreviewNamespaces>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <EmitCompilerGeneratedFiles>true</EmitCompilerGeneratedFiles>
     <NoWarn>$(NoWarn);CS1591;CS1584;CS1658</NoWarn>
   </PropertyGroup>
 

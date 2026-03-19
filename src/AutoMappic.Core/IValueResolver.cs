@@ -10,3 +10,14 @@ public interface IValueResolver<in TSource, out TMember>
     /// </summary>
     TMember Resolve(TSource source);
 }
+
+/// <summary>
+///   Defines an asynchronous custom value resolver.
+/// </summary>
+public interface IAsyncValueResolver<in TSource, TMember>
+{
+    /// <summary>
+    ///   Asynchronously resolves the value for the destination member.
+    /// </summary>
+    System.Threading.Tasks.Task<TMember> ResolveAsync(TSource source);
+}

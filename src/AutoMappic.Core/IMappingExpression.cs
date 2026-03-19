@@ -1,4 +1,5 @@
 using System.Linq.Expressions;
+using System.Threading.Tasks;
 
 namespace AutoMappic;
 
@@ -25,6 +26,18 @@ public interface IMappingExpression
 
     /// <summary>Specifies a custom type converter for this mapping (non-generic version).</summary>
     IMappingExpression ConvertUsing(Type converterType);
+
+    /// <summary>Internal use: Executes BeforeMap for runtime fallback.</summary>
+    void ExecuteBefore(object source, object destination);
+
+    /// <summary>Internal use: Executes AfterMap for runtime fallback.</summary>
+    void ExecuteAfter(object source, object destination);
+
+    /// <summary>Internal use: Executes BeforeMapAsync for runtime fallback.</summary>
+    Task ExecuteBeforeAsync(object source, object destination);
+
+    /// <summary>Internal use: Executes AfterMapAsync for runtime fallback.</summary>
+    Task ExecuteAfterAsync(object source, object destination);
 }
 
 /// <summary>
@@ -73,11 +86,30 @@ public interface IMappingExpression<TSource, TDestination> : IMappingExpression
     IMappingExpression<TDestination, TSource> ReverseMap();
 
     /// <summary>
-    ///   Specifies that the entire source-to-destination mapping should be handled
-    ///   by the provided converter type.
+    ///   Specifies a custom type converter for this mapping.
     /// </summary>
     /// <typeparam name="TConverter">The converter type to use.</typeparam>
     IMappingExpression<TSource, TDestination> ConvertUsing<TConverter>() where TConverter : ITypeConverter<TSource, TDestination>, new();
+
+    /// <summary>
+    ///   Executes the provided action before the property mapping begins.
+    /// </summary>
+    IMappingExpression<TSource, TDestination> BeforeMap(Action<TSource, TDestination> action);
+
+    /// <summary>
+    ///   Executes the provided action after all properties have been mapped.
+    /// </summary>
+    IMappingExpression<TSource, TDestination> AfterMap(Action<TSource, TDestination> action);
+
+    /// <summary>
+    ///   Executes the provided asynchronous action before the property mapping begins.
+    /// </summary>
+    IMappingExpression<TSource, TDestination> BeforeMapAsync(Func<TSource, TDestination, Task> action);
+
+    /// <summary>
+    ///   Executes the provided asynchronous action after all properties have been mapped.
+    /// </summary>
+    IMappingExpression<TSource, TDestination> AfterMapAsync(Func<TSource, TDestination, Task> action);
 }
 
 /// <summary>
@@ -107,4 +139,10 @@ public interface IMemberConfigurationExpression<TSource, TDestination, TMember>
     /// </summary>
     /// <typeparam name="TResolver">An <see cref="IValueResolver{TSource, TMember}"/> used to construct the logic.</typeparam>
     void MapFrom<TResolver>() where TResolver : IValueResolver<TSource, TMember>, new();
+
+    /// <summary>
+    ///   Specifies an asynchronous value resolver for this member. 
+    ///   When an async resolver is used, the mapping MUST be executed via <see cref="IMapper.MapAsync{TSource,TDestination}(TSource)"/>.
+    /// </summary>
+    void MapFromAsync<TResolver>() where TResolver : IAsyncValueResolver<TSource, TMember>, new();
 }

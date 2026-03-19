@@ -1,3 +1,4 @@
+using AutoMappic;
 using AutoMappic.Tests.Fixtures;
 using Prova;
 using Assert = Prova.Assertions.Assert;
@@ -27,9 +28,8 @@ public sealed class OverridingTests
             Customer = new Customer { Name = "Acme" }
         };
 
-        // Note: Runtime fallback doesn't support ForMember expressions yet (returns null placeholder).
-        // This test documents the CURRENT LACK of support in fallback or verifies it doesn't crash.
-        var dto = mapper.Map<Order, OrderDto>(source);
+        // We use MapCore directly to bypass the source generator's interception and test the fallback engine.
+        var dto = (OrderDto)((Mapper)mapper).MapCore(typeof(Order), typeof(OrderDto), source, null);
 
         Assert.NotNull(dto);
         // Since RuntimeMaps implementation, the fallback correctly executes the delegate.

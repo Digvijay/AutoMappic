@@ -74,4 +74,9 @@ internal sealed class OpenGenericMappingExpression(Type s, Type d) : IMappingExp
         ConverterType = converterType;
         return this;
     }
+
+    public void ExecuteBefore(object source, object destination) { }
+    public void ExecuteAfter(object source, object destination) { }
+    public global::System.Threading.Tasks.Task ExecuteBeforeAsync(object source, object destination) => global::System.Threading.Tasks.Task.CompletedTask;
+    public global::System.Threading.Tasks.Task ExecuteAfterAsync(object source, object destination) => global::System.Threading.Tasks.Task.CompletedTask;
 }

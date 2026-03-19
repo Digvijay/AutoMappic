@@ -22,6 +22,11 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <InternalsVisibleTo Include="AutoMappic.Cli" />
+    <InternalsVisibleTo Include="AutoMappic.Tests" />
+  </ItemGroup>
+
+  <ItemGroup>
     <!-- Roslyn SDK – must be PrivateAssets=all so they do not flow to consumers -->
     <PackageReference Include="Microsoft.CodeAnalysis.CSharp" PrivateAssets="all" />
     <PackageReference Include="Microsoft.CodeAnalysis.Analyzers" PrivateAssets="all" />

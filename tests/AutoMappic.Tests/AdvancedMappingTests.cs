@@ -26,8 +26,8 @@ public class MyProfile : Profile
 }";
         var result = GeneratorTestHelper.RunGenerator(source);
         var mapSource = result.Sources.First(f => f.HintName.Contains("S_To_D_Map")).SourceText.ToString();
-        
-        Assert.Contains("return new D(source.Name)", mapSource);
+
+        Assert.Contains("var result = new D(source.Name);", mapSource);
     }
 
     /// <summary> Verify that a custom ITypeConverter can be used to handle the entire mapping. </summary>
@@ -50,7 +50,7 @@ public class DateToUnixConverter : ITypeConverter<DateTime, long>
         var result = GeneratorTestHelper.RunGenerator(source);
         var fileNames = result.Sources.Select(s => s.HintName).ToList();
         var mapHintName = fileNames.FirstOrDefault(f => f.Contains("DateTime") && f.Contains("_To_"));
-        
+
         Assert.NotNull(mapHintName, $"Mapping file for DateTime not found. Hint names: {string.Join(", ", fileNames)}");
         var mapSource = result.Sources.First(f => f.HintName == mapHintName).SourceText.ToString();
         Assert.Contains("new DateToUnixConverter().Convert(source)", mapSource);
@@ -73,7 +73,7 @@ public class MyProfile : Profile
         var result = GeneratorTestHelper.RunGenerator(source);
         var fileNames = result.Sources.Select(s => s.HintName).ToList();
         var mapSourceFile = result.Sources.FirstOrDefault(f => f.HintName.Contains("S_To_D_Map"));
-        
+
         Assert.NotNull(mapSourceFile, $"S_To_D_Map not found. Generated files: {string.Join(", ", fileNames)}");
         var mapSource = mapSourceFile.SourceText.ToString();
         Assert.Contains("FirstName = source.first_name", mapSource);
@@ -95,7 +95,7 @@ public class MyProfile : Profile
 }";
         var result = GeneratorTestHelper.RunGenerator(source);
         var fileNames = result.Sources.Select(s => s.HintName).ToList();
-        
+
         // Use a looser check for hint name
         var mapFileResult = result.Sources.FirstOrDefault(f => f.HintName.Contains("_To_"));
         Assert.True(mapFileResult.HintName != null, $"No mapping file generated. Files: {string.Join(", ", fileNames)}");

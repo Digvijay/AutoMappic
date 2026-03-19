@@ -1,4 +1,5 @@
 using System.Linq.Expressions;
+using System.Threading.Tasks;
 
 namespace AutoMappic;
 
@@ -20,6 +21,10 @@ internal sealed class MappingExpression<TSource, TDestination> :
     private readonly HashSet<string> _ignoredMembers = new(StringComparer.Ordinal);
     private readonly Profile? _profile;
     private Type? _converterType;
+    private Action<TSource, TDestination>? _beforeMap;
+    private Action<TSource, TDestination>? _afterMap;
+    private Func<TSource, TDestination, Task>? _beforeMapAsync;
+    private Func<TSource, TDestination, Task>? _afterMapAsync;
 
     public MappingExpression(Profile? profile = null)
     {
@@ -99,6 +104,54 @@ internal sealed class MappingExpression<TSource, TDestination> :
         return this;
     }
 
+    /// <inheritdoc />
+    public IMappingExpression<TSource, TDestination> BeforeMap(Action<TSource, TDestination> action)
+    {
+        _beforeMap = action;
+        return this;
+    }
+
+    /// <inheritdoc />
+    public IMappingExpression<TSource, TDestination> AfterMap(Action<TSource, TDestination> action)
+    {
+        _afterMap = action;
+        return this;
+    }
+
+    /// <inheritdoc />
+    public IMappingExpression<TSource, TDestination> BeforeMapAsync(Func<TSource, TDestination, Task> action)
+    {
+        _beforeMapAsync = action;
+        return this;
+    }
+
+    /// <inheritdoc />
+    public IMappingExpression<TSource, TDestination> AfterMapAsync(Func<TSource, TDestination, Task> action)
+    {
+        _afterMapAsync = action;
+        return this;
+    }
+
+    internal void ExecuteBefore(TSource source, TDestination destination) => _beforeMap?.Invoke(source, destination);
+    internal void ExecuteAfter(TSource source, TDestination destination) => _afterMap?.Invoke(source, destination);
+
+    internal async Task ExecuteBeforeAsync(TSource source, TDestination destination)
+    {
+        _beforeMap?.Invoke(source, destination);
+        if (_beforeMapAsync != null) await _beforeMapAsync(source, destination);
+    }
+
+    internal async Task ExecuteAfterAsync(TSource source, TDestination destination)
+    {
+        _afterMap?.Invoke(source, destination);
+        if (_afterMapAsync != null) await _afterMapAsync(source, destination);
+    }
+
+    void IMappingExpression.ExecuteBefore(object source, object destination) => ExecuteBefore((TSource)source, (TDestination)destination);
+    void IMappingExpression.ExecuteAfter(object source, object destination) => ExecuteAfter((TSource)source, (TDestination)destination);
+    Task IMappingExpression.ExecuteBeforeAsync(object source, object destination) => ExecuteBeforeAsync((TSource)source, (TDestination)destination);
+    Task IMappingExpression.ExecuteAfterAsync(object source, object destination) => ExecuteAfterAsync((TSource)source, (TDestination)destination);
+
     private static string GetMemberName<TMember>(Expression<Func<TDestination, TMember>> selector)
     {
         if (selector.Body is MemberExpression memberExpr)
@@ -133,5 +186,13 @@ internal sealed class MemberConfigurationExpression<TSource, TDestination, TMemb
     public void MapFrom<TResolver>() where TResolver : IValueResolver<TSource, TMember>, new()
     {
         MapFromExpression = src => new TResolver().Resolve(src);
+    }
+
+    /// <inheritdoc />
+    public void MapFromAsync<TResolver>() where TResolver : IAsyncValueResolver<TSource, TMember>, new()
+    {
+        // For runtime fallback, we use Task.Run/Result which is NOT recommended but 
+        // this path is only for un-generated fallback/testing.
+        MapFromExpression = src => new TResolver().ResolveAsync(src).GetAwaiter().GetResult();
     }
 }

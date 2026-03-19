@@ -1,4 +1,4 @@
-# Getting Started with AutoMappic v0.1.0
+# Getting Started with AutoMappic v0.2.0
 
 AutoMappic is a zero-reflection, Native AOT-friendly object mapper for .NET 9+. It uses Roslyn Interceptors to replace reflection with fast, static code at compile time.
 
@@ -80,33 +80,36 @@ var serviceProvider = services.BuildServiceProvider();
 var mapper = serviceProvider.GetRequiredService<IMapper>();
 ```
 
-### Direct Usage
+### Direct Usage (Async-Ready!)
 
 ```csharp
-var user = new User { Id = 1, Username = "alice", Address = new Address { City = "Seattle" } };
+var user = new User { Id = 1, Username = "digvijay", Address = new Address { City = "Seattle" } };
 
 // This call is intercepted at compile-time and replaced with:
 // return new UserDto { Id = source.Id, Username = source.Username, AddressCity = source.Address?.City ?? "" };
-var dto = mapper.Map<User, UserDto>(user);
+var dto = await mapper.MapAsync<User, UserDto>(user);
 
 Console.WriteLine(dto.AddressCity); // Seattle
 ```
 
 ## 6. Advanced Features
 
+### Asynchronous Mapping
+Perform I/O-bound operations during mapping with non-blocking `MapAsync` and `IAsyncValueResolver`. See [Asynchronous Mapping](./docs/asynchronous-mapping.md) for more details.
+
 ### Collection Mapping
-AutoMappic automatically handles `IEnumerable<T>`, `List<T>`, and arrays. It will even project the elements!
+AutoMappic automatically handles `IEnumerable<T>`, `List<T>`, and arrays. Using **Zero-LINQ technology**, it generates high-performance `for` loops with pre-allocated capacity, eliminating the GC pressure and throughput overhead of standard LINQ operators.
 
 ```csharp
 CreateMap<User, UserSummaryDto>(); // Projecting elements
-var dtos = mapper.Map<List<User>, List<UserSummaryDto>>(users);
+var dtos = await mapper.MapAsync<List<User>, List<UserSummaryDto>>(users);
 ```
 
 ### Dictionary Mapping
 Maps keys and values, transforming complex items as needed.
 
 ```csharp
-var dict = mapper.Map<Dictionary<int, User>, Dictionary<string, UserSummaryDto>>(source);
+var dict = await mapper.MapAsync<Dictionary<int, User>, Dictionary<string, UserSummaryDto>>(source);
 ```
 
 ### Flattening & Unflattening

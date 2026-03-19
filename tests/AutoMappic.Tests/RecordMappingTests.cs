@@ -42,11 +42,11 @@ public sealed class RecordMappingTests
         var mapper = new MapperConfiguration(cfg => cfg.AddProfile<RecordProfile>())
             .CreateMapper();
 
-        var source = new UserRecord("fowler", "david@ms.com");
+        var source = new UserRecord("digvijay", "digvijay@digvijay.dev");
         var dto = mapper.Map<UserRecord, UserRecordDto>(source);
 
-        Assert.Equal("fowler", dto.Username);
-        Assert.Equal("david@ms.com", dto.Email);
+        Assert.Equal("digvijay", dto.Username);
+        Assert.Equal("digvijay@digvijay.dev", dto.Email);
     }
 
     /// <summary> Ensure that nested source records are correctly flattened into a flat DTO structure </summary>

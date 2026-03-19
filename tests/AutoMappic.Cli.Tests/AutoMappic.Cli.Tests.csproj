@@ -1,0 +1,17 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <!-- MSBuildWorkspace transitive dependencies have vulnerabilities we can't control easily -->
+    <NoWarn>$(NoWarn);NU1903;NU1902;NU1901;NU1904</NoWarn>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Prova" />
+    <PackageReference Include="Microsoft.Testing.Platform.MSBuild" />
+    <ProjectReference Include="..\..\src\AutoMappic.Cli\AutoMappic.Cli.csproj" />
+  </ItemGroup>
+</Project>

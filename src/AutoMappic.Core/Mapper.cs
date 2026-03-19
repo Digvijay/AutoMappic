@@ -6,13 +6,15 @@ using System.Text.RegularExpressions;
 
 namespace AutoMappic;
 
+#nullable enable
+
 /// <summary>
 ///   Runtime fallback implementation of <see cref="IMapper" />.
 /// </summary>
 public sealed class Mapper : IMapper
 {
     // Signatures take (mapper, source, destination) -> result
-    private readonly Dictionary<(Type Source, Type Destination), Func<Mapper, object, object?, object>> _maps
+    private readonly Dictionary<(Type Source, Type Destination), (IMappingExpression Mapping, Func<Mapper, object, object?, global::System.Threading.Tasks.Task<object>> Delegate)> _maps
         = new();
 
     /// <summary>
@@ -25,7 +27,7 @@ public sealed class Mapper : IMapper
             foreach (var mapping in profile.Mappings)
             {
                 var key = (mapping.SourceType, mapping.DestinationType);
-                _maps[key] = BuildFallbackDelegate(mapping);
+                _maps[key] = (mapping, BuildFallbackDelegate(mapping));
             }
         }
     }
@@ -52,40 +54,60 @@ public sealed class Mapper : IMapper
     }
 
     /// <inheritdoc />
-    public global::System.Threading.Tasks.Task<TDestination> MapAsync<TDestination>(object source)
+    public async global::System.Threading.Tasks.Task<TDestination> MapAsync<TDestination>(object source)
     {
         try
         {
             ArgumentNullException.ThrowIfNull(source);
-            var result = Map<TDestination>(source);
-            return global::System.Threading.Tasks.Task.FromResult(result);
+            return (TDestination)await MapCoreAsync(source.GetType(), typeof(TDestination), source, null);
         }
         catch (global::System.Exception ex)
         {
-            return global::System.Threading.Tasks.Task.FromException<TDestination>(ex);
+            return await global::System.Threading.Tasks.Task.FromException<TDestination>(ex);
         }
     }
 
     /// <inheritdoc />
-    public global::System.Threading.Tasks.Task<TDestination> MapAsync<TSource, TDestination>(TSource source)
+    public async global::System.Threading.Tasks.Task<TDestination> MapAsync<TSource, TDestination>(TSource source)
     {
         try
         {
             ArgumentNullException.ThrowIfNull(source);
-            var result = Map<TSource, TDestination>(source);
-            return global::System.Threading.Tasks.Task.FromResult(result);
+            return (TDestination)await MapCoreAsync(typeof(TSource), typeof(TDestination), source, null);
         }
         catch (global::System.Exception ex)
         {
-            return global::System.Threading.Tasks.Task.FromException<TDestination>(ex);
+            return await global::System.Threading.Tasks.Task.FromException<TDestination>(ex);
         }
     }
 
-    private object MapCore(Type sourceType, Type destType, object source, object? destination)
+    /// <inheritdoc />
+    public async global::System.Threading.Tasks.Task<TDestination> MapAsync<TSource, TDestination>(TSource source, TDestination destination)
+    {
+        try
+        {
+            ArgumentNullException.ThrowIfNull(source);
+            ArgumentNullException.ThrowIfNull(destination);
+            return (TDestination)await MapCoreAsync(typeof(TSource), typeof(TDestination), source, destination);
+        }
+        catch (global::System.Exception ex)
+        {
+            return await global::System.Threading.Tasks.Task.FromException<TDestination>(ex);
+        }
+    }
+
+    /// <summary>Internal core mapping logic used for recursive resolution and fallback mapping.</summary>
+    public object MapCore(Type sourceType, Type destType, object source, object? destination)
+    {
+        return MapCoreAsync(sourceType, destType, source, destination).GetAwaiter().GetResult();
+    }
+
+    /// <summary>Asynchronous core mapping logic.</summary>
+    public async global::System.Threading.Tasks.Task<object> MapCoreAsync(Type sourceType, Type destType, object source, object? destination)
     {
         if (destType.IsAssignableFrom(sourceType))
         {
-            return source;
+            return source!;
         }
 
         var sourceUnderlying = Nullable.GetUnderlyingType(sourceType) ?? sourceType;
@@ -93,17 +115,57 @@ public sealed class Mapper : IMapper
 
         if (destType == typeof(string))
         {
-            return source?.ToString() ?? string.Empty;
+            return (source?.ToString() ?? string.Empty)!;
         }
 
         if (destUnderlying.IsPrimitive && sourceUnderlying.IsPrimitive)
         {
-            try { return Convert.ChangeType(source, destUnderlying, System.Globalization.CultureInfo.InvariantCulture); } catch { /* Fallthrough */ }
+            try { return Convert.ChangeType(source!, destUnderlying!, System.Globalization.CultureInfo.InvariantCulture)!; } catch { /* Fallthrough */ }
+        }
+
+        if (IsCollection(destType, out var destItemType) && IsCollection(sourceType, out var sourceItemType))
+        {
+            var sourceList = (System.Collections.IEnumerable)source!;
+            var resultList = (System.Collections.IList)Activator.CreateInstance(typeof(List<>).MakeGenericType(destItemType!))!;
+
+            foreach (var item in sourceList!)
+            {
+                if (item is null)
+                {
+                    resultList.Add(null);
+                    continue;
+                }
+
+                if (destItemType.IsAssignableFrom(item.GetType()))
+                {
+                    resultList.Add(item);
+                }
+                else
+                {
+                    try
+                    {
+                        var mapped = MapCore(item.GetType(), destItemType, item, null);
+                        resultList.Add(mapped);
+                    }
+                    catch (AutoMappicException)
+                    {
+                        // Skip unmappable item
+                    }
+                }
+            }
+
+            if (destType.IsArray)
+            {
+                var array = Array.CreateInstance(destItemType, resultList.Count);
+                resultList.CopyTo(array, 0);
+                return array;
+            }
+            return resultList;
         }
 
         var key = (sourceType, destType);
 
-        if (!_maps.TryGetValue(key, out var @delegate))
+        if (!_maps.TryGetValue(key, out var entry))
         {
             throw new AutoMappicException(
                 $"No mapping registered from '{sourceType.FullName}' to '{destType.FullName}'. " +
@@ -111,16 +173,18 @@ public sealed class Mapper : IMapper
                 $"and the generator has run, or register the mapping explicitly.");
         }
 
-        return @delegate(this, source, destination);
+        var result = await entry.Delegate(this, source!, destination);
+        await entry.Mapping.ExecuteAfterAsync(source!, result);
+        return result;
     }
 
-    private static Func<Mapper, object, object?, object> BuildFallbackDelegate(IMappingExpression mapping)
+    private static Func<Mapper, object, object?, global::System.Threading.Tasks.Task<object>> BuildFallbackDelegate(IMappingExpression mapping)
     {
         if (mapping.ConverterType != null)
         {
             var converter = Activator.CreateInstance(mapping.ConverterType);
             var method = mapping.ConverterType.GetMethod("Convert")!;
-            return (mapper, src, dst) => method.Invoke(converter, new[] { src })!;
+            return (mapper, src, dst) => global::System.Threading.Tasks.Task.FromResult(method.Invoke(converter, new[] { src })!);
         }
 
         var sourceProps = mapping.SourceType
@@ -130,7 +194,7 @@ public sealed class Mapper : IMapper
 
         var destProps = mapping.DestinationType
             .GetProperties(BindingFlags.Public | BindingFlags.Instance)
-            .Where(p => p.CanWrite)
+            .Where(p => p.CanWrite || IsCollection(p.PropertyType, out _))
             .ToArray();
 
         var sourceMethods = mapping.SourceType
@@ -138,11 +202,13 @@ public sealed class Mapper : IMapper
             .Where(m => m.ReturnType != typeof(void) && m.GetParameters().Length == 0 && m.Name.StartsWith("Get", StringComparison.Ordinal))
             .ToDictionary(m => m.Name.Substring(3), StringComparer.Ordinal);
 
-        return (mapper, src, dst) =>
+        return async (mapper, src, dst) =>
         {
             dst ??= Activator.CreateInstance(mapping.DestinationType)
                 ?? throw new AutoMappicException(
                     $"Could not create an instance of '{mapping.DestinationType.FullName}'.");
+
+            await mapping.ExecuteBeforeAsync(src!, dst!);
 
             foreach (var destProp in destProps)
             {
@@ -153,7 +219,7 @@ public sealed class Mapper : IMapper
 
                 if (mapping.RuntimeMaps.TryGetValue(destProp.Name, out var runtimeMap))
                 {
-                    var customVal = runtimeMap(src);
+                    var customVal = runtimeMap(src!);
                     destProp.SetValue(dst, customVal);
                     continue;
                 }
@@ -176,7 +242,19 @@ public sealed class Mapper : IMapper
 
                     if (destProp.PropertyType.IsAssignableFrom(srcProp.PropertyType))
                     {
-                        destProp.SetValue(dst, val);
+                        if (destProp.CanWrite)
+                        {
+                            destProp.SetValue(dst, val);
+                        }
+                        else if (IsCollection(destProp.PropertyType, out _))
+                        {
+                            var targetColl = destProp.GetValue(dst) as System.Collections.IList;
+                            if (targetColl != null)
+                            {
+                                targetColl.Clear();
+                                foreach (var item in (System.Collections.IEnumerable)val) targetColl.Add(item);
+                            }
+                        }
                     }
                     else if (IsDictionary(destProp.PropertyType, out var dK, out var dV) && IsDictionary(srcProp.PropertyType, out var sK, out var sV))
                     {
@@ -206,58 +284,36 @@ public sealed class Mapper : IMapper
                         }
                         destProp.SetValue(dst, resultDict);
                     }
-                    else if (IsCollection(destProp.PropertyType, out var destItemType) && IsCollection(srcProp.PropertyType, out var srcItemType))
-                    {
-                        var sourceList = (System.Collections.IEnumerable)val;
-                        var resultList = (System.Collections.IList)Activator.CreateInstance(typeof(List<>).MakeGenericType(destItemType))!;
-
-                        foreach (var item in sourceList)
-                        {
-                            if (item is null)
-                            {
-                                resultList.Add(null);
-                                continue;
-                            }
-
-                            if (destItemType.IsAssignableFrom(item.GetType()))
-                            {
-                                resultList.Add(item);
-                            }
-                            else
-                            {
-                                try
-                                {
-                                    var mapped = mapper.MapCore(item.GetType(), destItemType, item, null);
-                                    resultList.Add(mapped);
-                                }
-                                catch (AutoMappicException)
-                                {
-                                    // Skip
-                                }
-                            }
-                        }
-
-                        if (destProp.PropertyType.IsArray)
-                        {
-                            var array = Array.CreateInstance(destItemType, resultList.Count);
-                            resultList.CopyTo(array, 0);
-                            destProp.SetValue(dst, array);
-                        }
-                        else
-                        {
-                            destProp.SetValue(dst, resultList);
-                        }
-                    }
                     else
                     {
                         try
                         {
-                            var nested = mapper.MapCore(srcProp.PropertyType, destProp.PropertyType, val, null);
-                            destProp.SetValue(dst, nested);
+                            if (!destProp.CanWrite && IsCollection(destProp.PropertyType, out _))
+                            {
+                                var targetColl = destProp.GetValue(dst) as System.Collections.IList;
+                                if (targetColl != null)
+                                {
+                                    var items = mapper.MapCore(srcProp.PropertyType, destProp.PropertyType, val, null) as System.Collections.IEnumerable;
+                                    if (items != null)
+                                    {
+                                        targetColl.Clear();
+                                        foreach (var item in items) targetColl.Add(item);
+                                    }
+                                }
+                            }
+                            else
+                            {
+                                var nested = mapper.MapCore(srcProp.PropertyType, destProp.PropertyType, val, null);
+                                destProp.SetValue(dst, nested);
+                            }
                         }
                         catch (AutoMappicException)
                         {
                             // Skip
+                        }
+                        catch (Exception)
+                        {
+                            // Skip assignment errors (e.g. read-only non-list)
                         }
                     }
                 }
@@ -268,7 +324,7 @@ public sealed class Mapper : IMapper
                 else
                 {
                     // Fallback to Flattening check
-                    var flattenedValue = ResolveFlattenedValue(src, destProp.Name);
+                    var flattenedValue = ResolveFlattenedValue(src!, destProp.Name);
                     if (flattenedValue != null)
                     {
                         destProp.SetValue(dst, flattenedValue);

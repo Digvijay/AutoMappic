@@ -26,111 +26,134 @@ internal static class ConventionEngine
     /// <param name="ignoredMembers">A collection of members to ignore.</param>
     /// <param name="profileLocation">The location of the profile declaration for diagnostics.</param>
     /// <param name="reportDiagnostic">A delegate to report diagnostics.</param>
+    /// <param name="mappingStack"></param>
     /// <returns>A list of resolved <see cref="PropertyMap"/> instances.</returns>
     public static (IReadOnlyList<PropertyMap> Properties, IReadOnlyList<PropertyMap> ConstructorArguments) Resolve(
         ITypeSymbol source,
         ITypeSymbol destination,
-        IReadOnlyDictionary<string, string?> explicitMaps,
+        IReadOnlyDictionary<string, (string? Expression, bool IsAsync)> explicitMaps,
         IReadOnlyCollection<string> ignoredMembers,
         Location? profileLocation,
-        Action<Diagnostic> reportDiagnostic)
+        Action<Diagnostic> reportDiagnostic,
+        HashSet<(ITypeSymbol, ITypeSymbol)>? mappingStack = null)
     {
         var properties = new List<PropertyMap>();
         var constructorArgs = new List<PropertyMap>();
+        mappingStack ??= new HashSet<(ITypeSymbol, ITypeSymbol)>(new TypePairComparer());
 
-        // 1. Find the best constructor
-        IMethodSymbol? bestCtor = null;
-        if (destination is INamedTypeSymbol namedDest && namedDest.TypeKind == TypeKind.Class)
+        var key = (source, destination);
+        if (mappingStack.Contains(key))
         {
-            var publicCtors = namedDest.Constructors
-                .Where(c => c.DeclaredAccessibility == Accessibility.Public)
-                .OrderByDescending(c => c.Parameters.Length)
-                .ToList();
+            reportDiagnostic(Diagnostic.Create(
+                AutoMappicDiagnostics.CircularReference,
+                profileLocation ?? Location.None,
+                source.Name, destination.Name));
+            return (properties, constructorArgs);
+        }
 
-            foreach (var ctor in publicCtors)
+        mappingStack.Add(key);
+        try
+        {
+
+            // 1. Find the best constructor
+            IMethodSymbol? bestCtor = null;
+            if (destination is INamedTypeSymbol namedDest && namedDest.TypeKind == TypeKind.Class)
             {
-                var candidateArgs = new List<PropertyMap>();
-                bool allSatisfied = true;
-                foreach (var param in ctor.Parameters)
+                var publicCtors = namedDest.Constructors
+                    .Where(c => c.DeclaredAccessibility == Accessibility.Public)
+                    .OrderByDescending(c => c.Parameters.Length)
+                    .ToList();
+
+                foreach (var ctor in publicCtors)
                 {
-                    var paramMap = ResolveSourceForMember(source, param.Name, param.Type, explicitMaps, ignoredMembers, profileLocation, reportDiagnostic);
-                    if (paramMap is null || paramMap.Kind == PropertyMapKind.Ignored)
+                    var candidateArgs = new List<PropertyMap>();
+                    bool allSatisfied = true;
+                    foreach (var param in ctor.Parameters)
                     {
-                        allSatisfied = false;
+                        var paramMap = ResolveSourceForMember(source, param.Name, param.Type, explicitMaps, ignoredMembers, profileLocation, reportDiagnostic, mappingStack);
+                        if (paramMap is null || paramMap.Kind == PropertyMapKind.Ignored)
+                        {
+                            allSatisfied = false;
+                            break;
+                        }
+                        candidateArgs.Add(paramMap);
+                    }
+
+                    if (allSatisfied)
+                    {
+                        bestCtor = ctor;
+                        constructorArgs = candidateArgs;
                         break;
                     }
-                    candidateArgs.Add(paramMap);
                 }
 
-                if (allSatisfied)
+                if (bestCtor is null && publicCtors.Count > 0 && !publicCtors.Any(c => c.Parameters.Length == 0))
                 {
-                    bestCtor = ctor;
-                    constructorArgs = candidateArgs;
-                    break;
+                    // No satisfyable constructor found, and no parameterless constructor exists
+                    reportDiagnostic(Diagnostic.Create(
+                        AutoMappicDiagnostics.MissingConstructor,
+                        profileLocation ?? Location.None,
+                        destination.Name));
                 }
             }
 
-            if (bestCtor is null && publicCtors.Count > 0 && !publicCtors.Any(c => c.Parameters.Length == 0))
+            // 2. Resolve properties
+            var destProperties = GetAllProperties(destination)
+                .Where(p => p.IsRequired || (p.SetMethod is not null && (p.SetMethod.DeclaredAccessibility == Accessibility.Public || p.SetMethod.DeclaredAccessibility == Accessibility.Internal || p.SetMethod.DeclaredAccessibility == Accessibility.ProtectedOrInternal)) || IsCollection(p.Type, out _))
+                .ToList();
+
+            // If we are using a constructor, we might want to skip properties already set by it?
+            // AutoMapper typically sets them again if they have a setter.
+            var constructorParamNames = new HashSet<string>(constructorArgs.Select(a => a.DestinationProperty), StringComparer.OrdinalIgnoreCase);
+
+            foreach (var destProp in destProperties)
             {
-                // No satisfyable constructor found, and no parameterless constructor exists
-                reportDiagnostic(Diagnostic.Create(
-                    AutoMappicDiagnostics.MissingConstructor,
-                    profileLocation ?? Location.None,
-                    destination.Name));
+                var name = destProp.Name;
+
+                // Skip if it was already used in constructor?
+                // Actually, we usually don't skip unless there's no setter (handled via GetAllProperties).
+                // But if it's 'required', we MUST ensure it's mapped either via ctor or property.
+
+                var map = ResolveSourceForMember(source, name, destProp.Type, explicitMaps, ignoredMembers, profileLocation, reportDiagnostic, mappingStack);
+                if (map is not null)
+                {
+                    var finalMap = map with { IsInitOnly = destProp.SetMethod?.IsInitOnly ?? false, IsReadOnly = destProp.SetMethod == null };
+                    properties.Add(finalMap);
+                }
+                else
+                {
+                    var isRequired = destProp.IsRequired || destProp.GetAttributes().Any(a => a.AttributeClass?.Name == "RequiredAttribute");
+                    // If it's required but was mapped via constructor, it's satisfied!
+                    if (isRequired && constructorParamNames.Contains(name))
+                    {
+                        continue;
+                    }
+
+                    var messageSuffix = isRequired ? " (This property is marked as [Required] or using the 'required' modifier.)" : "";
+                    reportDiagnostic(Diagnostic.Create(
+                        AutoMappicDiagnostics.UnmappedProperty,
+                        destProp.Locations.Length > 0 ? destProp.Locations[0] : Location.None,
+                        name + messageSuffix, destination.Name, source.Name));
+                }
             }
+
+            return (properties, constructorArgs);
         }
-
-        // 2. Resolve properties
-        var destProperties = GetAllProperties(destination)
-            .Where(p => p.SetMethod is not null && p.SetMethod.DeclaredAccessibility == Accessibility.Public)
-            .ToList();
-
-        // If we are using a constructor, we might want to skip properties already set by it?
-        // AutoMapper typically sets them again if they have a setter.
-        var constructorParamNames = new HashSet<string>(constructorArgs.Select(a => a.DestinationProperty), StringComparer.OrdinalIgnoreCase);
-
-        foreach (var destProp in destProperties)
+        finally
         {
-            var name = destProp.Name;
-
-            // Skip if it was already used in constructor?
-            // Actually, we usually don't skip unless there's no setter (handled via GetAllProperties).
-            // But if it's 'required', we MUST ensure it's mapped either via ctor or property.
-
-            var map = ResolveSourceForMember(source, name, destProp.Type, explicitMaps, ignoredMembers, profileLocation, reportDiagnostic);
-            if (map is not null)
-            {
-                var finalMap = map with { IsInitOnly = destProp.SetMethod?.IsInitOnly ?? false };
-                properties.Add(finalMap);
-            }
-            else
-            {
-                var isRequired = destProp.IsRequired || destProp.GetAttributes().Any(a => a.AttributeClass?.Name == "RequiredAttribute");
-                // If it's required but was mapped via constructor, it's satisfied!
-                if (isRequired && constructorParamNames.Contains(name))
-                {
-                    continue;
-                }
-
-                var messageSuffix = isRequired ? " (This property is marked as [Required] or using the 'required' modifier.)" : "";
-                reportDiagnostic(Diagnostic.Create(
-                    AutoMappicDiagnostics.UnmappedProperty,
-                    destProp.Locations.Length > 0 ? destProp.Locations[0] : Location.None,
-                    name + messageSuffix, destination.Name, source.Name));
-            }
+            mappingStack.Remove(key);
         }
-
-        return (properties, constructorArgs);
     }
 
     private static PropertyMap? ResolveSourceForMember(
         ITypeSymbol source,
         string targetName,
         ITypeSymbol targetType,
-        IReadOnlyDictionary<string, string?> explicitMaps,
+        IReadOnlyDictionary<string, (string? Expression, bool IsAsync)> explicitMaps,
         IReadOnlyCollection<string> ignoredMembers,
         Location? profileLocation,
-        Action<Diagnostic> reportDiagnostic)
+        Action<Diagnostic> reportDiagnostic,
+        HashSet<(ITypeSymbol, ITypeSymbol)> mappingStack)
     {
         var sourceProperties = GetAllProperties(source).Where(p => p.GetMethod is not null).ToList();
         var sourceMethods = GetAllZeroArgMethods(source);
@@ -140,9 +163,26 @@ internal static class ConventionEngine
             return new PropertyMap(targetName, null, PropertyMapKind.Ignored);
         }
 
-        if (explicitMaps.TryGetValue(targetName, out var explicitExpression))
+        // Special handling for IDataReader to enable optimized DB-to-DTO mapping
+        var isReader = source.Name == "IDataReader" || source.AllInterfaces.Any(i => i.Name == "IDataReader");
+        if (isReader)
         {
-            return new PropertyMap(targetName, explicitExpression ?? $"/* ForMember({targetName}) */", PropertyMapKind.Explicit);
+            var ordinal = $"source.GetOrdinal(\"{targetName}\")";
+            var readerMethod = GetReaderMethod(targetType);
+            var expr = $"source.{readerMethod}({ordinal})";
+
+            // Handle nullability if the reader column can be null
+            if (IsNullable(targetType))
+            {
+                expr = $"(source.IsDBNull({ordinal}) ? ({targetType.ToDisplayString()})null : {expr})";
+            }
+
+            return new PropertyMap(targetName, expr, PropertyMapKind.Direct);
+        }
+
+        if (explicitMaps.TryGetValue(targetName, out var explicitData))
+        {
+            return new PropertyMap(targetName, explicitData.Expression ?? $"/* ForMember({targetName}) */", PropertyMapKind.Explicit, IsAsync: explicitData.IsAsync);
         }
 
         var directMatch = sourceProperties.FirstOrDefault(
@@ -174,18 +214,16 @@ internal static class ConventionEngine
                 sourceExpr = $"{sourceExpr}.ToString()";
                 return new PropertyMap(targetName, sourceExpr, PropertyMapKind.Direct);
             }
-            else if (!SymbolEqualityComparer.Default.Equals(directMatch.Type, targetType))
+            else if (!SymbolEqualityComparer.Default.Equals(directMatch.Type, targetType) || IsCollection(targetType, out _) || (targetType.TypeKind == TypeKind.Class && targetType.SpecialType == SpecialType.None))
             {
-                var (nestedExpr, nSrc, nDest, isColl, isArr, itemExpr) = WrapWithNestedMapper(sourceExpr, directMatch.Type, targetType);
-                return new PropertyMap(
-                    DestinationProperty: targetName,
-                    SourceExpression: nestedExpr,
-                    Kind: PropertyMapKind.Direct,
+                var (nestedExpr, nSrc, nDest, isColl, isArr, itemExpr, rawExpr) = WrapWithNestedMapper(sourceExpr, directMatch.Type, targetType, profileLocation, reportDiagnostic, mappingStack);
+                return new PropertyMap(targetName, nestedExpr, PropertyMapKind.Direct,
                     NestedSourceTypeFullName: nSrc,
                     NestedDestTypeFullName: nDest,
                     IsCollection: isColl,
                     IsArray: isArr,
-                    NestedExpression: itemExpr);
+                    NestedExpression: itemExpr,
+                    SourceRawExpression: rawExpr);
             }
             else
             {
@@ -221,14 +259,17 @@ internal static class ConventionEngine
     /// <param name="expression">The base source expression.</param>
     /// <param name="sourceType">The type of the source expression.</param>
     /// <param name="destType">The target destination type.</param>
+    /// <param name="profileLoc"></param>
+    /// <param name="reportDiag"></param>
+    /// <param name="stack"></param>
     /// <returns> A tuple containing the resolved expression and metadata about the mapping.</returns>
-    private static (string Expression, string? NestedSource, string? NestedDest, bool IsCollection, bool IsArray, string? ItemExpression)
-        WrapWithNestedMapper(string expression, ITypeSymbol sourceType, ITypeSymbol destType)
+    private static (string Expression, string? NestedSource, string? NestedDest, bool IsCollection, bool IsArray, string? ItemExpression, string RawExpression)
+        WrapWithNestedMapper(string expression, ITypeSymbol sourceType, ITypeSymbol destType, Location? profileLoc, Action<Diagnostic> reportDiag, HashSet<(ITypeSymbol, ITypeSymbol)> stack)
     {
         // 1. Nullable Value Type Conversion (int? -> int)
         if (sourceType.IsValueType && IsNullable(sourceType) && !IsNullable(destType))
         {
-            return (Expression: $"{expression}.GetValueOrDefault()", null, null, false, false, null);
+            return (Expression: $"{expression}.GetValueOrDefault()", null, null, false, false, null, expression);
         }
 
         // 2. Dictionary Mapping
@@ -269,29 +310,33 @@ internal static class ConventionEngine
             var fallback = !IsNullable(destType) ? $" ?? new global::System.Collections.Generic.Dictionary<{dKey.ToDisplayString()}, {dVal.ToDisplayString()}>()" : "";
             // Dictionary mapping can have two nested mappings, but PropertyMap only has one.
             // We prioritize the Value mapping as it's more likely to be recursive.
-            return (Expression: $"{expression}{guard}.ToDictionary(kv => {keyExpr}, kv => {valExpr}){fallback}", vnSrc ?? knSrc, vnDest ?? knDest, false, false, null);
+            return (Expression: $"{expression}{guard}.ToDictionary(kv => {keyExpr}, kv => {valExpr}){fallback}", vnSrc ?? knSrc, vnDest ?? knDest, false, false, null, expression);
         }
 
         // 3. Collection Mapping
         if (IsCollection(sourceType, out var sourceItemType) && IsCollection(destType, out var destItemType))
         {
             var guard = IsNullable(sourceType) ? "?" : "";
-            var (innerExpr, nSrc, nDest, iColl, iArr, iItem) = WrapWithNestedMapper("x", sourceItemType, destItemType);
+            var (innerExpr, nSrc, nDest, iColl, iArr, iItem, rExpr) = WrapWithNestedMapper("x", sourceItemType, destItemType, profileLoc, reportDiag, stack);
 
-            // We'll replace this LINQ expression in SourceEmitter with a loop-based implementation
-            // and we set the collection flags to guide the emitter.
+            // For the return 'Expression', we provide a LINQ fallback so that nested collections work 
+            // even if the emitter only loop-optimizes the top-level.
+            var linqSuffix = destType.TypeKind == TypeKind.Array || destType.ToDisplayString().Contains("[]") ? ".ToArray()" : ".ToList()";
+            var linqExpr = $"{expression}{guard}.Select(x => {innerExpr}){linqSuffix}";
+
             bool isArray = destType.TypeKind == TypeKind.Array || destType.ToDisplayString().Contains("[]");
-            return (Expression: expression, NestedSource: GetDisplayString(sourceItemType), NestedDest: GetDisplayString(destItemType), IsCollection: true, IsArray: isArray, ItemExpression: innerExpr);
+            return (Expression: linqExpr, NestedSource: GetDisplayString(sourceItemType), NestedDest: GetDisplayString(destItemType), IsCollection: true, IsArray: isArray, ItemExpression: innerExpr, RawExpression: expression);
         }
 
         // 4. Complex Type Mapping
         if (destType.TypeKind == TypeKind.Class && destType.SpecialType == SpecialType.None)
         {
+            var _ = Resolve(sourceType, destType, new Dictionary<string, (string?, bool)>(), new HashSet<string>(), profileLoc, reportDiag, stack);
             var op = IsNullable(sourceType) ? "?." : ".";
-            return (Expression: $"{expression}{op}{GetMapMethodName(destType)}()", NestedSource: GetDisplayString(sourceType), NestedDest: GetDisplayString(destType), IsCollection: false, IsArray: false, ItemExpression: null);
+            return (Expression: $"{expression}{op}{GetMapMethodName(destType)}()", NestedSource: GetDisplayString(sourceType), NestedDest: GetDisplayString(destType), IsCollection: false, IsArray: false, ItemExpression: null, RawExpression: expression);
         }
 
-        return (Expression: expression, NestedSource: null, NestedDest: null, IsCollection: false, IsArray: false, ItemExpression: null);
+        return (Expression: expression, NestedSource: null, NestedDest: null, IsCollection: false, IsArray: false, ItemExpression: null, RawExpression: expression);
     }
 
     private static bool IsDictionary(ITypeSymbol type, out ITypeSymbol keyType, out ITypeSymbol valueType)
@@ -299,13 +344,18 @@ internal static class ConventionEngine
         keyType = null!;
         valueType = null!;
 
-        if (type is INamedTypeSymbol named && named.IsGenericType)
+        if (type is INamedTypeSymbol named)
         {
-            // Simple check for IDictionary<K,V> or Dictionary<K,V>
-            if (named.TypeArguments.Length == 2)
+            var dictionary = named.AllInterfaces.FirstOrDefault(i => i.Name == "IDictionary" && i.IsGenericType && i.TypeArguments.Length == 2);
+            if (dictionary is null && named.Name == "IDictionary" && named.IsGenericType && named.TypeArguments.Length == 2)
             {
-                keyType = named.TypeArguments[0];
-                valueType = named.TypeArguments[1];
+                dictionary = named;
+            }
+
+            if (dictionary is not null)
+            {
+                keyType = dictionary.TypeArguments[0];
+                valueType = dictionary.TypeArguments[1];
                 return true;
             }
         }
@@ -321,9 +371,19 @@ internal static class ConventionEngine
             return true;
         }
 
-        if (type is INamedTypeSymbol named && named.IsGenericType)
+        if (type is INamedTypeSymbol named)
         {
-            if (named.TypeArguments.Length == 1)
+            if (named.SpecialType == SpecialType.System_String) return false;
+
+            var enumerable = named.AllInterfaces.FirstOrDefault(i => i.IsGenericType && i.OriginalDefinition.SpecialType == SpecialType.System_Collections_Generic_IEnumerable_T);
+            if (enumerable is not null)
+            {
+                itemType = enumerable.TypeArguments[0];
+                return true;
+            }
+
+            // Also check the type itself if it is IEnumerable<T>
+            if (named.IsGenericType && named.OriginalDefinition.SpecialType == SpecialType.System_Collections_Generic_IEnumerable_T)
             {
                 itemType = named.TypeArguments[0];
                 return true;
@@ -402,6 +462,45 @@ internal static class ConventionEngine
     }
 
     private static string Normalize(string name) => name.Replace("_", "");
+
+    private static string Sanitise(string name) =>
+        name.Replace('.', '_').Replace('<', '_').Replace('>', '_').Replace(',', '_').Replace(' ', '_');
+
+    private sealed class TypePairComparer : IEqualityComparer<(ITypeSymbol, ITypeSymbol)>
+    {
+        public bool Equals((ITypeSymbol, ITypeSymbol) x, (ITypeSymbol, ITypeSymbol) y)
+        {
+            return SymbolEqualityComparer.Default.Equals(x.Item1, y.Item1) &&
+                   SymbolEqualityComparer.Default.Equals(x.Item2, y.Item2);
+        }
+
+        public int GetHashCode((ITypeSymbol, ITypeSymbol) obj)
+        {
+            unchecked
+            {
+                int hash = 17;
+                hash = hash * 23 + SymbolEqualityComparer.Default.GetHashCode(obj.Item1);
+                hash = hash * 23 + SymbolEqualityComparer.Default.GetHashCode(obj.Item2);
+                return hash;
+            }
+        }
+    }
+
+    private static string GetReaderMethod(ITypeSymbol type)
+    {
+        var special = type.SpecialType;
+        if (special == SpecialType.System_Int32) return "GetInt32";
+        if (special == SpecialType.System_Int64) return "GetInt64";
+        if (special == SpecialType.System_String) return "GetString";
+        if (special == SpecialType.System_Boolean) return "GetBoolean";
+        if (special == SpecialType.System_DateTime) return "GetDateTime";
+        if (special == SpecialType.System_Decimal) return "GetDecimal";
+        if (special == SpecialType.System_Double) return "GetDouble";
+        if (type.Name == "Guid") return "GetGuid";
+
+        // Fallback for custom/uncommon types
+        return $"GetValue /* ({type.Name}) */";
+    }
 
     private static bool IsNullable(ITypeSymbol type) =>
         type.NullableAnnotation == NullableAnnotation.Annotated
