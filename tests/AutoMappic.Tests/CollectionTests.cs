@@ -72,4 +72,32 @@ public sealed class CollectionMappingTests
         Assert.Equal(3, dto.Scores.Count);
         Assert.Equal(1, dto.Scores[0]);
     }
+
+    [Fact]
+    [Prova.Description("Verify that mapping a collection directly (without a wrapper) works and is intercepted.")]
+    public void Map_DirectCollection_Works()
+    {
+        var mapper = new MapperConfiguration(cfg => cfg.AddProfile<CollectionProfile>())
+            .CreateMapper();
+
+        var source = new List<User> { new User { Username = "alice" } };
+        var dtos = mapper.Map<List<UserSummaryDto>>(source);
+
+        Assert.Single(dtos);
+        Assert.Equal("alice", dtos[0].Username);
+    }
+
+    [Fact]
+    [Prova.Description("Verify that mapping a collection asynchronously directly works and is intercepted.")]
+    public async Task MapAsync_DirectCollection_Works()
+    {
+        var mapper = new MapperConfiguration(cfg => cfg.AddProfile<CollectionProfile>())
+            .CreateMapper();
+
+        var source = new List<User> { new User { Username = "bob" } };
+        var dtos = await mapper.MapAsync<List<UserSummaryDto>>(source);
+
+        Assert.Single(dtos);
+        Assert.Equal("bob", dtos[0].Username);
+    }
 }

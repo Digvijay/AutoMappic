@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using AutoMappic.Generator.Models;
@@ -261,27 +262,27 @@ internal static class ProfileExtractor
             }
             else if (methodName == "BeforeMap")
             {
-                var body = ExtractActionBody(invocation.ArgumentList.Arguments.FirstOrDefault()?.Expression);
+                var (body, _) = ExtractActionBody(invocation.ArgumentList.Arguments.FirstOrDefault()?.Expression);
                 if (currentlyConfiguringReverse) { /* reverse not supported yet for these */ }
                 else beforeMapBody = body;
             }
             else if (methodName == "AfterMap")
             {
-                var body = ExtractActionBody(invocation.ArgumentList.Arguments.FirstOrDefault()?.Expression);
+                var (body, _) = ExtractActionBody(invocation.ArgumentList.Arguments.FirstOrDefault()?.Expression);
                 if (currentlyConfiguringReverse) { /* reverse not supported yet for these */ }
                 else afterMapBody = body;
             }
             else if (methodName == "BeforeMapAsync")
             {
-                var body = ExtractActionBody(invocation.ArgumentList.Arguments.FirstOrDefault()?.Expression);
+                var (body, isEx) = ExtractActionBody(invocation.ArgumentList.Arguments.FirstOrDefault()?.Expression);
                 if (currentlyConfiguringReverse) { /* reverse not supported yet for these */ }
-                else beforeMapAsyncBody = body;
+                else beforeMapAsyncBody = isEx ? $"await {body}" : body;
             }
             else if (methodName == "AfterMapAsync")
             {
-                var body = ExtractActionBody(invocation.ArgumentList.Arguments.FirstOrDefault()?.Expression);
+                var (body, isEx) = ExtractActionBody(invocation.ArgumentList.Arguments.FirstOrDefault()?.Expression);
                 if (currentlyConfiguringReverse) { /* reverse not supported yet for these */ }
-                else afterMapAsyncBody = body;
+                else afterMapAsyncBody = isEx ? $"await {body}" : body;
             }
             else if (methodName == "ConvertUsing")
             {
@@ -442,9 +443,10 @@ internal static class ProfileExtractor
     private static string GetDisplayString(ITypeSymbol type) =>
         type.WithNullableAnnotation(NullableAnnotation.None).ToDisplayString();
 
-    private static string? ExtractActionBody(ExpressionSyntax? lambdaExpression)
+    private static (string? Body, bool IsExpression) ExtractActionBody(ExpressionSyntax? lambdaExpression)
     {
-        if (lambdaExpression is null) return null;
+        if (lambdaExpression is null) return (null, false);
+        bool isExpression = false;
 
         ParameterSyntax? srcParam = null;
         ParameterSyntax? destParam = null;
@@ -455,14 +457,16 @@ internal static class ProfileExtractor
             srcParam = pLambda.ParameterList.Parameters.ElementAtOrDefault(0);
             destParam = pLambda.ParameterList.Parameters.ElementAtOrDefault(1);
             body = (SyntaxNode)pLambda.Body;
+            isExpression = pLambda.ExpressionBody != null;
         }
         else if (lambdaExpression is SimpleLambdaExpressionSyntax sLambda)
         {
             srcParam = sLambda.Parameter;
             body = (SyntaxNode)sLambda.Body;
+            isExpression = sLambda.ExpressionBody != null;
         }
 
-        if (body is null) return null;
+        if (body is null) return (null, false);
 
         var srcName = srcParam?.Identifier.Text ?? "src";
         var destName = destParam?.Identifier.Text ?? "dest";
@@ -476,6 +480,7 @@ internal static class ProfileExtractor
         else
         {
             bodyText = body.ToString();
+            if (!bodyText.TrimEnd().EndsWith(";", StringComparison.Ordinal)) bodyText += ";";
         }
 
         var result = System.Text.RegularExpressions.Regex.Replace(
@@ -488,6 +493,6 @@ internal static class ProfileExtractor
             $@"\b{System.Text.RegularExpressions.Regex.Escape(destName)}\b",
             "result");
 
-        return result;
+        return (result, isExpression);
     }
 }

@@ -49,17 +49,38 @@ AutoMappic will emit a loop that:
 3.  Maps the value (if necessary).
 4.  Adds to the destination dictionary efficiently.
 
-## 4. Collection Pre-allocation Logic
+## 4. Deep Dictionary Projection
 
-For any source that implements `ICollection<T>`, we pre-allocate the destination capacity:
+AutoMappic can map dictionaries where **both the Key and Value** need conversion. This is a common requirement for API normalization.
 
 ```csharp
-// Generated code looks like this:
-var resultList = new global::System.Collections.Generic.List<LineItemDto>(source.Items.Count);
-foreach (var item in source.Items) resultList.Add(item.MapToLineItemDto());
+public class Stats { public Dictionary<int, TaskSource> Tasks { get; set; } }
+public class StatsDto { public Dictionary<string, TaskDest> Tasks { get; set; } }
+
+CreateMap<Stats, StatsDto>();
+CreateMap<TaskSource, TaskDest>();
 ```
 
-This makes AutoMappic significantly faster than standard mappers that use `.Select(...).ToList()`.
+In a single pass, AutoMappic will:
+1.  **Iterate** through the source dictionary.
+2.  **Convert the Key** from `int` $\to$ `string` (via an optimized `.ToString()` call).
+3.  **Recursively Map the Value** from `TaskSource` $\to$ `TaskDest`.
+4.  **Populate** the destination dictionary.
+
+---
+
+## 5. Zero-LINQ Technology
+
+AutoMappic avoids the allocation and runtime overhead of LINQ by generating specialized `for` and `foreach` loops.
+
+| Feature | LINQ (`.Select().ToList()`) | AutoMappic (Zero-LINQ) |
+| :--- | :--- | :--- |
+| **Throughput** | Moderate | Extreme |
+| **Allocations** | High (Intermediate Enumerators) | Minimal (Pre-allocated) |
+| **JIT Overhead** | High (Generic JIT) | Zero (Static loops) |
+| **AOT Friendly** | Partially | 100% |
+
+By unrolling the loops at compile-time, AutoMappic gives you the performance of hand-written code with the maintenance simplicity of a mapping library.
 
 ---
 

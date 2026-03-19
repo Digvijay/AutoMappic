@@ -6,13 +6,14 @@ AutoMappic is fundamentally different from traditional .NET object mappers. Whil
 
 Traditional mappers like AutoMapper follow a **"Plan-at-Runtime"** strategy. AutoMappic follows a **"Verify-at-Compile-time"** strategy.
 
-| Feature | Traditional Mappers (AutoMapper) | AutoMappic |
-| :--- | :--- | :--- |
-| **Discovery** | Runtime Reflection (`GetProperties`) | Compile-time Roslyn Symbols |
-| **Execution** | `Expression.Compile()` at Runtime | Static C# Code emitted at Build |
-| **JIT Overhead** | High (First call penalty) | Zero (Direct calls) |
-| **AOT Compatibility**| Trimming & JIT issues | 100% Native AOT Friendly |
-| **Performance** | O(N) where N is reflection cost | O(1) direct static calls |
+| Feature | AutoMapper | Mapster | Mapperly | AutoMappic |
+| :--- | :--- | :--- | :--- | :--- |
+| **Mapping Engine** | Runtime Reflection | Runtime Expressions | Source Generator | **Source Generator + Interceptors** |
+| **Interception** | No (Manual Calls) | No (Manual Calls) | No (Manual Calls) | **Automatic (Roslyn Interceptors)** |
+| **Performance** | O(N) Reflection cost | High (First call penalty) | Extreme (Statically generated) | **Extreme (Fully Inlined)** |
+| **Native AOT** | **No** (Relies on IL Emit) | Limited (Via CodeGen tool) | Full Support | **100% Native AOT Compliance** |
+| **Async Mapping** | No (Synchronous Only) | Partial (Via Mapster.Async) | No (Synchronous Only) | **First-Class Dual-Emission** |
+| **IDataReader** | Convention-Based | No Native Support | No Native Support | **High-Performance Static Projections** |
 
 ---
 
@@ -39,8 +40,9 @@ graph LR
 
 Because AutoMappic understands your code before it runs, it can provide immediate feedback. If you attempt to map a `Source` to a `Destination` where a property is missing or types are incompatible, you don't find out in Production—you find out in your IDE.
 
-> [!IMPORTANT]
-> **Diagnostics AM001–AM005** ensure that your mapping profiles are always in sync with your models. If a build passes, the mapping is guaranteed to work.
+::: info
+**Diagnostics AM001–AM007** ensure that your mapping profiles are always in sync with your models. If a build passes, the mapping is guaranteed to work.
+:::
 
 ## 3. High-Performance Collection Mapping
 
@@ -75,6 +77,6 @@ To ensure maximum compatibility without sacrificing performance, we pin our anal
 - **Backward Compatibility**: Compiling against Roslyn 5.x would break AutoMappic for any developer not yet on the absolute latest preview SDKs. 
 - **Feature Baseline**: This version provides a robust baseline for C# 12 Interceptors and Incremental Generator APIs while ensuring the generator loads correctly across all stable versions of Visual Studio 2022 and .NET 9+.
 
----
+*Factual Source: Comparison based on official documentation and community discussions from [riok/mapperly](https://github.com/riok/mapperly), [AutoMapper/AutoMapper](https://github.com/AutoMapper/AutoMapper), and [MapsterMapper/Mapster](https://github.com/MapsterMapper/Mapster) as of March 2026.*
 
 [Next: Sustainability & ESG →](./sustainability.md)

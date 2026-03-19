@@ -25,8 +25,16 @@ A diagnostic with **Error** severity will cause the build to fail. This is inten
 ### AM005: Missing Parameterless Constructor
 *   **Severity**: Error
 *   **Target**: Destination Type
-*   **Description**: AutoMappic requires destination types to have a public, parameterless constructor to generate instance mappings without relying on reflection-based activation.
-*   **Remediation**: Ensure the destination class has a public parameterless constructor.
+*   **Description**: AutoMappic requires a public constructor to instantiate the destination type. It can use a parameterless constructor or a parameterized one (for Records/DDD) if all its arguments can be resolved from the source by name convention or explicit mapping.
+*   **Remediation**: Ensure the destination class has a public parameterless constructor or parameters that match source properties.
+
+### AM006: Circular Reference Detected
+*   **Severity**: Error
+*   **Target**: Type Pair
+*   **Description**: AutoMappic's static generator does not support recursive object graphs (e.g., Parent $\to$ Child $\to$ Parent) by default, as they would cause `StackOverflowException` in the generated static code and require expensive runtime object trackers.
+*   **Remediation**: 
+    1. Use `.ForMemberIgnore()` on the property causing the recursion.
+    2. Use a custom `IValueResolver` or `AfterMap` hook to manually handle the back-reference after the primary mapping is complete.
 
 ## Developer Experience (Warnings)
 
@@ -43,3 +51,9 @@ Warnings identify potential configuration issues that do not necessarily block c
 *   **Target**: Call Site
 *   **Description**: An `IMapper.Map` call was detected for a type pair that has no corresponding source-generated mapping.
 *   **Impact**: The call will fall back to the runtime `Mapper` engine, which utilizes reflection and is not optimized for Native AOT environments.
+
+### AM007: Unresolved CreateMap Symbol
+*   **Severity**: Warning
+*   **Target**: Call Site
+*   **Description**: The generator found a `CreateMap` call but could not resolve its symbol. 
+*   **Impact**: This usually means the project is missing a reference to `AutoMappic.Core` or there are compilation errors preventing semantic analysis.

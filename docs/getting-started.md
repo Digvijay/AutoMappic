@@ -145,6 +145,7 @@ IDataReader reader = command.ExecuteReader();
 // Project directly from a reader with a statically expanded map!
 IEnumerable<UserDto> users = reader.Map<UserDto>(); 
 ```
+See the [DataReader Mapping Tutorial](./tutorials/data-reader-mapping.md) for more performance details.
 
 ## 7. Performance & AOT
 AutoMappic generates source code that you can see and debug. Because it's "just C#", it is 100% compatible with Native AOT and Linker trimming. No more `UnreferencedCode` warnings in your mapping code!

@@ -32,9 +32,16 @@ public sealed class LifecycleTests
         var result = await mapper.MapAsync<LifecycleSource, LifecycleDest>(source);
 
         Assert.Equal(10, result.Value);
+        Assert.True(result.WasBeforeCalled);
         Assert.True(result.WasBeforeAsyncCalled);
         // Sync AfterMap is also called during async mapping (dual-emission)
         Assert.True(result.WasAfterCalled);
         Assert.True(result.WasAfterAsyncCalled);
+
+        Assert.Equal(4, result.HookOrder.Count);
+        Assert.Equal("Before", result.HookOrder[0]);
+        Assert.Equal("BeforeAsync", result.HookOrder[1]);
+        Assert.Equal("After", result.HookOrder[2]);
+        Assert.Equal("AfterAsync", result.HookOrder[3]);
     }
 }

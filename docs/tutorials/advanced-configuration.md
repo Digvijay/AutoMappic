@@ -87,6 +87,59 @@ public class UserProfile : Profile
 
 The generator will find the best-matching constructor and generate `new UserDto(source.Name, source.Id)`. This is perfect for **immutable records** and **Domain-Driven Design (DDD)**.
 
+## 6. Lifecycle Hooks (BeforeMap / AfterMap)
+
+Sometimes, property mapping isn't enough. You may need to perform side effects, initialize the destination object, or perform complex cross-property calculations.
+
+AutoMappic supports synchronous and asynchronous lifecycle hooks:
+
+### Synchronous Hooks
+```csharp
+CreateMap<Order, OrderDto>()
+    .BeforeMap((src, dest) => {
+        // Prepare the destination (e.g., set a default value)
+        dest.CreatedDate = DateTime.UtcNow;
+    })
+    .AfterMap((src, dest) => {
+        // Perform a complex derivation after mapping is finished
+        dest.IsEligibleForExpressShipping = dest.LineItems.Any(i => i.RequiresSpecialHandling);
+    });
+```
+
+### Asynchronous Hooks
+These are perfect for fetching extra data from a cache or database *during* the mapping process.
+```csharp
+CreateMap<User, UserDto>()
+    .BeforeMapAsync(async (src, dest) => {
+        // Non-blocking I/O during mapping!
+        var preference = await _cache.GetAsync($"pref_{src.Id}");
+        dest.ThemeColor = preference ?? "Blue";
+    })
+    .AfterMapAsync(async (src, dest) => {
+         await AuditService.LogMappingAsync(src.Id, dest.Id);
+    });
+```
+
+AutoMappic ensures that these hooks are executed in a predictable sequence:
+`BeforeMap` $\to$ `BeforeMapAsync` $\to$ **Property Mapping Logic** $\to$ `AfterMap` $\to$ `AfterMapAsync`.
+
 ---
 
-With these advanced configurations, you can handle 100% of your mapping scenarios without ever sacrificing performance.
+## 7. Zero-Allocation Enum Mapping
+
+Mapping an Enum to a String is common in API development. AutoMappic handles this natively without any extra configuration.
+
+```csharp
+public enum OrderStatus { Pending, Shipped, Delivered }
+public class Order { public OrderStatus Status { get; set; } }
+public class OrderDto { public string Status { get; set; } }
+
+// Just works!
+CreateMap<Order, OrderDto>();
+```
+
+At compile-time, AutoMappic generates a high-efficiency `.ToString()` call. This avoids the overhead of reflection or generic `Enum.GetName()` calls, making it safe for Native AOT and high-throughput scenarios.
+
+---
+
+[Next: Collections and Dictionaries →](./collections-and-dictionaries.md)

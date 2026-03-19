@@ -29,6 +29,7 @@ export default withMermaid(defineConfig({
           { text: 'Advanced Configuration', link: '/tutorials/advanced-configuration' },
           { text: 'Collections & Dictionaries', link: '/tutorials/collections-and-dictionaries' },
           { text: 'Queryable Projection', link: '/tutorials/queryable-projection' },
+          { text: 'DataReader Mapping', link: '/tutorials/data-reader-mapping' },
           { text: 'CLI Tools & Visualization', link: '/tutorials/cli-tools' },
           { text: 'Native AOT Guide', link: '/tutorials/native-aot-guide' }
         ]

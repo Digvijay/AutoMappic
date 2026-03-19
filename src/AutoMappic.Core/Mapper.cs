@@ -50,6 +50,7 @@ public sealed class Mapper : IMapper
     public TDestination Map<TSource, TDestination>(TSource source, TDestination destination)
     {
         ArgumentNullException.ThrowIfNull(source);
+        ArgumentNullException.ThrowIfNull(destination);
         return (TDestination)MapCore(typeof(TSource), typeof(TDestination), source, destination);
     }
 

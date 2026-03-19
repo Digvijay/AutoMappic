@@ -153,7 +153,7 @@ internal static class SourceEmitter
         if (isAsync)
         {
             if (!string.IsNullOrEmpty(model.BeforeMapBody)) sb.AppendLine($"        {model.BeforeMapBody}");
-            if (!string.IsNullOrEmpty(model.BeforeMapAsyncBody)) sb.AppendLine($"        await (global::System.Threading.Tasks.Task.Run(async () => {{ {model.BeforeMapAsyncBody} }}));");
+            if (!string.IsNullOrEmpty(model.BeforeMapAsyncBody)) sb.AppendLine($"        {model.BeforeMapAsyncBody}");
         }
         else if (!string.IsNullOrEmpty(model.BeforeMapBody))
         {
@@ -185,7 +185,7 @@ internal static class SourceEmitter
         if (isAsync)
         {
             if (!string.IsNullOrEmpty(model.AfterMapBody)) sb.AppendLine($"        {model.AfterMapBody}");
-            if (!string.IsNullOrEmpty(model.AfterMapAsyncBody)) sb.AppendLine($"        await (global::System.Threading.Tasks.Task.Run(async () => {{ {model.AfterMapAsyncBody} }}));");
+            if (!string.IsNullOrEmpty(model.AfterMapAsyncBody)) sb.AppendLine($"        {model.AfterMapAsyncBody}");
         }
         else if (!string.IsNullOrEmpty(model.AfterMapBody))
         {
@@ -201,7 +201,7 @@ internal static class SourceEmitter
         if (isAsync)
         {
             if (!string.IsNullOrEmpty(model.BeforeMapBody)) sb.AppendLine($"        {model.BeforeMapBody}");
-            if (!string.IsNullOrEmpty(model.BeforeMapAsyncBody)) sb.AppendLine($"        await (global::System.Threading.Tasks.Task.Run(async () => {{ {model.BeforeMapAsyncBody} }}));");
+            if (!string.IsNullOrEmpty(model.BeforeMapAsyncBody)) sb.AppendLine($"        {model.BeforeMapAsyncBody}");
         }
         else if (!string.IsNullOrEmpty(model.BeforeMapBody))
         {
@@ -234,7 +234,7 @@ internal static class SourceEmitter
         if (isAsync)
         {
             if (!string.IsNullOrEmpty(model.AfterMapBody)) sb.AppendLine($"        {model.AfterMapBody}");
-            if (!string.IsNullOrEmpty(model.AfterMapAsyncBody)) sb.AppendLine($"        await (global::System.Threading.Tasks.Task.Run(async () => {{ {model.AfterMapAsyncBody} }}));");
+            if (!string.IsNullOrEmpty(model.AfterMapAsyncBody)) sb.AppendLine($"        {model.AfterMapAsyncBody}");
         }
         else if (!string.IsNullOrEmpty(model.AfterMapBody))
         {
@@ -315,7 +315,38 @@ internal static class SourceEmitter
                 var sourceAccess = item.ParameterSourceTypeFullName == (model?.SourceTypeFullName ?? item.SourceTypeFullName) ? "source" : $"(({model?.SourceTypeFullName ?? item.SourceTypeFullName})source)";
                 var isDestinationMapped = item.IsDestinationMapped;
 
-                if (isAsyncShim)
+                if (item.IsCollectionMapping)
+                {
+                    var sItem = item.EffectiveSourceTypeFullName;
+                    var dItem = item.EffectiveDestTypeFullName;
+                    var dType = item.DestinationTypeFullName;
+                    var sType = item.ParameterSourceTypeFullName;
+                    var method = model?.IsAsync == true ? $"MapTo{destName}Async" : $"MapTo{destName}";
+                    var awaiter = model?.IsAsync == true ? "await " : "";
+                    var configure = model?.IsAsync == true ? ".ConfigureAwait(false)" : "";
+                    var collectionSourceAccess = sType == item.SourceTypeFullName ? "source" : $"(({item.SourceTypeFullName})source)";
+
+                    sb.AppendLine($"        public static {(isAsyncShim ? "async global::System.Threading.Tasks.Task<" : "")}{dType}{(isAsyncShim ? ">" : "")} {shimName}(this global::AutoMappic.IMapper mapper, {sType} source)");
+                    sb.AppendLine("        {");
+                    sb.AppendLine("            if (source is null) return null!;");
+                    if (item.SourceTypeFullName.EndsWith("[]", StringComparison.Ordinal))
+                        sb.AppendLine($"            var list = new global::System.Collections.Generic.List<{dItem}>({collectionSourceAccess}.Length);");
+                    else if (item.SourceTypeFullName.Contains("List<") || item.SourceTypeFullName.Contains("Collection<"))
+                        sb.AppendLine($"            var list = new global::System.Collections.Generic.List<{dItem}>({collectionSourceAccess}.Count);");
+                    else
+                        sb.AppendLine($"            var list = new global::System.Collections.Generic.List<{dItem}>();");
+
+                    sb.AppendLine($"            foreach (var element in (global::System.Collections.Generic.IEnumerable<{sItem}>){collectionSourceAccess})");
+                    sb.AppendLine("            {");
+                    sb.AppendLine($"                list.Add({awaiter}element.{method}(){configure});");
+                    sb.AppendLine("            }");
+                    if (dType.EndsWith("[]", StringComparison.Ordinal))
+                        sb.AppendLine($"            return {(isAsyncShim ? "" : "")}list.ToArray();");
+                    else
+                        sb.AppendLine($"            return {(isAsyncShim ? "" : "")}list;");
+                    sb.AppendLine("        }");
+                }
+                else if (isAsyncShim)
                 {
                     var method = model?.IsAsync == true ? $"MapTo{destName}Async" : $"MapTo{destName}";
                     var awaiter = model?.IsAsync == true ? "await " : "";

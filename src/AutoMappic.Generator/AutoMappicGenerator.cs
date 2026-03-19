@@ -198,8 +198,12 @@ public sealed class AutoMappicGenerator : IIncrementalGenerator
         });
     }
 
-    private static string Sanitise(string name) =>
-        name.Replace('.', '_').Replace('<', '_').Replace('>', '_');
+    private static string Sanitise(string name)
+    {
+        var res = new System.Text.StringBuilder();
+        foreach (var c in name ?? "Default") if (char.IsLetterOrDigit(c)) res.Append(c); else res.Append('_');
+        return res.ToString();
+    }
 
     private sealed class MappingResultComparer
         : IEqualityComparer<(MappingModel Model, IReadOnlyList<Diagnostic> Diagnostics)>

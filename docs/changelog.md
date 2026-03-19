@@ -16,9 +16,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Advanced Collection Buffering:** Initial support for pre-allocated list capacity to further reduce GC allocations when mapping large collections.
 
 ### Fixed
+- **Top-level Collection Interception:** Fixed a critical performance bug where direct `mapper.Map<List<D>>(listS)` calls were silently falling back to runtime reflection.
+- **Async Collection Signatures:** Resolved build-time signature mismatches when intercepting `MapAsync<List<D>>` for collections containing synchronous child mappings.
+- **Identifier Sanitization:** Unified the sanitization logic across the entire generator pipeline to ensure consistent interceptor matching for complex generics and arrays.
+- **Collection Shim Type-Safety:** Fixed incorrect type-casting logic in generated collection shims that prevented successful compilation for certain collection-based mappings.
 - **Interceptor Signature Matching:** Resolved "Signature mismatch" errors by implementing an explicit tracking flag for destination-mapped (`Map(S, D)`) calls.
 - **Nullable Type Mapping:** Fixed type conversion warnings for when mapping between nullable and non-nullable value types.
 - **Ambiguity Detection:** Improved AM002 diagnostics to prevent false positives when direct property matches exist alongside potential flattening paths.
+- **Documentation Rendering:** Corrected LaTeX-style Markdown symbols (`$\to$`) that were incorrectly displayed in the VitePress tutorials.
 
 ## [0.1.0] - 2026-03-16
 
