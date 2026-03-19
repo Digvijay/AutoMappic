@@ -206,9 +206,9 @@ internal static class ProfileExtractor
         }
 
         // Collect settings for both forward and reverse directions.
-        var forwardMaps = new Dictionary<string, (string? Expression, bool IsAsync)>(System.StringComparer.Ordinal);
+        var forwardMaps = new Dictionary<string, (string? Expression, string? Condition, bool IsAsync)>(System.StringComparer.Ordinal);
         var forwardIgnored = new HashSet<string>(System.StringComparer.Ordinal);
-        var reverseMaps = new Dictionary<string, (string? Expression, bool IsAsync)>(System.StringComparer.Ordinal);
+        var reverseMaps = new Dictionary<string, (string? Expression, string? Condition, bool IsAsync)>(System.StringComparer.Ordinal);
         var reverseIgnored = new HashSet<string>(System.StringComparer.Ordinal);
 
         string? typeConverterFullName = null;
@@ -216,6 +216,7 @@ internal static class ProfileExtractor
         string? afterMapBody = null;
         string? beforeMapAsyncBody = null;
         string? afterMapAsyncBody = null;
+        string? constructionBody = null;
         bool hasReverseMap = false;
         bool currentlyConfiguringReverse = false;
 
@@ -241,9 +242,9 @@ internal static class ProfileExtractor
                     var destName = ExtractMemberName(args[0].Expression);
                     if (destName is not null && args.Count >= 2)
                     {
-                        var (sourceExpr, isAsync) = ExtractMapFromBody(args[1].Expression, semanticModel);
-                        if (currentlyConfiguringReverse) reverseMaps[destName] = (sourceExpr, isAsync);
-                        else forwardMaps[destName] = (sourceExpr, isAsync);
+                        var (sourceExpr, condition, isAsync) = ExtractMapFromBody(args[1].Expression, semanticModel);
+                        if (currentlyConfiguringReverse) reverseMaps[destName] = (sourceExpr, condition, isAsync);
+                        else forwardMaps[destName] = (sourceExpr, condition, isAsync);
                     }
                 }
             }
@@ -301,6 +302,12 @@ internal static class ProfileExtractor
                     }
                 }
             }
+            else if (methodName == "ConstructUsing")
+            {
+                var (body, isExpr) = ExtractActionBody(invocation.ArgumentList.Arguments.FirstOrDefault()?.Expression);
+                if (currentlyConfiguringReverse) { /* reverse not supported yet for these */ }
+                else constructionBody = isExpr ? body?.TrimEnd(';') : body;
+            }
 
             current = invocation.Parent;
         }
@@ -320,12 +327,14 @@ internal static class ProfileExtractor
         var lineSpan = callLocation.GetLineSpan();
 
         var model = new MappingModel(
-            SourceTypeFullName: GetDisplayString(sourceType),
-            SourceTypeName: sourceType.Name,
-            DestinationTypeFullName: GetDisplayString(destType),
-            DestinationTypeName: destType.Name,
+            SourceTypeFullName: GetDisplayString(sourceType!),
+            SourceTypeName: sourceType!.Name,
+            DestinationTypeFullName: GetDisplayString(destType!),
+            DestinationTypeName: destType!.Name,
             Properties: new EquatableArray<PropertyMap>(properties),
             ConstructorArguments: new EquatableArray<PropertyMap>(constructorArgs),
+            SourceNamespace: sourceType?.ContainingNamespace?.IsGlobalNamespace == false ? sourceType.ContainingNamespace.ToDisplayString() : null,
+            DestinationNamespace: destType?.ContainingNamespace?.IsGlobalNamespace == false ? destType.ContainingNamespace.ToDisplayString() : null,
             TypeConverterFullName: typeConverterFullName,
             FilePath: lineSpan.Path,
             Line: lineSpan.StartLinePosition.Line + 1,
@@ -333,7 +342,8 @@ internal static class ProfileExtractor
             BeforeMapBody: beforeMapBody,
             AfterMapBody: afterMapBody,
             BeforeMapAsyncBody: beforeMapAsyncBody,
-            AfterMapAsyncBody: afterMapAsyncBody);
+            AfterMapAsyncBody: afterMapAsyncBody,
+            ConstructionBody: constructionBody);
 
         results.Add((model, diagnostics));
 
@@ -341,20 +351,22 @@ internal static class ProfileExtractor
         {
             var revDiags = new List<Diagnostic>();
             var (revProps, revConstructorArgs) = ConventionEngine.Resolve(
-                destType,
-                sourceType,
+                destType!,
+                sourceType!,
                 reverseMaps,
                 reverseIgnored,
                 profileLocation,
                 d => revDiags.Add(d));
 
             var revModel = new MappingModel(
-                SourceTypeFullName: GetDisplayString(destType),
-                SourceTypeName: destType.Name,
-                DestinationTypeFullName: GetDisplayString(sourceType),
-                DestinationTypeName: sourceType.Name,
+                SourceTypeFullName: GetDisplayString(destType!),
+                SourceTypeName: destType!.Name,
+                DestinationTypeFullName: GetDisplayString(sourceType!),
+                DestinationTypeName: sourceType!.Name,
                 Properties: new EquatableArray<PropertyMap>(revProps),
                 ConstructorArguments: new EquatableArray<PropertyMap>(revConstructorArgs),
+                SourceNamespace: destType?.ContainingNamespace?.IsGlobalNamespace == false ? destType.ContainingNamespace.ToDisplayString() : null,
+                DestinationNamespace: sourceType?.ContainingNamespace?.IsGlobalNamespace == false ? sourceType.ContainingNamespace.ToDisplayString() : null,
                 FilePath: lineSpan.Path,
                 Line: lineSpan.StartLinePosition.Line + 1,
                 Column: lineSpan.StartLinePosition.Character + 1);
@@ -382,62 +394,106 @@ internal static class ProfileExtractor
     }
 
     /// <summary>
-    ///   Extracts the raw C# text of the body of a <c>MapFrom(src =&gt; …)</c> lambda.
-    ///   The parameter name is rewritten to <c>source</c> to match the generated method.
+    ///   Extracts configurations like MapFrom and Condition from the ForMember options lambda.
     /// </summary>
-    private static (string? Expression, bool IsAsync) ExtractMapFromBody(ExpressionSyntax optExpression, SemanticModel semanticModel)
+    private static (string? Expression, string? Condition, bool IsAsync) ExtractMapFromBody(ExpressionSyntax optExpression, SemanticModel semanticModel)
     {
-        // opt => opt.MapFrom(...)
+        // opt => opt.MapFrom(...).Condition(...)
         ExpressionSyntax? outerBody = null;
         if (optExpression is SimpleLambdaExpressionSyntax oLambda) outerBody = (ExpressionSyntax)oLambda.Body;
         else if (optExpression is ParenthesizedLambdaExpressionSyntax poLambda) outerBody = (ExpressionSyntax)poLambda.Body;
 
-        if (outerBody is not InvocationExpressionSyntax invocation) return default;
+        if (outerBody is null) return default;
 
-        var memberAccess = invocation.Expression as MemberAccessExpressionSyntax;
-        var methodName = memberAccess?.Name.Identifier.Text;
-        if (methodName != "MapFrom" && methodName != "MapFromAsync") return default;
+        string? expression = null;
+        string? condition = null;
+        bool isAsync = false;
 
-        // Case 1: lambda-based MapFrom(src => ...)
-        var innerGenericLambda = invocation.ArgumentList.Arguments.FirstOrDefault()?.Expression;
-        if (innerGenericLambda is SimpleLambdaExpressionSyntax sLambda || innerGenericLambda is ParenthesizedLambdaExpressionSyntax pLambda)
+        var current = outerBody;
+        while (current is InvocationExpressionSyntax invocation)
         {
-            string param;
-            string body;
+            var memberAccess = invocation.Expression as MemberAccessExpressionSyntax;
+            var methodName = memberAccess?.Name.Identifier.Text;
 
-            if (innerGenericLambda is SimpleLambdaExpressionSyntax sl)
+            if (methodName == "MapFrom" || methodName == "MapFromAsync")
             {
-                param = sl.Parameter.Identifier.Text;
-                body = sl.Body.ToString();
+                var innerGenericLambda = invocation.ArgumentList.Arguments.FirstOrDefault()?.Expression;
+                if (innerGenericLambda is SimpleLambdaExpressionSyntax sLambda || innerGenericLambda is ParenthesizedLambdaExpressionSyntax pLambda)
+                {
+                    string param;
+                    string body;
+
+                    if (innerGenericLambda is SimpleLambdaExpressionSyntax sl)
+                    {
+                        param = sl.Parameter.Identifier.Text;
+                        body = sl.Body.ToString();
+                    }
+                    else
+                    {
+                        var pl = (ParenthesizedLambdaExpressionSyntax)innerGenericLambda;
+                        param = pl.ParameterList.Parameters.FirstOrDefault()?.Identifier.Text ?? "src";
+                        body = pl.Body.ToString();
+                    }
+
+                    expression = System.Text.RegularExpressions.Regex.Replace(
+                        body,
+                        $@"\b{System.Text.RegularExpressions.Regex.Escape(param)}\b",
+                        "source");
+                }
+                else if (memberAccess?.Name is GenericNameSyntax gn && gn.TypeArgumentList.Arguments.Count == 1)
+                {
+                    var resolverTypeSymbol = semanticModel.GetTypeInfo(gn.TypeArgumentList.Arguments[0]).Type;
+                    var resolverType = resolverTypeSymbol?.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat) ?? gn.TypeArgumentList.Arguments[0].ToString();
+                    if (methodName == "MapFromAsync")
+                    {
+                        expression = $"await new {resolverType}().ResolveAsync(source)";
+                        isAsync = true;
+                    }
+                    else
+                    {
+                        expression = $"new {resolverType}().Resolve(source)";
+                    }
+                }
             }
-            else
+            else if (methodName == "Condition")
             {
-                var pl = (ParenthesizedLambdaExpressionSyntax)innerGenericLambda;
-                param = pl.ParameterList.Parameters.FirstOrDefault()?.Identifier.Text ?? "src";
-                body = pl.Body.ToString();
+                var conditionLambda = invocation.ArgumentList.Arguments.FirstOrDefault()?.Expression;
+                if (conditionLambda is SimpleLambdaExpressionSyntax sLambda || conditionLambda is ParenthesizedLambdaExpressionSyntax pLambda)
+                {
+                    string srcParam;
+                    string destParam;
+                    string body;
+
+                    if (conditionLambda is SimpleLambdaExpressionSyntax sl)
+                    {
+                        srcParam = sl.Parameter.Identifier.Text;
+                        destParam = "dest";
+                        body = sl.Body.ToString();
+                    }
+                    else
+                    {
+                        var pl = (ParenthesizedLambdaExpressionSyntax)conditionLambda;
+                        srcParam = pl.ParameterList.Parameters.ElementAtOrDefault(0)?.Identifier.Text ?? "src";
+                        destParam = pl.ParameterList.Parameters.ElementAtOrDefault(1)?.Identifier.Text ?? "dest";
+                        body = pl.Body.ToString();
+                    }
+
+                    var expr = System.Text.RegularExpressions.Regex.Replace(
+                        body,
+                        $@"\b{System.Text.RegularExpressions.Regex.Escape(srcParam)}\b",
+                        "source");
+
+                    condition = System.Text.RegularExpressions.Regex.Replace(
+                        expr,
+                        $@"\b{System.Text.RegularExpressions.Regex.Escape(destParam)}\b",
+                        "result");
+                }
             }
 
-            var expr = System.Text.RegularExpressions.Regex.Replace(
-                body,
-                $@"\b{System.Text.RegularExpressions.Regex.Escape(param)}\b",
-                "source");
-
-            return (expr, false);
+            current = memberAccess?.Expression;
         }
 
-        // Case 2: Resolver-based MapFrom<TResolver>() or MapFromAsync<TResolver>()
-        if (memberAccess?.Name is GenericNameSyntax gn && gn.TypeArgumentList.Arguments.Count == 1)
-        {
-            var resolverTypeSymbol = semanticModel.GetTypeInfo(gn.TypeArgumentList.Arguments[0]).Type;
-            var resolverType = resolverTypeSymbol?.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat) ?? gn.TypeArgumentList.Arguments[0].ToString();
-            if (methodName == "MapFromAsync")
-            {
-                return ($"await new {resolverType}().ResolveAsync(source)", true);
-            }
-            return ($"new {resolverType}().Resolve(source)", false);
-        }
-
-        return (null, false);
+        return (expression, condition, isAsync);
     }
 
     private static string GetDisplayString(ITypeSymbol type) =>

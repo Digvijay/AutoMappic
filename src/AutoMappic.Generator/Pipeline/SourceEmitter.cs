@@ -22,6 +22,7 @@ internal static class SourceEmitter
         sb.AppendLine("#nullable enable");
         sb.AppendLine();
         sb.AppendLine("using System.Linq;");
+        sb.AppendLine(GetUsings(model));
         sb.AppendLine();
         sb.AppendLine("namespace AutoMappic.Generated;");
         sb.AppendLine();
@@ -135,7 +136,15 @@ internal static class SourceEmitter
 
         if (initOnlyProps.Count > 0)
         {
-            sb.AppendLine($"        var result = new {model.DestinationTypeFullName}({ctorCall})");
+            if (!string.IsNullOrEmpty(model.ConstructionBody))
+            {
+                sb.AppendLine($"        var result = {model.ConstructionBody}");
+            }
+            else
+            {
+                sb.AppendLine($"        var result = new {model.DestinationTypeFullName}({ctorCall})");
+            }
+
             sb.AppendLine("        {");
             foreach (var prop in initOnlyProps)
             {
@@ -146,7 +155,14 @@ internal static class SourceEmitter
         }
         else
         {
-            sb.AppendLine($"        var result = new {model.DestinationTypeFullName}({ctorCall});");
+            if (!string.IsNullOrEmpty(model.ConstructionBody))
+            {
+                sb.AppendLine($"        var result = {model.ConstructionBody};");
+            }
+            else
+            {
+                sb.AppendLine($"        var result = new {model.DestinationTypeFullName}({ctorCall});");
+            }
         }
 
         // BeforeMap: emit sync first, then async (both run if both configured)
@@ -163,6 +179,13 @@ internal static class SourceEmitter
         foreach (var prop in otherProps)
         {
             var expression = prop.IsCollection && prop.NestedSourceTypeFullName != null ? $"MapCollection_{prop.DestinationProperty}({prop.SourceRawExpression ?? prop.SourceExpression})" : prop.SourceExpression;
+            if (prop.ConditionBody != null)
+            {
+                sb.AppendLine($"        if ({prop.ConditionBody})");
+                sb.AppendLine("        {");
+                sb.Append("    "); // Indent the following block
+            }
+
             if (prop.IsReadOnly)
             {
                 if (prop.IsCollection)
@@ -178,6 +201,11 @@ internal static class SourceEmitter
             else
             {
                 sb.AppendLine($"        result.{prop.DestinationProperty} = {expression}; // {prop.Kind}");
+            }
+
+            if (prop.ConditionBody != null)
+            {
+                sb.AppendLine("        }");
             }
         }
 
@@ -212,6 +240,13 @@ internal static class SourceEmitter
         {
             if (prop.Kind == PropertyMapKind.Ignored || prop.IsInitOnly) continue;
             var expression = prop.IsCollection && prop.NestedSourceTypeFullName != null ? $"MapCollection_{prop.DestinationProperty}({prop.SourceRawExpression ?? prop.SourceExpression})" : prop.SourceExpression;
+            if (prop.ConditionBody != null)
+            {
+                sb.AppendLine($"        if ({prop.ConditionBody})");
+                sb.AppendLine("        {");
+                sb.Append("    "); // Indent the following block
+            }
+
             if (prop.IsReadOnly)
             {
                 if (prop.IsCollection)
@@ -227,6 +262,11 @@ internal static class SourceEmitter
             else
             {
                 sb.AppendLine($"        result.{prop.DestinationProperty} = {expression}; // {prop.Kind}");
+            }
+
+            if (prop.ConditionBody != null)
+            {
+                sb.AppendLine("        }");
             }
         }
 
@@ -441,6 +481,16 @@ internal static class SourceEmitter
         sb.AppendLine("    }");
         sb.AppendLine("}");
         return ("AutoMappic.Registration.g.cs", sb.ToString());
+    }
+
+    private static string GetUsings(MappingModel model)
+    {
+        var usings = new HashSet<string>();
+        if (!string.IsNullOrEmpty(model.SourceNamespace))
+            usings.Add($"using {model.SourceNamespace};");
+        if (!string.IsNullOrEmpty(model.DestinationNamespace))
+            usings.Add($"using {model.DestinationNamespace};");
+        return string.Join("\n", usings);
     }
 
     private static string EscapeXml(string value) => value.Replace("<", "&lt;").Replace(">", "&gt;");

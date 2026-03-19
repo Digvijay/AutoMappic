@@ -31,7 +31,7 @@ internal static class ConventionEngine
     public static (IReadOnlyList<PropertyMap> Properties, IReadOnlyList<PropertyMap> ConstructorArguments) Resolve(
         ITypeSymbol source,
         ITypeSymbol destination,
-        IReadOnlyDictionary<string, (string? Expression, bool IsAsync)> explicitMaps,
+        IReadOnlyDictionary<string, (string? Expression, string? Condition, bool IsAsync)> explicitMaps,
         IReadOnlyCollection<string> ignoredMembers,
         Location? profileLocation,
         Action<Diagnostic> reportDiagnostic,
@@ -149,7 +149,7 @@ internal static class ConventionEngine
         ITypeSymbol source,
         string targetName,
         ITypeSymbol targetType,
-        IReadOnlyDictionary<string, (string? Expression, bool IsAsync)> explicitMaps,
+        IReadOnlyDictionary<string, (string? Expression, string? Condition, bool IsAsync)> explicitMaps,
         IReadOnlyCollection<string> ignoredMembers,
         Location? profileLocation,
         Action<Diagnostic> reportDiagnostic,
@@ -180,9 +180,14 @@ internal static class ConventionEngine
             return new PropertyMap(targetName, expr, PropertyMapKind.Direct);
         }
 
+        string? conditionBody = null;
         if (explicitMaps.TryGetValue(targetName, out var explicitData))
         {
-            return new PropertyMap(targetName, explicitData.Expression ?? $"/* ForMember({targetName}) */", PropertyMapKind.Explicit, IsAsync: explicitData.IsAsync);
+            conditionBody = explicitData.Condition;
+            if (explicitData.Expression != null)
+            {
+                return new PropertyMap(targetName, explicitData.Expression, PropertyMapKind.Explicit, IsAsync: explicitData.IsAsync, ConditionBody: conditionBody);
+            }
         }
 
         var directMatch = sourceProperties.FirstOrDefault(
@@ -212,7 +217,7 @@ internal static class ConventionEngine
             if (directMatch.Type.TypeKind == TypeKind.Enum && targetType.SpecialType == SpecialType.System_String)
             {
                 sourceExpr = $"{sourceExpr}.ToString()";
-                return new PropertyMap(targetName, sourceExpr, PropertyMapKind.Direct);
+                return new PropertyMap(targetName, sourceExpr, PropertyMapKind.Direct, ConditionBody: conditionBody);
             }
             else if (!SymbolEqualityComparer.Default.Equals(directMatch.Type, targetType) || IsCollection(targetType, out _) || (targetType.TypeKind == TypeKind.Class && targetType.SpecialType == SpecialType.None))
             {
@@ -223,18 +228,19 @@ internal static class ConventionEngine
                     IsCollection: isColl,
                     IsArray: isArr,
                     NestedExpression: itemExpr,
-                    SourceRawExpression: rawExpr);
+                    SourceRawExpression: rawExpr,
+                    ConditionBody: conditionBody);
             }
             else
             {
                 sourceExpr = ApplyNullabilityGuard(sourceExpr, directMatch.Type, targetType);
-                return new PropertyMap(targetName, sourceExpr, PropertyMapKind.Direct);
+                return new PropertyMap(targetName, sourceExpr, PropertyMapKind.Direct, ConditionBody: conditionBody);
             }
         }
 
         if (methodMatch is not null)
         {
-            return new PropertyMap(targetName, $"source.{methodMatch.Name}()", PropertyMapKind.Method);
+            return new PropertyMap(targetName, $"source.{methodMatch.Name}()", PropertyMapKind.Method, ConditionBody: conditionBody);
         }
 
         if (isTrulyFlattened)
@@ -245,7 +251,14 @@ internal static class ConventionEngine
                 sourceExpr = AppendNullDefault($"({sourceExpr})", targetType);
             }
 
-            return new PropertyMap(targetName, sourceExpr, PropertyMapKind.Flattened);
+            return new PropertyMap(targetName, sourceExpr, PropertyMapKind.Flattened, ConditionBody: conditionBody);
+        }
+
+        if (conditionBody != null)
+        {
+            // If we have a condition but no source match, it's still an unmapped error?
+            // Actually, we SHOULD try to find a source to apply the condition to.
+            // If we got here, we didn't find any match.
         }
 
         return null;
@@ -331,7 +344,7 @@ internal static class ConventionEngine
         // 4. Complex Type Mapping
         if (destType.TypeKind == TypeKind.Class && destType.SpecialType == SpecialType.None)
         {
-            var _ = Resolve(sourceType, destType, new Dictionary<string, (string?, bool)>(), new HashSet<string>(), profileLoc, reportDiag, stack);
+            var _ = Resolve(sourceType, destType, new Dictionary<string, (string?, string?, bool)>(), new HashSet<string>(), profileLoc, reportDiag, stack);
             var op = IsNullable(sourceType) ? "?." : ".";
             return (Expression: $"{expression}{op}{GetMapMethodName(destType)}()", NestedSource: GetDisplayString(sourceType), NestedDest: GetDisplayString(destType), IsCollection: false, IsArray: false, ItemExpression: null, RawExpression: expression);
         }

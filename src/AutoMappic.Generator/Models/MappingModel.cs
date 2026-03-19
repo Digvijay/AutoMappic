@@ -34,7 +34,8 @@ internal sealed record PropertyMap(
     string? NestedExpression = null,
     string? SourceRawExpression = null,
     bool IsReadOnly = false,
-    bool IsAsync = false);
+    bool IsAsync = false,
+    string? ConditionBody = null);
 
 /// <summary>Describes how a <see cref="PropertyMap" /> was resolved by the convention engine.</summary>
 internal enum PropertyMapKind
@@ -83,6 +84,8 @@ internal sealed record MappingModel(
     string DestinationTypeName,
     EquatableArray<PropertyMap> Properties,
     EquatableArray<PropertyMap> ConstructorArguments,
+    string? SourceNamespace = null,
+    string? DestinationNamespace = null,
     string? TypeConverterFullName = null,
     string? FilePath = null,
     int Line = 0,
@@ -90,7 +93,8 @@ internal sealed record MappingModel(
     string? BeforeMapBody = null,
     string? AfterMapBody = null,
     string? BeforeMapAsyncBody = null,
-    string? AfterMapAsyncBody = null)
+    string? AfterMapAsyncBody = null,
+    string? ConstructionBody = null)
 {
     /// <summary>Returns true if any property in this mapping is resolved asynchronously.</summary>
     public bool IsAsync => Properties.Any(p => p.IsAsync) || ConstructorArguments.Any(p => p.IsAsync) || !string.IsNullOrEmpty(BeforeMapAsyncBody) || !string.IsNullOrEmpty(AfterMapAsyncBody);

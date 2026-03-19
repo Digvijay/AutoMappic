@@ -68,6 +68,10 @@ internal sealed class OpenGenericMappingExpression(Type s, Type d) : IMappingExp
     public IReadOnlyDictionary<string, string?> ExplicitMaps => new Dictionary<string, string?>();
     public IReadOnlyDictionary<string, Func<object, object?>> RuntimeMaps => new Dictionary<string, Func<object, object?>>();
     public Type? ConverterType { get; private set; }
+    public string? ConstructionExpression => null;
+    public IReadOnlyDictionary<string, string> MemberConditions => new Dictionary<string, string>();
+    public Delegate? ConstructionFactory => null;
+    public IReadOnlyDictionary<string, Delegate> RuntimeConditions => new Dictionary<string, Delegate>();
 
     public IMappingExpression ConvertUsing(Type converterType)
     {

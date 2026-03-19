@@ -207,9 +207,18 @@ public sealed class Mapper : IMapper
 
         return async (mapper, src, dst) =>
         {
-            dst ??= Activator.CreateInstance(mapping.DestinationType)
-                ?? throw new AutoMappicException(
-                    $"Could not create an instance of '{mapping.DestinationType.FullName}'.");
+            if (dst == null)
+            {
+                if (mapping.ConstructionFactory != null)
+                {
+                    dst = mapping.ConstructionFactory.DynamicInvoke(src);
+                }
+                else
+                {
+                    dst = Activator.CreateInstance(mapping.DestinationType)
+                        ?? throw new AutoMappicException($"Could not create an instance of '{mapping.DestinationType.FullName}'.");
+                }
+            }
 
             await mapping.ExecuteBeforeAsync(src!, dst!);
 
@@ -218,6 +227,14 @@ public sealed class Mapper : IMapper
                 if (mapping.IgnoredMembers.Contains(destProp.Name))
                 {
                     continue;
+                }
+
+                if (mapping.RuntimeConditions.TryGetValue(destProp.Name, out var condition))
+                {
+                    if (!(bool)condition.DynamicInvoke(src, dst)!)
+                    {
+                        continue;
+                    }
                 }
 
                 if (mapping.RuntimeMaps.TryGetValue(destProp.Name, out var runtimeMap))
@@ -340,7 +357,7 @@ public sealed class Mapper : IMapper
                 }
             }
 
-            return dst;
+            return dst!;
         };
     }
 

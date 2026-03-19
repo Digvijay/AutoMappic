@@ -24,6 +24,18 @@ public interface IMappingExpression
     /// <summary>Custom type converter for the entire mapping.</summary>
     Type? ConverterType { get; }
 
+    /// <summary>Specifies a custom expression for constructing the destination type.</summary>
+    string? ConstructionExpression { get; }
+
+    /// <summary>Conditional rules per destination member (dest name -> condition expression).</summary>
+    IReadOnlyDictionary<string, string> MemberConditions { get; }
+
+    /// <summary>Internal use: Factory for creating the destination instance.</summary>
+    Delegate? ConstructionFactory { get; }
+
+    /// <summary>Internal use: Runtime predicates for conditional mapping.</summary>
+    IReadOnlyDictionary<string, Delegate> RuntimeConditions { get; }
+
     /// <summary>Specifies a custom type converter for this mapping (non-generic version).</summary>
     IMappingExpression ConvertUsing(Type converterType);
 
@@ -110,6 +122,12 @@ public interface IMappingExpression<TSource, TDestination> : IMappingExpression
     ///   Executes the provided asynchronous action after all properties have been mapped.
     /// </summary>
     IMappingExpression<TSource, TDestination> AfterMapAsync(Func<TSource, TDestination, Task> action);
+
+    /// <summary>
+    ///   Specifies a custom factory expression for creating the destination instance.
+    ///   The source generator will use this expression instead of the default constructor.
+    /// </summary>
+    IMappingExpression<TSource, TDestination> ConstructUsing(Expression<Func<TSource, TDestination>> ctor);
 }
 
 /// <summary>
@@ -145,4 +163,11 @@ public interface IMemberConfigurationExpression<TSource, TDestination, TMember>
     ///   When an async resolver is used, the mapping MUST be executed via <see cref="IMapper.MapAsync{TSource,TDestination}(TSource)"/>.
     /// </summary>
     void MapFromAsync<TResolver>() where TResolver : IAsyncValueResolver<TSource, TMember>, new();
+
+    /// <summary>
+    ///   Specifies a condition that must be met before this member is mapped.
+    ///   The source generator will wrap the assignment in an 'if' block.
+    /// </summary>
+    /// <param name="condition">A lambda resolving to a boolean, e.g. <c>(src, dest) => src.IsActive</c>.</param>
+    void Condition(Expression<Func<TSource, TDestination, bool>> condition);
 }

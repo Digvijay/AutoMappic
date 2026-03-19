@@ -25,6 +25,8 @@ internal sealed class MappingExpression<TSource, TDestination> :
     private Action<TSource, TDestination>? _afterMap;
     private Func<TSource, TDestination, Task>? _beforeMapAsync;
     private Func<TSource, TDestination, Task>? _afterMapAsync;
+    private Func<TSource, TDestination>? _constructionFactory;
+    private readonly Dictionary<string, Func<TSource, TDestination, bool>> _memberConditions = new(StringComparer.Ordinal);
 
     public MappingExpression(Profile? profile = null)
     {
@@ -50,6 +52,20 @@ internal sealed class MappingExpression<TSource, TDestination> :
     public Type? ConverterType => _converterType;
 
     /// <inheritdoc />
+    public string? ConstructionExpression => null; // Only available at compile-time via source gen
+
+    /// <inheritdoc />
+    public IReadOnlyDictionary<string, string> MemberConditions => new Dictionary<string, string>(); // Only available at compile-time
+
+    Delegate? IMappingExpression.ConstructionFactory => _constructionFactory;
+
+    IReadOnlyDictionary<string, Delegate> IMappingExpression.RuntimeConditions => _memberConditions.ToDictionary(k => k.Key, v => (Delegate)v.Value, StringComparer.Ordinal);
+
+    internal Func<TSource, TDestination>? ConstructionFactory => _constructionFactory;
+
+    internal IReadOnlyDictionary<string, Func<TSource, TDestination, bool>> RuntimeConditions => _memberConditions;
+
+    /// <inheritdoc />
     public IMappingExpression<TSource, TDestination> ForMember<TMember>(
         Expression<Func<TDestination, TMember>> destinationMember,
         Action<IMemberConfigurationExpression<TSource, TDestination, TMember>> memberOptions)
@@ -69,6 +85,11 @@ internal sealed class MappingExpression<TSource, TDestination> :
 
             var compiled = config.MapFromExpression.Compile();
             RuntimeMaps[memberName] = src => compiled((TSource)src);
+        }
+
+        if (config.ConditionPredicate is not null)
+        {
+            _memberConditions[memberName] = config.ConditionPredicate;
         }
 
         return this;
@@ -132,6 +153,13 @@ internal sealed class MappingExpression<TSource, TDestination> :
         return this;
     }
 
+    /// <inheritdoc />
+    public IMappingExpression<TSource, TDestination> ConstructUsing(Expression<Func<TSource, TDestination>> ctor)
+    {
+        _constructionFactory = ctor.Compile();
+        return this;
+    }
+
     internal void ExecuteBefore(TSource source, TDestination destination) => _beforeMap?.Invoke(source, destination);
     internal void ExecuteAfter(TSource source, TDestination destination) => _afterMap?.Invoke(source, destination);
 
@@ -170,6 +198,7 @@ internal sealed class MemberConfigurationExpression<TSource, TDestination, TMemb
 {
     internal bool IsIgnored { get; private set; }
     internal Expression<Func<TSource, object?>>? MapFromExpression { get; private set; }
+    internal Func<TSource, TDestination, bool>? ConditionPredicate { get; private set; }
 
     /// <inheritdoc />
     public void MapFrom<TResult>(Expression<Func<TSource, TResult>> mapExpression)
@@ -194,5 +223,11 @@ internal sealed class MemberConfigurationExpression<TSource, TDestination, TMemb
         // For runtime fallback, we use Task.Run/Result which is NOT recommended but 
         // this path is only for un-generated fallback/testing.
         MapFromExpression = src => new TResolver().ResolveAsync(src).GetAwaiter().GetResult();
+    }
+
+    /// <inheritdoc />
+    public void Condition(Expression<Func<TSource, TDestination, bool>> condition)
+    {
+        ConditionPredicate = condition.Compile();
     }
 }
