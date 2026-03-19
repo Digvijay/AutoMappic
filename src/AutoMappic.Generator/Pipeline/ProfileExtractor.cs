@@ -193,7 +193,16 @@ internal static class ProfileExtractor
             destType = semanticModel.GetTypeInfo((createMapCall.ArgumentList.Arguments[1].Expression as TypeOfExpressionSyntax)?.Type ?? createMapCall.ArgumentList.Arguments[1].Expression, ct).Type;
         }
 
-        if (sourceType is null || destType is null) return results;
+        if (sourceType is null || destType is null)
+        {
+            results.Add((null!, new[]
+            {
+                Diagnostic.Create(
+                    AutoMappicDiagnostics.UnresolvedCreateMapSymbol,
+                    createMapCall.GetLocation())
+            }));
+            return results;
+        }
 
         // Collect settings for both forward and reverse directions.
         var forwardMaps = new Dictionary<string, (string? Expression, bool IsAsync)>(System.StringComparer.Ordinal);

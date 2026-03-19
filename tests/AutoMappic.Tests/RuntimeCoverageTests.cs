@@ -81,7 +81,7 @@ public class RuntimeCoverageTests
         Assert.Equal(1L, dest.Items["a"]);
     }
 
-    /// <summary> Verify that properties are safely skipped when a valid mapping for the nested type is missing </summary>
+    /// <summary> Verify that mapping throws a descriptive AutoMappicException when a nested property type has no registered mapping. </summary>
     [Fact]
     public void Mapper_PropertyMapping_WithSkippedMapping()
     {
@@ -92,10 +92,14 @@ public class RuntimeCoverageTests
         var mapper = new MapperConfiguration(p => p.AddProfile(profile)).CreateMapper();
 
         var source = new SkippedMapSource { Item = new UnregisteredSource() };
-        var dest = mapper.Map<SkippedMapDest>(source);
 
-        Assert.NotNull(dest);
-        Assert.Null(dest.Item);
+        // AutoMappic now throws a clear exception rather than silently skipping unmapped nested types.
+        // Users must either register the mapping or use ForMemberIgnore to suppress.
+        bool threw = false;
+        try { mapper.Map<SkippedMapDest>(source); }
+        catch (AutoMappicException ex) when (ex.Message.Contains("UnregisteredSource"))
+        { threw = true; }
+        Assert.True(threw);
     }
 
     /// <summary> Validate that ReverseMap correctly allows mapping from destination back to source at runtime </summary>
@@ -287,7 +291,7 @@ public class RuntimeCoverageTests
         Assert.Equal(3, dest.Items[2].Id);
     }
 
-    /// <summary> Verify that items are safely skipped during collection mapping if no valid mapping exists for their specific type </summary>
+    /// <summary> Verify that collection mapping throws a descriptive AutoMappicException when items have no registered mapping. </summary>
     [Fact]
     public void Mapper_CollectionMapping_WithSkippedItems()
     {
@@ -297,11 +301,14 @@ public class RuntimeCoverageTests
         var mapper = new MapperConfiguration(p => p.AddProfile(profile)).CreateMapper();
 
         var source = new ListSourceUnreg { Items = new List<object> { new UnregisteredSource() } };
-        // MapCore will throw AutoMappicException for UnregisteredSource -> UnregisteredDest, 
-        // which BuildFallbackDelegate should catch and skip
-        var dest = mapper.Map<ListDestUnreg>(source);
 
-        Assert.Equal(0, dest.Items.Count);
+        // AutoMappic now throws a clear exception rather than silently skipping unmapped items.
+        // Users must register a mapping or exclude the collection.
+        bool threw = false;
+        try { mapper.Map<ListDestUnreg>(source); }
+        catch (AutoMappicException ex) when (ex.Message.Contains("UnregisteredSource"))
+        { threw = true; }
+        Assert.True(threw);
     }
 
     /// <summary> Validate that primitive overflows during mapping safely fall through to handled error states </summary>

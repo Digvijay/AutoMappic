@@ -147,9 +147,11 @@ public sealed class Mapper : IMapper
                         var mapped = MapCore(item.GetType(), destItemType, item, null);
                         resultList.Add(mapped);
                     }
-                    catch (AutoMappicException)
+                    catch (AutoMappicException ex)
                     {
-                        // Skip unmappable item
+                        throw new AutoMappicException(
+                            $"AutoMappic: Failed to map a collection item of type '{item.GetType().FullName}' to '{destItemType.FullName}'. "
+                            + $"Ensure a CreateMap<{item.GetType().Name}, {destItemType.Name}>() exists in a Profile. Inner: {ex.Message}", ex);
                     }
                 }
             }
@@ -307,13 +309,18 @@ public sealed class Mapper : IMapper
                                 destProp.SetValue(dst, nested);
                             }
                         }
-                        catch (AutoMappicException)
+                        catch (AutoMappicException ex)
                         {
-                            // Skip
+                            throw new AutoMappicException(
+                                $"AutoMappic: Failed to map property '{destProp.Name}' on '{mapping.DestinationType.FullName}'. "
+                                + $"No mapping found for type '{srcProp!.PropertyType.FullName}' → '{destProp.PropertyType.FullName}'. "
+                                + $"Add a CreateMap or ForMember rule. Inner: {ex.Message}", ex);
                         }
-                        catch (Exception)
+                        catch (Exception ex)
                         {
-                            // Skip assignment errors (e.g. read-only non-list)
+                            throw new AutoMappicException(
+                                $"AutoMappic: Unexpected error assigning property '{destProp.Name}' on '{mapping.DestinationType.FullName}'. "
+                                + $"Source type: '{srcProp!.PropertyType.FullName}'. Check that the property has a public setter and the types are compatible.", ex);
                         }
                     }
                 }
