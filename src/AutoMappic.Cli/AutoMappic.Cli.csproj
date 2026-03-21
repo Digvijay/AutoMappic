@@ -7,7 +7,6 @@
     <PackAsTool>true</PackAsTool>
     <ToolCommandName>automappic</ToolCommandName>
     <PackageId>AutoMappic.Cli</PackageId>
-    <Version>0.2.0</Version>
     <Description>CLI tool for AutoMappic: mapping validation and visualization.</Description>
   </PropertyGroup>
 

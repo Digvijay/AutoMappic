@@ -29,8 +29,8 @@ public class OrderProfile : Profile
 ```
 
 By default, AutoMappic will match:
-- `OrderDate` $\to$ `order-date`
-- `CustomerName` $\to$ `customer-name`
+- `OrderDate` → `order-date`
+- `CustomerName` → `customer-name`
 
 ## Global Conventions
 
@@ -71,4 +71,4 @@ public class DbProfile : Profile
 
 ### Acronym Support
 
-In v0.3.0, the `PascalCase` and `CamelCase` conventions have been upgraded to handle acronyms (e.g., `CustomerID` $\to$ `customerId` or `customer-id`).
+In v0.3.0, the `PascalCase` and `CamelCase` conventions have been upgraded to handle acronyms (e.g., `CustomerID` → `customerId` or `customer-id`).

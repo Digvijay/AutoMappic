@@ -151,7 +151,7 @@ CreateMap<User, UserDto>()
 ```
 
 AutoMappic ensures that these hooks are executed in a predictable sequence:
-`BeforeMap` $\to$ `BeforeMapAsync` $\to$ **Property Mapping Logic** $\to$ `AfterMap` $\to$ `AfterMapAsync`.
+`BeforeMap` → `BeforeMapAsync` → **Property Mapping Logic** → `AfterMap` → `AfterMapAsync`.
 
 ---
 

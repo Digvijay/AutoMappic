@@ -1,6 +1,6 @@
 # Unit Testing Your Mappings
 
-While AutoMappic provides build-time safety through **Diagnostics AM001-AM008**, it is still best practice to verify your most critical business mappings through automated tests.
+While AutoMappic provides build-time safety through **Diagnostics AM001-AM012**, it is still best practice to verify your most critical business mappings through automated tests.
 
 ## Testing Your Profiles
 

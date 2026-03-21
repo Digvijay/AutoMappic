@@ -18,7 +18,7 @@ hero:
 
 features:
   - title: Rigorous Diagnostic Suite
-    details: Build-time protection with AM001-AM009. Catch unmapped properties, circular references, and ProjectTo incompatibilities before the JIT compiler even starts.
+    details: Build-time protection with AM001-AM012. Catch unmapped properties, circular references, and ProjectTo incompatibilities before the JIT compiler even starts.
   - title: 100% Native AOT Compatible
     details: AutoMappic generates highly-optimized C# code at compile-time. No runtime reflection, no dynamic IL emission.
   - title: Advanced Configuration Parity

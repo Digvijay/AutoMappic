@@ -22,10 +22,10 @@ AutoMappic will generate a `foreach` loop that:
 ## 2. Arrays, Lists, and Mixed Collections
 
 AutoMappic supports all common collection types and handles their conversions automatically:
-- `List<S>` $\to$ `List<D>`
-- `S[]` $\to$ `D[]`
-- `List<S>` $\to$ `D[]` (uses `.ToArray()`)
-- `S[]` $\to$ `List<D>` (uses `new List<D>(source.Length)`)
+- `List<S>` → `List<D>`
+- `S[]` → `D[]`
+- `List<S>` → `D[]` (uses `.ToArray()`)
+- `S[]` → `List<D>` (uses `new List<D>(source.Length)`)
 
 ```csharp
 public class Source { public string[] Tags { get; set; } }
@@ -63,8 +63,8 @@ CreateMap<TaskSource, TaskDest>();
 
 In a single pass, AutoMappic will:
 1.  **Iterate** through the source dictionary.
-2.  **Convert the Key** from `int` $\to$ `string` (via an optimized `.ToString()` call).
-3.  **Recursively Map the Value** from `TaskSource` $\to$ `TaskDest`.
+2.  **Convert the Key** from `int` → `string` (via an optimized `.ToString()` call).
+3.  **Recursively Map the Value** from `TaskSource` → `TaskDest`.
 4.  **Populate** the destination dictionary.
 
 ---
@@ -102,10 +102,10 @@ AutoMappic avoids the allocation and runtime overhead of LINQ by generating spec
 
 | Feature | LINQ (`.Select().ToList()`) | AutoMappic (Zero-LINQ) |
 | :--- | :--- | :--- |
-| **Throughput** | Moderate | Extreme |
-| **Allocations** | High (Intermediate Enumerators) | Minimal (Pre-allocated) |
-| **JIT Overhead** | High (Generic JIT) | Zero (Static loops) |
-| **AOT Friendly** | Partially | 100% |
+| **Runtime Throughput** | Moderate | **Extreme** (Direct Assignments) |
+| **Memory Allocation** | High (Iterators & Closures) | **Zero** (Incremental) / Minimal (Pre-allocated) |
+| **JIT Optimization** | Complex (Generic Specialization) | **Maximum** (Inlined Static Loops) |
+| **AOT Safety** | Requires Runtime JIT for dynamic maps | **100% Static Code** (No `Expression.Compile`) |
 
 By unrolling the loops at compile-time, AutoMappic gives you the performance of hand-written code with the maintenance simplicity of a mapping library.
 

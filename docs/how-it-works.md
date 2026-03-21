@@ -42,7 +42,7 @@ graph LR
 Because AutoMappic understands your code before it runs, it can provide immediate feedback. If you attempt to map a `Source` to a `Destination` where a property is missing or types are incompatible, you don't find out in Production--you find out in your IDE.
 
 ::: info
-**Diagnostics AM001-AM008** ensure that your mapping profiles are always in sync with your models. If a build passes, the mapping is guaranteed to work.
+**Diagnostics AM001-AM012** ensure that your mapping profiles are always in sync with your models. If a build passes, the mapping is guaranteed to work.
 :::
 
 ## 3. High-Performance Collection Mapping
