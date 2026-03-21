@@ -34,8 +34,12 @@ export default withMermaid(defineConfig({
           { text: 'Unit Testing Your Mappings', link: '/tutorials/unit-testing' },
           { text: 'Queryable Projection', link: '/tutorials/queryable-projection' },
           { text: 'DataReader Mapping', link: '/tutorials/data-reader-mapping' },
+          { text: 'Value Converters', link: '/tutorials/value-converters' },
+          { text: 'Naming Conventions', link: '/tutorials/naming-conventions' },
+          { text: 'Performance Profiling', link: '/tutorials/performance-profiling' },
           { text: 'CLI Tools & Visualization', link: '/tutorials/cli-tools' },
-          { text: 'Native AOT Guide', link: '/tutorials/native-aot-guide' }
+          { text: 'Native AOT Guide', link: '/tutorials/native-aot-guide' },
+          { text: 'Porting from AutoMapper', link: '/tutorials/porting-from-automapper' }
         ]
       },
       {
@@ -45,6 +49,7 @@ export default withMermaid(defineConfig({
           { text: 'Diagnostic Suite', link: '/diagnostics' },
           { text: 'Reference Apps', link: '/reference-apps' },
           { text: 'Benchmarks', link: '/benchmarks' },
+          { text: 'Roadmap', link: '/roadmap' },
           { text: 'Changelog', link: '/changelog' }
         ]
       }

@@ -71,7 +71,28 @@ public class MyProfile : Profile
 
         var am005 = diagnostics.FirstOrDefault(d => d.Id == "AM005");
         Assert.NotNull(am005);
-        Assert.Contains("must have a public parameterless constructor or one whose parameters can be satisfied", am005!.GetMessage());
+        Assert.Contains("must have a public parameterless constructor", am005!.GetMessage());
     }
 
+    /// <summary> Ensure AM012 is reported when a mapping results in 0 writable properties </summary>
+    [Fact]
+    public void Generator_ReportAM012_WhenNoPropertiesMapped()
+    {
+        var source = @"
+using AutoMappic;
+
+public class S { public int Id { get; set; } }
+public class EmptyD { public string? Note { get; private set; } }
+
+public class MyProfile : Profile
+{
+    public MyProfile() { CreateMap<S, EmptyD>(); }
+}";
+        var result = GeneratorTestHelper.RunGenerator(source);
+        var diagnostics = result.Diagnostics;
+
+        var am012 = diagnostics.FirstOrDefault(d => d.Id == "AM012");
+        Assert.NotNull(am012);
+        Assert.Contains("has no writable destination properties", am012!.GetMessage());
+    }
 }

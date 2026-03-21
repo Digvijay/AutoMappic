@@ -45,7 +45,7 @@ public sealed class CliTests
             var output = sw.ToString();
             Assert.Equal(0, exitCode);
             Assert.Contains("[SUCCESS] Validation successful", output);
-            Assert.Contains("User to UserDto", output);
+            Assert.Contains("User to UserDto", output.Replace("global::", ""));
         }
         finally
         {
@@ -70,8 +70,8 @@ public sealed class CliTests
             var output = sw.ToString();
             Assert.Equal(0, exitCode);
             Assert.Contains("graph LR", output);
-            Assert.Contains("User --> UserDto", output);
-            Assert.Contains("Order --> OrderDto", output);
+            Assert.Contains("User --> UserDto", output.Replace("global::", ""));
+            Assert.Contains("Order --> OrderDto", output.Replace("global::", ""));
         }
         finally
         {
@@ -99,7 +99,7 @@ public sealed class CliTests
             Assert.Equal(0, exitCode);
             Assert.Contains("graph LR", output);
             // It should at least contain some of our test models
-            Assert.Contains("User --> UserDto", output);
+            Assert.Contains("User --> UserDto", output.Replace("global::", ""));
         }
         finally
         {

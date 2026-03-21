@@ -25,9 +25,10 @@ public class MyProfile : Profile
     public MyProfile() { CreateMap<S, D>(); }
 }";
         var result = GeneratorTestHelper.RunGenerator(source);
-        var mapSource = result.Sources.First(f => f.HintName.Contains("S_To_D_Map")).SourceText.ToString();
+        var mapSourceFile = result.Sources.First(f => f.HintName.Contains("S_") && f.HintName.Contains("_To_") && f.HintName.Contains("_D_"));
+        var mapSource = mapSourceFile.SourceText.ToString();
 
-        Assert.Contains("var result = new D(source.Name);", mapSource);
+        Assert.Contains("new global::D(source.Name)", mapSource);
     }
 
     /// <summary> Verify that a custom ITypeConverter can be used to handle the entire mapping. </summary>
@@ -53,7 +54,7 @@ public class DateToUnixConverter : ITypeConverter<DateTime, long>
 
         Assert.NotNull(mapHintName, $"Mapping file for DateTime not found. Hint names: {string.Join(", ", fileNames)}");
         var mapSource = result.Sources.First(f => f.HintName == mapHintName).SourceText.ToString();
-        Assert.Contains("new DateToUnixConverter().Convert(source)", mapSource);
+        Assert.Contains("Cache<DateToUnixConverter>.Instance.Convert(source)", mapSource);
     }
 
     /// <summary> Verify that snake_case source properties match PascalCase destination properties. </summary>
@@ -72,9 +73,8 @@ public class MyProfile : Profile
 }";
         var result = GeneratorTestHelper.RunGenerator(source);
         var fileNames = result.Sources.Select(s => s.HintName).ToList();
-        var mapSourceFile = result.Sources.FirstOrDefault(f => f.HintName.Contains("S_To_D_Map"));
-
-        Assert.NotNull(mapSourceFile, $"S_To_D_Map not found. Generated files: {string.Join(", ", fileNames)}");
+        var mapSourceFile = result.Sources.FirstOrDefault(f => f.HintName.Contains("S_") && f.HintName.Contains("_To_") && f.HintName.Contains("_D_"));
+        Assert.NotNull(mapSourceFile, $"Mapping file not found. Hint names: {string.Join(", ", fileNames)}");
         var mapSource = mapSourceFile.SourceText.ToString();
         Assert.Contains("FirstName = source.first_name", mapSource);
     }
@@ -97,13 +97,11 @@ public class MyProfile : Profile
         var fileNames = result.Sources.Select(s => s.HintName).ToList();
 
         // Use a looser check for hint name
-        var mapFileResult = result.Sources.FirstOrDefault(f => f.HintName.Contains("_To_"));
-        Assert.True(mapFileResult.HintName != null, $"No mapping file generated. Files: {string.Join(", ", fileNames)}");
-        var mapSource = mapFileResult.SourceText.ToString();
-        // For now, we at least expect it to have the type names in it.
-        // Note: unbound generics currently emit as S<> and D<>.
-        Assert.Contains("S<>", mapSource);
-        Assert.Contains("D<>", mapSource);
+        var mapFileResult = result.Sources.FirstOrDefault(f => f.SourceText.ToString().Contains("MapToD"));
+        Assert.True(mapFileResult.HintName != null, $"No mapping file generated for S->D. Files: {string.Join(", ", fileNames)}");
+        var generatedSource = mapFileResult.SourceText.ToString();
+        Assert.True(generatedSource.Contains("S<T>"), "Generated source should contain S<T>");
+        Assert.True(generatedSource.Contains("D<T>"), "Generated source should contain D<T>");
     }
 
     [Fact]
@@ -140,6 +138,6 @@ public class StringToIntConverter : ITypeConverter<string, int>
         var mapFile = result.Sources.FirstOrDefault(f => f.HintName.Contains("_To_"));
         Assert.NotNull(mapFile, $"No mapping file generated. Found: {string.Join(", ", fileNames)}");
         var mapSource = mapFile.SourceText.ToString();
-        Assert.Contains("new StringToIntConverter().Convert(source)", mapSource);
+        Assert.Contains("Cache<StringToIntConverter>.Instance.Convert(source)", mapSource);
     }
 }

@@ -2,141 +2,31 @@ using Microsoft.CodeAnalysis;
 
 namespace AutoMappic.Generator;
 
-/// <summary>
-///   All Roslyn <see cref="DiagnosticDescriptor" /> instances emitted by AutoMappic.
-/// </summary>
-/// <remarks>
-///   Diagnostics follow the <c>AM</c> prefix convention.  Every diagnostic that is an
-///   error blocks a successful build, turning what AutoMapper deferred to a runtime
-///   <c>AutoMapperConfigurationException</c> into a compile-time failure.
-/// </remarks>
 internal static class AutoMappicDiagnostics
 {
     private const string Category = "AutoMappic";
 
-    /// <summary>
-    ///   Emitted when a destination property cannot be mapped by any convention, has no
-    ///   explicit <c>MapFrom</c> rule, and has not been ignored.
-    /// </summary>
-    public static readonly DiagnosticDescriptor UnmappedProperty = new(
-        id: "AM001",
-        title: "Unmapped destination property",
-        messageFormat: "Property '{0}' on '{1}' has no matching source in '{2}'. " +
-                       "Add a matching property, use ForMember to map it explicitly, or call ForMemberIgnore to suppress this error.",
-        category: Category,
-        defaultSeverity: DiagnosticSeverity.Error,
-        isEnabledByDefault: true,
-        description:
-            "AutoMappic requires every writable destination property to be " +
-            "mapped or explicitly ignored for Native AOT safety. " +
-            "This replaces AutoMapper's runtime AssertConfigurationIsValid().");
+    public static readonly DiagnosticDescriptor UnmappedProperty = new DiagnosticDescriptor("AM001", "Unmapped destination property", "Property '{0}' on '{1}' has no matching source in '{2}'. Add a matching property or use [AutoMappicIgnore].", Category, DiagnosticSeverity.Error, true, "AutoMappic requires every writable destination property to be mapped or explicitly ignored.");
 
-    /// <summary>
-    ///   Emitted when a destination property name is ambiguous between a direct match and
-    ///   a flattened path match, e.g. <c>CustomerName</c> exists both as a direct property
-    ///   and as a flattened path <c>Customer.Name</c>.
-    /// </summary>
-    public static readonly DiagnosticDescriptor AmbiguousMapping = new(
-        id: "AM002",
-        title: "Ambiguous property mapping",
-        messageFormat: "Property '{0}' on '{1}' is ambiguous. It matches both a direct source property and a flattened path '{2}'. " +
-                       "Use ForMember to resolve the ambiguity explicitly.",
-        category: Category,
-        defaultSeverity: DiagnosticSeverity.Error,
-        isEnabledByDefault: true,
-        description:
-            "When both a direct property and a flattened path match the same destination property name, " +
-            "AutoMappic cannot safely choose. You must specify the intended source via ForMember.");
+    public static readonly DiagnosticDescriptor AmbiguousMapping = new DiagnosticDescriptor("AM002", "Ambiguous property mapping", "Property '{0}' on '{1}' is ambiguous between a direct match and a flattened path", Category, DiagnosticSeverity.Error, true, "Ambiguity between a direct property match and a flattened path match must be resolved explicitly.");
 
-    /// <summary>
-    ///   Emitted when a <c>CreateMap</c> call is found outside of a <c>Profile</c> subclass
-    ///   constructor, which is the only supported location.
-    /// </summary>
-    public static readonly DiagnosticDescriptor CreateMapOutsideProfile = new(
-        id: "AM003",
-        title: "CreateMap called outside a Profile constructor",
-        messageFormat: "CreateMap<{0}, {1}>() must be called inside the constructor of a class that inherits from AutoMappic.Profile",
-        category: Category,
-        defaultSeverity: DiagnosticSeverity.Warning,
-        isEnabledByDefault: true,
-        description:
-            "AutoMappic only processes CreateMap calls that appear inside the constructor of a Profile subclass. " +
-            "Calls in other locations are silently ignored by the generator.");
+    public static readonly DiagnosticDescriptor CreateMapOutsideProfile = new DiagnosticDescriptor("AM003", "CreateMap called outside a Profile constructor", "CreateMap<{0}, {1}>() must be called inside a Profile constructor", Category, DiagnosticSeverity.Warning, true, "CreateMap calls are only processed when located in the constructor of a Profile subclass.");
 
-    /// <summary>
-    ///   Emitted when a call to <c>IMapper.Map</c> is detected but no generated mapping
-    ///   exists for that specific type pair, so the interceptor cannot be emitted.
-    /// </summary>
-    public static readonly DiagnosticDescriptor UnresolvedInterceptorMapping = new(
-        id: "AM004",
-        title: "No generated mapping for intercepted call",
-        messageFormat: "No AutoMappic mapping was generated for the call 'IMapper.Map<{0}>({1})'. " +
-                       "Ensure a Profile.CreateMap<{1}, {0}>() exists and the generator has run.",
-        category: Category,
-        defaultSeverity: DiagnosticSeverity.Warning,
-        isEnabledByDefault: true,
-        description:
-            "An IMapper.Map call was detected but no corresponding static mapping method was generated. " +
-            "The call will fall through to the runtime Mapper, which uses reflection.");
+    public static readonly DiagnosticDescriptor UnresolvedInterceptorMapping = new DiagnosticDescriptor("AM004", "No generated mapping for intercepted call", "No AutoMappic mapping was generated for 'IMapper.Map<{0}>({1})'", Category, DiagnosticSeverity.Warning, true, "No static mapping method was generated so the call will use reflective fallback.");
 
-    /// <summary>
-    ///   Emitted when a destination type does not have a parameterless constructor,
-    ///   making it impossible for the generator to instantiate it.
-    /// </summary>
-    public static readonly DiagnosticDescriptor MissingConstructor = new(
-        id: "AM005",
-        title: "No compatible constructor found",
-        messageFormat: "Destination type '{0}' must have a public parameterless constructor or one whose parameters can be satisfied by matching source members",
-        category: Category,
-        defaultSeverity: DiagnosticSeverity.Error,
-        isEnabledByDefault: true,
-        description:
-            "AutoMappic requires a public constructor to instantiate the destination type. " +
-            "It can use a parameterless constructor or a parameterized one if all its arguments " +
-            "can be resolved from the source by name convention or explicit mapping.");
+    public static readonly DiagnosticDescriptor MissingConstructor = new DiagnosticDescriptor("AM005", "No compatible constructor found", "Destination type '{0}' must have a public parameterless constructor", Category, DiagnosticSeverity.Error, true, "A public constructor is required to instantiate the destination type.");
 
-    /// <summary>
-    ///   Emitted when a circular reference is detected in the mapping graph, which would
-    ///   cause a StackOverflowException at runtime.
-    /// </summary>
-    public static readonly DiagnosticDescriptor CircularReference = new(
-        id: "AM006",
-        title: "Circular reference detected",
-        messageFormat: "Circular reference detected: mapping '{0}' -> '{1}' eventually maps back to itself. " +
-                       "For AOT safety and to prevent StackOverflow, circular references are only supported via ForMemberIgnore or explicit manual mapping.",
-        category: Category,
-        defaultSeverity: DiagnosticSeverity.Error,
-        isEnabledByDefault: true,
-        description:
-            "AutoMappic's static generator does not support recursive object graphs by default " +
-            "as they require a runtime object tracker which is expensive for performance and AOT. " +
-            "Ignore the recursive property or use a custom resolver.");
+    public static readonly DiagnosticDescriptor CircularReference = new DiagnosticDescriptor("AM006", "Circular reference detected", "Circular reference detected: mapping '{0}' -> '{1}' eventually maps back to itself", Category, DiagnosticSeverity.Error, true, "Recursive object graphs are not supported by the static generator.");
 
-    /// <summary>
-    ///   Emitted when a <c>CreateMap</c> call is identified by syntax but the semantic model
-    ///   cannot resolve the method symbol.
-    /// </summary>
-    public static readonly DiagnosticDescriptor UnresolvedCreateMapSymbol = new(
-        id: "AM007",
-        title: "Could not resolve CreateMap symbol",
-        messageFormat: "The generator found a CreateMap call but could not resolve its symbol. Ensure AutoMappic.Core is correctly referenced.",
-        category: Category,
-        defaultSeverity: DiagnosticSeverity.Warning,
-        isEnabledByDefault: true,
-        description:
-            "A CreateMap call was identified by syntax but the semantic model couldn't find the corresponding method symbol. " +
-            "This usually means the project is missing a reference to AutoMappic.Core or there are compilation errors preventing resolution.");
+    public static readonly DiagnosticDescriptor UnresolvedCreateMapSymbol = new DiagnosticDescriptor("AM007", "Could not resolve CreateMap symbol", "The generator found a CreateMap call but could not resolve its symbol", Category, DiagnosticSeverity.Warning, true, "This usually indicates a missing library reference or compilation errors.");
 
-    /// <summary>
-    ///   Emitted when a ProjectTo call is detected using a profile that contains runtime features
-    ///   unsupported by most LINQ providers (e.g. Conditions, BeforeMap/AfterMap).
-    /// </summary>
-    public static readonly DiagnosticDescriptor UnsupportedProjectToFeature = new(
-        id: "AM008",
-        title: "Unsupported ProjectTo feature",
-        messageFormat: "ProjectTo may fail at runtime for mapping '{0}' -> '{1}' because the profile contains procedural logic (Condition, BeforeMap, or AfterMap) that cannot be translated to SQL",
-        category: Category,
-        defaultSeverity: DiagnosticSeverity.Warning,
-        isEnabledByDefault: true,
-        description: "ProjectTo translates mapping rules into IQueryable expressions. Procedural C# logic like Condition predicates or AfterMap actions cannot be translated into SQL by providers such as EF Core.");
+    public static readonly DiagnosticDescriptor UnsupportedProjectToFeature = new DiagnosticDescriptor("AM008", "Unsupported ProjectTo feature", "ProjectTo for mapping '{0}' -> '{1}' contains procedural logic unsupported by SQL", Category, DiagnosticSeverity.Warning, true, "LINQ providers cannot translate procedural C# logic like conditions or hooks to SQL.");
+
+    public static readonly DiagnosticDescriptor DuplicateMapping = new DiagnosticDescriptor("AM009", "Duplicate mapping configuration", "Mapping for '{0}' -> '{1}' is defined in multiple profiles", Category, DiagnosticSeverity.Warning, true, "Only the first discovered mapping configuration will be used by interceptors.");
+
+    public static readonly DiagnosticDescriptor PerformanceHotpath = new DiagnosticDescriptor("AM010", "Performance hotpath detected", "Mapping '{0}' -> '{1}' uses nested collection mapping", Category, DiagnosticSeverity.Info, true, "Nested collection mapping in deep graphs can impact allocation performance.");
+
+    public static readonly DiagnosticDescriptor UnsupportedMultiSourceProjectTo = new DiagnosticDescriptor("AM011", "Multi-Source ProjectTo not supported", "ProjectTo for multi-source mapping '{0}' -> '{1}' is not supported", Category, DiagnosticSeverity.Error, true, "Projection from multiple sources is currently only supported for in-memory mapping.");
+
+    public static readonly DiagnosticDescriptor AsymmetricMapping = new DiagnosticDescriptor("AM012", "Asymmetric mapping configuration", "Mapping for '{0}' -> '{1}' has no writable destination properties", Category, DiagnosticSeverity.Warning, true, "The mapping might be intended to be a projection only, but no writable properties were found on the destination.");
 }

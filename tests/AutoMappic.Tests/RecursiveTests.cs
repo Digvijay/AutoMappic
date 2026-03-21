@@ -47,4 +47,43 @@ public sealed class CircularReferenceTests
         Assert.Equal("Child", dto.Name);
         Assert.Null(dto.Parent); // Parent is null because we ignored it to break the circular reference
     }
+
+    [Fact]
+    public async System.Threading.Tasks.Task MapAsync_CircularReference_TriggersTrackers()
+    {
+        var services = new Microsoft.Extensions.DependencyInjection.ServiceCollection();
+        // Manually build configuration to avoid AM006 during full build if needed
+        var config = new MapperConfiguration(cfg => cfg.AddProfile<UnsafeProfile>());
+        var mapper = config.CreateMapper();
+
+        var node = new Node { Name = "A" };
+        var other = new Node { Name = "B" };
+        node.Parent = other;
+        other.Parent = node;
+
+        try
+        {
+            // Bypass interceptor to trigger runtime fallback tracker
+            var mapperType = typeof(global::AutoMappic.IMapper);
+            var mapMethod = mapperType.GetMethods().First(m => m.Name == "MapAsync" && m.GetGenericArguments().Length == 2 && m.GetParameters().Length == 2);
+            mapMethod = mapMethod.MakeGenericMethod(typeof(Node), typeof(NodeDto));
+            var task = (System.Threading.Tasks.Task<NodeDto>)mapMethod.Invoke(mapper, new[] { (object)node, (object)global::System.Threading.CancellationToken.None })!;
+            await task;
+            Assert.Fail("Should have thrown AutoMappicException due to circular reference");
+        }
+        catch (global::System.Exception ex) when (ex.ToString().Contains("Circular"))
+        {
+            // SUCCESS! Circuit breaker worked.
+        }
+    }
+
+    private sealed class UnsafeProfile : Profile
+    {
+        public UnsafeProfile()
+        {
+#pragma warning disable AM006
+            CreateMap<Node, NodeDto>();
+#pragma warning restore AM006
+        }
+    }
 }

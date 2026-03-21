@@ -44,7 +44,7 @@ public class DeepProfile : Profile
 }";
         var result = GeneratorTestHelper.RunGenerator(sourceCode);
         var fileNames = result.Sources.Select(s => s.HintName).ToList();
-        var mapFile = result.Sources.FirstOrDefault(f => f.HintName.Contains("S_To_") && f.HintName.Contains("_D_"));
+        var mapFile = result.Sources.FirstOrDefault(f => f.HintName.Contains("S_") && f.HintName.Contains("_To_") && f.HintName.Contains("_D_"));
 
         if (mapFile.HintName == null)
         {
@@ -52,7 +52,8 @@ public class DeepProfile : Profile
         }
 
         var mapCode = mapFile.SourceText.ToString();
-        Assert.Contains("MapCollection_Data", mapCode);
+        Assert.Contains("=> (x == null ? default! : x.MapToDChild())", mapCode);
+        Assert.Contains(".ToList()", mapCode);
 
         var config = new MapperConfiguration(cfg => cfg.AddProfile<DeepProfile>());
         var mapper = config.CreateMapper();

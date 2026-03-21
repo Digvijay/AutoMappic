@@ -1,4 +1,4 @@
-# Benchmarks: Performance Analysis of AutoMappic v0.2.0
+# Benchmarks: Performance Analysis of AutoMappic v0.3.0
 
 ## Abstract
 AutoMappic achieves high-performance object mapping by shifting resolution and execution paths from runtime reflection to compile-time static analysis. This document details the comparative performance of AutoMappic against legacy mappers, explicit source generators, and manual assignment.
@@ -32,7 +32,7 @@ AutoMappic performs within the margin of error of manual, hand-written C#. By us
 
 ## 4. Results: Zero-LINQ Collection Mapping
 
-AutoMappic v0.2.0 introduces specialized generators for collection-to-collection mapping, bypassing the standard `System.Linq` operators like `.Select()` or `.ToList()`. This significantly reduces memory allocations (GC pressure) and increases throughput.
+AutoMappic v0.3.0 introduces specialized generators for collection-to-collection mapping, bypassing the standard `System.Linq` operators like `.Select()` or `.ToList()`. This significantly reduces memory allocations (GC pressure) and increases throughput.
 
 ### Comparison: mapping `List<Source>` to `List<Target>` (1,000 items)
 

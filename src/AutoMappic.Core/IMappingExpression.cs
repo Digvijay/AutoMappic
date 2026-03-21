@@ -36,6 +36,12 @@ public interface IMappingExpression
     /// <summary>Internal use: Runtime predicates for conditional mapping.</summary>
     IReadOnlyDictionary<string, Delegate> RuntimeConditions { get; }
 
+    /// <summary>Gets the source naming convention for this mapping.</summary>
+    INamingConvention? SourceNaming { get; }
+
+    /// <summary>Gets the destination naming convention for this mapping.</summary>
+    INamingConvention? DestinationNaming { get; }
+
     /// <summary>Specifies a custom type converter for this mapping (non-generic version).</summary>
     IMappingExpression ConvertUsing(Type converterType);
 
@@ -55,7 +61,7 @@ public interface IMappingExpression
 /// <summary>
 ///   Fluent configuration surface for a single source-to-destination type pair.
 ///   The source generator reads the lambda bodies of <see cref="ForMember" /> calls
-///   at compile time and stitches the raw C# directly into the generated static method –
+///   at compile time and stitches the raw C# directly into the generated static method -
 ///   no <c>Expression.Compile()</c> is ever executed at runtime.
 /// </summary>
 /// <typeparam name="TSource">The type to map from.</typeparam>
@@ -91,8 +97,8 @@ public interface IMappingExpression<TSource, TDestination> : IMappingExpression
 
     /// <summary>
     ///   Creates a reverse mapping from the destination type back to the source type.
-    ///   The source generator will automatically register both <c>TSource → TDestination</c>
-    ///   and <c>TDestination → TSource</c>.
+    ///   The source generator will automatically register both <c>TSource -> TDestination</c>
+    ///   and <c>TDestination -> TSource</c>.
     /// </summary>
     /// <returns>A mapping expression for the reverse direction.</returns>
     IMappingExpression<TDestination, TSource> ReverseMap();
@@ -102,6 +108,11 @@ public interface IMappingExpression<TSource, TDestination> : IMappingExpression
     /// </summary>
     /// <typeparam name="TConverter">The converter type to use.</typeparam>
     IMappingExpression<TSource, TDestination> ConvertUsing<TConverter>() where TConverter : ITypeConverter<TSource, TDestination>, new();
+
+    /// <summary>
+    ///   Specifies a custom lambda expression for converting the source to the destination.
+    /// </summary>
+    IMappingExpression<TSource, TDestination> ConvertUsing(Expression<Func<TSource, TDestination>> converter);
 
     /// <summary>
     ///   Executes the provided action before the property mapping begins.
@@ -128,6 +139,11 @@ public interface IMappingExpression<TSource, TDestination> : IMappingExpression
     ///   The source generator will use this expression instead of the default constructor.
     /// </summary>
     IMappingExpression<TSource, TDestination> ConstructUsing(Expression<Func<TSource, TDestination>> ctor);
+
+    /// <summary>
+    ///   Overrides the global naming convention for this specific mapping.
+    /// </summary>
+    IMappingExpression<TSource, TDestination> WithNamingConvention(INamingConvention source, INamingConvention destination);
 }
 
 /// <summary>
@@ -160,14 +176,23 @@ public interface IMemberConfigurationExpression<TSource, TDestination, TMember>
 
     /// <summary>
     ///   Specifies an asynchronous value resolver for this member. 
-    ///   When an async resolver is used, the mapping MUST be executed via <see cref="IMapper.MapAsync{TSource,TDestination}(TSource)"/>.
+    ///   When an async resolver is used, the mapping MUST be executed via <see cref="IMapper.MapAsync{TSource, TDestination}(TSource, System.Threading.CancellationToken)"/>.
     /// </summary>
     void MapFromAsync<TResolver>() where TResolver : IAsyncValueResolver<TSource, TMember>, new();
 
     /// <summary>
-    ///   Specifies a condition that must be met before this member is mapped.
+    ///   Specifies a custom condition that must be met before this member is mapped.
     ///   The source generator will wrap the assignment in an 'if' block.
     /// </summary>
-    /// <param name="condition">A lambda resolving to a boolean, e.g. <c>(src, dest) => src.IsActive</c>.</param>
+    /// <param name="condition">A lambda resolving to a boolean, e.g. <c>(src, dest) =&gt; src.IsActive</c>.</param>
     void Condition(Expression<Func<TSource, TDestination, bool>> condition);
+
+    /// <summary>
+    ///   Specifies a custom value converter type for this member. 
+    ///   The source generator will intelligently emit <c>new TConverter().Convert(source.Property)</c>.
+    /// </summary>
+    /// <typeparam name="TConverter">An <see cref="IValueConverter{TSourceMember, TMember}"/> used to construct the logic.</typeparam>
+    /// <typeparam name="TSourceMember">The type of the source member to convert from.</typeparam>
+    /// <param name="sourceMember">Selector for the source member.</param>
+    void ConvertUsing<TConverter, TSourceMember>(Expression<Func<TSource, TSourceMember>> sourceMember) where TConverter : IValueConverter<TSourceMember, TMember>, new();
 }

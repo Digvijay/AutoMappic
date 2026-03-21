@@ -8,10 +8,10 @@
     <LangVersion>latest</LangVersion>
     <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
     <!-- Enable interceptors from the generator in this test project -->
-    <InterceptorsPreviewNamespaces>$(InterceptorsPreviewNamespaces);AutoMappic.Generated</InterceptorsPreviewNamespaces>
+    <InterceptorsNamespaces>$(InterceptorsNamespaces);AutoMappic.Generated</InterceptorsNamespaces>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
     <EmitCompilerGeneratedFiles>true</EmitCompilerGeneratedFiles>
-    <NoWarn>$(NoWarn);CS1591;CS1584;CS1658;AM007</NoWarn>
+    <NoWarn>$(NoWarn);CS1591;CS1584;CS1658;AM007;AM006;AM009</NoWarn>
   </PropertyGroup>
 
   <ItemGroup>

@@ -49,17 +49,6 @@ public class CatalogService
     }
 }
 
-public class eShopMigrationProfile : Profile
-{
-    public eShopMigrationProfile()
-    {
-        // 🟢 STEP 3: Identical Profile Configuration
-        CreateMap<CatalogItem, CatalogItemDto>()
-            .ReverseMap(); // NEW: Now supported in v0.1.0!
-
-        CreateMap<Order, OrderSummaryDto>()
-            .ForMember(d => d.Date, opt => opt.MapFrom(s => s.OrderDate));
-            
-        CreateMap<OrderItem, OrderItemDto>();
-    }
-}
+// The mapping profile is already defined in Program.cs.
+// Defining it again here would cause a duplicate mapping error (AM009),
+// which verifies AutoMappic's strict architecture enforcement.

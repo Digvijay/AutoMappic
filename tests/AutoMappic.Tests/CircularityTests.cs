@@ -15,12 +15,13 @@ public class CircularityTests
         var sourceCode = @"
 using AutoMappic;
 public class Node { public Node? Next { get; set; } }
+public class NodeDto { public NodeDto? Next { get; set; } }
 
 public class CircularProfile : Profile
 {
     public CircularProfile()
     {
-        CreateMap<Node, Node>();
+        CreateMap<Node, NodeDto>();
     }
 }";
 

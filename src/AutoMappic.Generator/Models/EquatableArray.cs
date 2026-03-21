@@ -53,7 +53,7 @@ internal sealed class EquatableArray<T> : IEquatable<EquatableArray<T>>, IEnumer
     /// <inheritdoc />
     public override int GetHashCode()
     {
-        // Manual hash accumulation — HashCode is not available in netstandard2.0.
+        // Manual hash accumulation -- HashCode is not available in netstandard2.0.
         unchecked
         {
             var hash = 17;

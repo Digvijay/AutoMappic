@@ -69,7 +69,34 @@ In a single pass, AutoMappic will:
 
 ---
 
-## 5. Zero-LINQ Technology
+## 5. Dictionary as Source (v0.3.0)
+
+AutoMappic can now use an `IDictionary<string, T>` as the primary source for a mapping. This is useful for mapping dynamic data like configuration or JSON metadata to a typed DTO.
+
+```csharp
+public class UserProfile : Profile
+{
+    public UserProfile()
+    {
+        // Source is a dictionary with kebab-case keys
+        SourceNamingConvention = new KebabCaseNamingConvention();
+
+        // This will map:
+        // - "first-name" -> dest.FirstName
+        // - "last-name"  -> dest.LastName
+        CreateMap<Dictionary<string, string>, UserDto>();
+    }
+}
+```
+
+When mapping from a dictionary, AutoMappic follows these steps:
+1.  **Key Transformation**: Splits the destination property name and joins it using the source's naming convention.
+2.  **Lookup**: Checks `ContainsKey(transformedKey)`.
+3.  **Assignment**: If found, assigns the value (with a cast or recursive `MapCore` call if necessary).
+
+---
+
+## 6. Zero-LINQ Technology
 
 AutoMappic avoids the allocation and runtime overhead of LINQ by generating specialized `for` and `foreach` loops.
 

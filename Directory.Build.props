@@ -9,7 +9,6 @@
     <InterceptorsPreviewNamespaces>$(InterceptorsPreviewNamespaces);AutoMappic.Generated</InterceptorsPreviewNamespaces>
     
     <!-- Centralize Package Metadata -->
-    <Version>0.2.0</Version>
     <Authors>Digvijay Chauhan</Authors>
     <Copyright>Copyright (c) 2026 Digvijay Chauhan</Copyright>
     <PackageProjectUrl>https://github.com/Digvijay/AutoMappic</PackageProjectUrl>
@@ -41,6 +40,10 @@
   <PropertyGroup Condition="'$(IsAotCompatible)' == '' and '$(TargetFrameworkIdentifier)' == '.NETCoreApp'">
     <IsAotCompatible>true</IsAotCompatible>
   </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Nerdbank.GitVersioning" PrivateAssets="All" Condition="!$(MSBuildProjectName.Contains('Test'))" />
+  </ItemGroup>
 
   <!-- Enable high quality analysis -->
   <PropertyGroup>

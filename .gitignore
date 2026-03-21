@@ -62,6 +62,12 @@ TestResults/
 *.coverage
 *.xml
 *.lcov
+*.txt
+*.log
+test_results.log
+full_build_errors.txt
+build.log
+build2.log
 
 # Documentation & Discussions (Drafts)
 learnings.md
@@ -99,3 +105,7 @@ yarn-debug.log*
 yarn-error.log*
 # Artifacts
 artifacts/
+
+# Redundant Root Docs
+GettingStarted.md
+

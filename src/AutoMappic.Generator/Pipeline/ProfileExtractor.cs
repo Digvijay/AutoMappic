@@ -36,12 +36,15 @@ internal static class ProfileExtractor
                 var symbol = model.GetDeclaredSymbol(cls) as INamedTypeSymbol;
                 if (symbol == null || !InheritsFromProfile(symbol)) continue;
 
+                var isProfilingEnabled = IsPerformanceProfilingEnabled(cls);
+                var (sourceN, destN) = ExtractProfileNamingConventions(cls);
+
                 var invocations = cls.DescendantNodes().OfType<InvocationExpressionSyntax>()
                     .Where(inv => IsCreateMapCall(inv, model, default));
 
                 foreach (var inv in invocations)
                 {
-                    var extracted = TryExtractModels(inv, symbol, model, default);
+                    var extracted = TryExtractModels(inv, symbol, model, default, isProfilingEnabled, sourceN, destN);
                     foreach (var (m, _) in extracted)
                     {
                         if (m != null) results.Add(m);
@@ -54,7 +57,7 @@ internal static class ProfileExtractor
 
     /// <summary>
     ///   Fast syntax predicate for the incremental pipeline's <c>CreateSyntaxProvider</c>.
-    ///   Returns <see langword="true" /> for any class declaration — we refine with the
+    ///   Returns <see langword="true" /> for any class declaration -- we refine with the
     ///   semantic model in <see cref="ExtractMappingModels" />.
     /// </summary>
     public static bool IsProfileClassCandidate(SyntaxNode node, System.Threading.CancellationToken _) =>
@@ -84,6 +87,9 @@ internal static class ProfileExtractor
             .OfType<InvocationExpressionSyntax>()
             .Where(inv => IsCreateMapCall(inv, context.SemanticModel, cancellationToken));
 
+        var isProfilingEnabled = IsPerformanceProfilingEnabled(classDecl);
+        var (sourceN, destN) = ExtractProfileNamingConventions(classDecl);
+
         foreach (var inv in invocations)
         {
             cancellationToken.ThrowIfCancellationRequested();
@@ -109,7 +115,10 @@ internal static class ProfileExtractor
                 inv,
                 classSymbol,
                 context.SemanticModel,
-                cancellationToken);
+                cancellationToken,
+                isProfilingEnabled,
+                sourceN,
+                destN);
 
             results.AddRange(models);
         }
@@ -117,7 +126,7 @@ internal static class ProfileExtractor
         return results;
     }
 
-    // ─── Private helpers ──────────────────────────────────────────────────────────
+    // --- Private helpers ----------------------------------------------------------
 
     internal static bool InheritsFromProfile(INamedTypeSymbol classSymbol)
     {
@@ -153,7 +162,7 @@ internal static class ProfileExtractor
             if (ma.Name is IdentifierNameSyntax mid && mid.Identifier.Text == CreateMapMethodName)
                 return true;
 
-            if (ma.Name.Identifier.Text == "ReverseMap")
+            if (ma.Name.Identifier.Text == CreateMapMethodName)
                 return true;
         }
 
@@ -165,7 +174,10 @@ internal static class ProfileExtractor
             InvocationExpressionSyntax createMapCall,
             INamedTypeSymbol profileClass,
             SemanticModel semanticModel,
-            System.Threading.CancellationToken ct)
+            System.Threading.CancellationToken ct,
+            bool profileProfilingEnabled = false,
+            string? profileSourceNaming = null,
+            string? profileDestNaming = null)
     {
         var results = new List<(MappingModel, IReadOnlyList<Diagnostic>)>();
         var methodSymbol = semanticModel.GetSymbolInfo(createMapCall, ct).Symbol as IMethodSymbol;
@@ -194,6 +206,11 @@ internal static class ProfileExtractor
             destType = semanticModel.GetTypeInfo((createMapCall.ArgumentList.Arguments[1].Expression as TypeOfExpressionSyntax)?.Type ?? createMapCall.ArgumentList.Arguments[1].Expression, ct).Type;
         }
 
+        if (sourceType is INamedTypeSymbol nSource && nSource.IsUnboundGenericType)
+            sourceType = nSource.OriginalDefinition;
+        if (destType is INamedTypeSymbol nDest && nDest.IsUnboundGenericType)
+            destType = nDest.OriginalDefinition;
+
         if (sourceType is null || destType is null)
         {
             results.Add((null!, new[]
@@ -217,8 +234,11 @@ internal static class ProfileExtractor
         string? beforeMapAsyncBody = null;
         string? afterMapAsyncBody = null;
         string? constructionBody = null;
+        bool isConvertUsingUsed = false;
         bool hasReverseMap = false;
         bool currentlyConfiguringReverse = false;
+        string? sourceNaming = profileSourceNaming;
+        string? destNaming = profileDestNaming;
 
         // Walk up the chain to collect settings.
         // Orders: CreateMap().ForMember(FWD).ReverseMap().ForMember(REV)
@@ -242,9 +262,17 @@ internal static class ProfileExtractor
                     var destName = ExtractMemberName(args[0].Expression);
                     if (destName is not null && args.Count >= 2)
                     {
-                        var (sourceExpr, condition, isAsync) = ExtractMapFromBody(args[1].Expression, semanticModel);
-                        if (currentlyConfiguringReverse) reverseMaps[destName] = (sourceExpr, condition, isAsync);
-                        else forwardMaps[destName] = (sourceExpr, condition, isAsync);
+                        var (sourceExpr, condition, isAsync, isIgnored) = ExtractMapFromBody(args[1].Expression, semanticModel);
+                        if (isIgnored)
+                        {
+                            if (currentlyConfiguringReverse) reverseIgnored.Add(destName);
+                            else forwardIgnored.Add(destName);
+                        }
+                        else
+                        {
+                            if (currentlyConfiguringReverse) reverseMaps[destName] = (sourceExpr, condition, isAsync);
+                            else forwardMaps[destName] = (sourceExpr, condition, isAsync);
+                        }
                     }
                 }
             }
@@ -277,36 +305,55 @@ internal static class ProfileExtractor
             {
                 var (body, isEx) = ExtractActionBody(invocation.ArgumentList.Arguments.FirstOrDefault()?.Expression);
                 if (currentlyConfiguringReverse) { /* reverse not supported yet for these */ }
-                else beforeMapAsyncBody = isEx ? $"await {body}" : body;
+                else beforeMapAsyncBody = isEx ? $"await ({body}).ConfigureAwait(false);" : body;
             }
             else if (methodName == "AfterMapAsync")
             {
                 var (body, isEx) = ExtractActionBody(invocation.ArgumentList.Arguments.FirstOrDefault()?.Expression);
                 if (currentlyConfiguringReverse) { /* reverse not supported yet for these */ }
-                else afterMapAsyncBody = isEx ? $"await {body}" : body;
+                else afterMapAsyncBody = isEx ? $"await ({body}).ConfigureAwait(false);" : body;
             }
             else if (methodName == "ConvertUsing")
             {
-                // ConvertUsing typically applies to the whole pair, 
-                // but usually for the forward direction unless it's on the reverse expression.
                 if (memberAccess.Name is GenericNameSyntax gn && gn.TypeArgumentList.Arguments.Count == 1)
                 {
                     typeConverterFullName = semanticModel.GetTypeInfo(gn.TypeArgumentList.Arguments[0], ct).Type?.ToDisplayString();
                 }
                 else if (invocation.ArgumentList.Arguments.Count == 1)
                 {
-                    var typeOfExpr = invocation.ArgumentList.Arguments[0].Expression as TypeOfExpressionSyntax;
-                    if (typeOfExpr != null)
+                    var argExpr = invocation.ArgumentList.Arguments[0].Expression;
+                    if (argExpr is TypeOfExpressionSyntax typeOfExpr)
                     {
                         typeConverterFullName = semanticModel.GetTypeInfo(typeOfExpr.Type, ct).Type?.ToDisplayString();
                     }
+                    else
+                    {
+                        // Assume it's a lambda converter
+                        var (body, isExpr) = ExtractActionBody(argExpr);
+                        if (currentlyConfiguringReverse) { /* reverse not supported yet */ }
+                        else
+                        {
+                            constructionBody = isExpr ? body?.TrimEnd(';') : body;
+                            isConvertUsingUsed = true;
+                        }
+                    }
                 }
+                if (!currentlyConfiguringReverse) isConvertUsingUsed = true;
             }
             else if (methodName == "ConstructUsing")
             {
                 var (body, isExpr) = ExtractActionBody(invocation.ArgumentList.Arguments.FirstOrDefault()?.Expression);
                 if (currentlyConfiguringReverse) { /* reverse not supported yet for these */ }
                 else constructionBody = isExpr ? body?.TrimEnd(';') : body;
+            }
+            else if (methodName == "WithNamingConvention")
+            {
+                var args = invocation.ArgumentList.Arguments;
+                if (args.Count >= 2)
+                {
+                    sourceNaming = semanticModel.GetTypeInfo(args[0].Expression, ct).Type?.ToDisplayString();
+                    destNaming = semanticModel.GetTypeInfo(args[1].Expression, ct).Type?.ToDisplayString();
+                }
             }
 
             current = invocation.Parent;
@@ -315,21 +362,44 @@ internal static class ProfileExtractor
         var diagnostics = new List<Diagnostic>();
         var profileLocation = profileClass.Locations.Length > 0 ? profileClass.Locations[0] : Location.None;
 
-        var (properties, constructorArgs) = ConventionEngine.Resolve(
-            sourceType,
-            destType,
-            forwardMaps,
-            forwardIgnored,
-            profileLocation,
-            d => diagnostics.Add(d));
+        IReadOnlyList<PropertyMap> properties = new List<PropertyMap>();
+        IReadOnlyList<PropertyMap> constructorArgs = new List<PropertyMap>();
+
+        // If we have a whole-type converter (Type or Lambda), skip convention engine property resolution.
+        bool hasWholeTypeConverter = !string.IsNullOrEmpty(typeConverterFullName) || isConvertUsingUsed;
+
+        if (!hasWholeTypeConverter)
+        {
+            (properties, constructorArgs) = ConventionEngine.Resolve(
+                sourceType!,
+                destType!,
+                forwardMaps,
+                forwardIgnored,
+                profileLocation,
+                d => diagnostics.Add(d),
+                null,
+                sourceNaming,
+                destNaming);
+        }
 
         var callLocation = createMapCall.GetLocation();
         var lineSpan = callLocation.GetLineSpan();
 
+        var typeParams = new List<string>();
+        if (sourceType is INamedTypeSymbol namedSource && (namedSource.IsDefinition || namedSource.IsUnboundGenericType))
+        {
+            typeParams.AddRange(namedSource.TypeParameters.Select(tp => tp.Name));
+        }
+        else if (destType is INamedTypeSymbol namedDest && (namedDest.IsDefinition || namedDest.IsUnboundGenericType))
+        {
+            typeParams.AddRange(namedDest.TypeParameters.Select(tp => tp.Name));
+        }
+        var eqTypeParams = typeParams.Count > 0 ? new EquatableArray<string>(typeParams) : null;
+
         var model = new MappingModel(
-            SourceTypeFullName: GetDisplayString(sourceType!),
+            SourceTypeFullName: SourceEmitter.GetDisplayString(sourceType!),
             SourceTypeName: sourceType!.Name,
-            DestinationTypeFullName: GetDisplayString(destType!),
+            DestinationTypeFullName: SourceEmitter.GetDisplayString(destType!),
             DestinationTypeName: destType!.Name,
             Properties: new EquatableArray<PropertyMap>(properties),
             ConstructorArguments: new EquatableArray<PropertyMap>(constructorArgs),
@@ -343,12 +413,21 @@ internal static class ProfileExtractor
             AfterMapBody: afterMapBody,
             BeforeMapAsyncBody: beforeMapAsyncBody,
             AfterMapAsyncBody: afterMapAsyncBody,
-            ConstructionBody: constructionBody);
+            ConstructionBody: constructionBody,
+            SourceNamingStrategyFullName: sourceNaming,
+            DestinationNamingStrategyFullName: destNaming,
+            EnablePerformanceProfiling: profileProfilingEnabled,
+            ProfileName: profileClass.Name,
+            IsSourceValueType: sourceType!.IsValueType || sourceType.IsTupleType,
+            IsDestinationValueType: destType!.IsValueType || destType.IsTupleType,
+            TypeParameters: eqTypeParams);
 
         results.Add((model, diagnostics));
 
         if (hasReverseMap)
         {
+            // The base convention resolving logic (ConventionEngine.Resolve) handles
+            // asymmetrical property mapping if not overridden.
             var revDiags = new List<Diagnostic>();
             var (revProps, revConstructorArgs) = ConventionEngine.Resolve(
                 destType!,
@@ -356,12 +435,15 @@ internal static class ProfileExtractor
                 reverseMaps,
                 reverseIgnored,
                 profileLocation,
-                d => revDiags.Add(d));
+                d => revDiags.Add(d),
+                null,
+                destNaming, // reversed
+                sourceNaming);
 
             var revModel = new MappingModel(
-                SourceTypeFullName: GetDisplayString(destType!),
+                SourceTypeFullName: SourceEmitter.GetDisplayString(destType!),
                 SourceTypeName: destType!.Name,
-                DestinationTypeFullName: GetDisplayString(sourceType!),
+                DestinationTypeFullName: SourceEmitter.GetDisplayString(sourceType!),
                 DestinationTypeName: sourceType!.Name,
                 Properties: new EquatableArray<PropertyMap>(revProps),
                 ConstructorArguments: new EquatableArray<PropertyMap>(revConstructorArgs),
@@ -369,12 +451,70 @@ internal static class ProfileExtractor
                 DestinationNamespace: sourceType?.ContainingNamespace?.IsGlobalNamespace == false ? sourceType.ContainingNamespace.ToDisplayString() : null,
                 FilePath: lineSpan.Path,
                 Line: lineSpan.StartLinePosition.Line + 1,
-                Column: lineSpan.StartLinePosition.Character + 1);
+                Column: lineSpan.StartLinePosition.Character + 1,
+                SourceNamingStrategyFullName: destNaming,
+                DestinationNamingStrategyFullName: sourceNaming,
+                EnablePerformanceProfiling: profileProfilingEnabled,
+                ProfileName: profileClass.Name,
+                IsSourceValueType: destType!.IsValueType || destType.IsTupleType,
+                IsDestinationValueType: sourceType!.IsValueType || sourceType.IsTupleType,
+                TypeParameters: eqTypeParams);
 
             results.Add((revModel, revDiags));
         }
 
         return results;
+    }
+    private static bool IsPerformanceProfilingEnabled(ClassDeclarationSyntax classDecl)
+    {
+        return classDecl.DescendantNodes()
+            .OfType<AssignmentExpressionSyntax>()
+            .Any(assign =>
+            {
+                var name = GetMemberName(assign.Left);
+                return name == "EnablePerformanceProfiling" &&
+                       assign.Right is LiteralExpressionSyntax lit &&
+                       lit.Token.IsKind(SyntaxKind.TrueKeyword);
+            });
+    }
+
+    private static (string? Source, string? Dest) ExtractProfileNamingConventions(ClassDeclarationSyntax classDecl)
+    {
+        string? src = null;
+        string? dest = null;
+
+        var assignments = classDecl.DescendantNodes().OfType<AssignmentExpressionSyntax>();
+        foreach (var assign in assignments)
+        {
+            var name = GetMemberName(assign.Left);
+            if (name == "SourceNamingConvention" || name == "DestinationNamingConvention")
+            {
+                string? conventionName = null;
+                if (assign.Right is ObjectCreationExpressionSyntax create)
+                {
+                    conventionName = GetTypeName(create.Type);
+                }
+
+                if (name == "SourceNamingConvention") src = conventionName;
+                else dest = conventionName;
+            }
+        }
+        return (src, dest);
+    }
+
+    private static string? GetMemberName(ExpressionSyntax expr)
+    {
+        if (expr is IdentifierNameSyntax id) return id.Identifier.Text;
+        if (expr is MemberAccessExpressionSyntax ma) return ma.Name.Identifier.Text;
+        return null;
+    }
+
+    private static string? GetTypeName(TypeSyntax type)
+    {
+        if (type is IdentifierNameSyntax id) return id.Identifier.Text;
+        if (type is QualifiedNameSyntax qn) return qn.Right.Identifier.Text;
+        if (type is SimpleNameSyntax sn) return sn.Identifier.Text;
+        return null;
     }
 
     /// <summary>
@@ -396,7 +536,7 @@ internal static class ProfileExtractor
     /// <summary>
     ///   Extracts configurations like MapFrom and Condition from the ForMember options lambda.
     /// </summary>
-    private static (string? Expression, string? Condition, bool IsAsync) ExtractMapFromBody(ExpressionSyntax optExpression, SemanticModel semanticModel)
+    private static (string? Expression, string? Condition, bool IsAsync, bool IsIgnored) ExtractMapFromBody(ExpressionSyntax optExpression, SemanticModel semanticModel)
     {
         // opt => opt.MapFrom(...).Condition(...)
         ExpressionSyntax? outerBody = null;
@@ -408,6 +548,7 @@ internal static class ProfileExtractor
         string? expression = null;
         string? condition = null;
         bool isAsync = false;
+        bool isIgnored = false;
 
         var current = outerBody;
         while (current is InvocationExpressionSyntax invocation)
@@ -446,12 +587,46 @@ internal static class ProfileExtractor
                     var resolverType = resolverTypeSymbol?.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat) ?? gn.TypeArgumentList.Arguments[0].ToString();
                     if (methodName == "MapFromAsync")
                     {
-                        expression = $"await new {resolverType}().ResolveAsync(source)";
+                        expression = $"await new {resolverType}().ResolveAsync(source).ConfigureAwait(false)";
                         isAsync = true;
                     }
                     else
                     {
-                        expression = $"new {resolverType}().Resolve(source)";
+                        expression = $"global::AutoMappic.Generated.MapperInterceptors.Cache<{resolverType}>.Instance.Resolve(source)";
+                    }
+                }
+            }
+            else if (methodName == "ConvertUsing")
+            {
+                if (memberAccess?.Name is GenericNameSyntax gn && gn.TypeArgumentList.Arguments.Count == 2)
+                {
+                    var converterTypeSymbol = semanticModel.GetTypeInfo(gn.TypeArgumentList.Arguments[0]).Type;
+                    var converterType = converterTypeSymbol?.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat) ?? gn.TypeArgumentList.Arguments[0].ToString();
+                    var sourceExprLambda = invocation.ArgumentList.Arguments.FirstOrDefault()?.Expression;
+
+                    if (sourceExprLambda is SimpleLambdaExpressionSyntax sl || sourceExprLambda is ParenthesizedLambdaExpressionSyntax pl)
+                    {
+                        string param;
+                        string body;
+
+                        if (sourceExprLambda is SimpleLambdaExpressionSyntax sll)
+                        {
+                            param = sll.Parameter.Identifier.Text;
+                            body = sll.Body.ToString();
+                        }
+                        else
+                        {
+                            var pll = (ParenthesizedLambdaExpressionSyntax)sourceExprLambda;
+                            param = pll.ParameterList.Parameters.FirstOrDefault()?.Identifier.Text ?? "src";
+                            body = pll.Body.ToString();
+                        }
+
+                        var sourceMember = System.Text.RegularExpressions.Regex.Replace(
+                            body,
+                            $@"\b{System.Text.RegularExpressions.Regex.Escape(param)}\b",
+                            "source");
+
+                        expression = $"global::AutoMappic.Generated.MapperInterceptors.Cache<{converterType}>.Instance.Convert({sourceMember})";
                     }
                 }
             }
@@ -489,14 +664,17 @@ internal static class ProfileExtractor
                 }
             }
 
+            else if (methodName == "Ignore")
+            {
+                isIgnored = true;
+            }
+
             current = memberAccess?.Expression;
         }
 
-        return (expression, condition, isAsync);
+        return (expression, condition, isAsync, isIgnored);
     }
 
-    private static string GetDisplayString(ITypeSymbol type) =>
-        type.WithNullableAnnotation(NullableAnnotation.None).ToDisplayString();
 
     private static (string? Body, bool IsExpression) ExtractActionBody(ExpressionSyntax? lambdaExpression)
     {

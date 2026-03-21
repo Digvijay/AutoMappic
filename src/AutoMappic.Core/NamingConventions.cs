@@ -14,22 +14,36 @@ public interface INamingConvention
 /// <summary>A naming convention for PascalCase names (e.g. "CustomerName").</summary>
 public sealed class PascalCaseNamingConvention : INamingConvention
 {
-    private static readonly Regex Splitter = new(@"([A-Z][a-z0-9]*)", RegexOptions.Compiled);
+    private static readonly Regex Splitter = new(@"([A-Z][a-z0-9]*|[a-z0-9]+|[A-Z]+(?=[A-Z]|$))", RegexOptions.Compiled, System.TimeSpan.FromMilliseconds(200));
 
     /// <inheritdoc />
-    public string[] Split(string name)
-    {
-        var matches = Splitter.Matches(name);
-        var parts = new string[matches.Count];
-        for (int i = 0; i < matches.Count; i++) parts[i] = matches[i].Value;
-        return parts;
-    }
+    public string[] Split(string name) =>
+        Splitter.Matches(name).Cast<Match>().Select(m => m.Value).ToArray();
+}
+
+/// <summary>A naming convention for camelCase names (e.g. "customerName").</summary>
+public sealed class CamelCaseNamingConvention : INamingConvention
+{
+    private static readonly Regex Splitter = new(@"([A-Z][a-z0-9]*|[a-z0-9]+|[A-Z]+(?=[A-Z]|$))", RegexOptions.Compiled, System.TimeSpan.FromMilliseconds(200));
+
+    /// <inheritdoc />
+    public string[] Split(string name) =>
+        Splitter.Matches(name).Cast<Match>().Select(m => m.Value).ToArray();
 }
 
 /// <summary>A naming convention for snake_case names (e.g. "customer_name").</summary>
 public sealed class LowerUnderscoreNamingConvention : INamingConvention
 {
     private static readonly char[] Separator = { '_' };
+
+    /// <inheritdoc />
+    public string[] Split(string name) => name.Split(Separator, StringSplitOptions.RemoveEmptyEntries);
+}
+
+/// <summary>A naming convention for kebab-case names (e.g. "customer-name").</summary>
+public sealed class KebabCaseNamingConvention : INamingConvention
+{
+    private static readonly char[] Separator = { '-' };
 
     /// <inheritdoc />
     public string[] Split(string name) => name.Split(Separator, StringSplitOptions.RemoveEmptyEntries);

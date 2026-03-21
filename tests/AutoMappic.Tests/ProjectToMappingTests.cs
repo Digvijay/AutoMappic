@@ -27,7 +27,7 @@ public class ProjectToMappingTests
         }.AsQueryable();
 
         // ProjectTo is an extension on IQueryable
-        var projected = sourceList.ProjectTo<ProjectToSource, ProjectToDest>().ToList();
+        var projected = sourceList.ProjectTo<ProjectToDest>().ToList();
 
         Assert.Equal(2, projected.Count);
         Assert.Equal(1, projected[0].Id);

@@ -5,6 +5,21 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.0] - 2026-03-21
+
+### Added
+- **Multi-Targeting Support**: Explicitly added support for both .NET 9 and .NET 10 to ensure first-class performance on the latest .NET SDKs.
+- **Enhanced ProjectTo Interception**: Upgraded the source generator to handle ProjectTo calls with additional arguments (e.g. IConfigurationProvider), enabling seamless migration for CleanArchitecture-style projects.
+- **AutoMapper Bridge**: Added an AddAutoMapper extension method and IConfigurationProvider interface to AutoMappic.Core to provide 1:1 API compatibility for migrating projects.
+- **Ambiguity Resolution**: Refined the mapping convention engine to prioritize direct property matches over flattened paths, resolving internal conflicts (AM002) in complex domain models.
+- **Full Diagnostic Suite**: Expanded build-time safety checks to include AM001 through AM009, covering duplicate mappings and symbol resolution failures.
+- **Professional Documentation**: Comprehensive overhaul of README and VitePress tutorials, drawing inspiration from the Mediator project for clarity and precision.
+
+### Fixed
+- **Interceptor Signature Mismatches**: Resolved CS9144 errors when intercepting methods with variable argument counts.
+- **XML Documentation**: Added missing XML comments to all public APIs to satisfy high-quality build requirements.
+- **Standardized Encoding**: Replaced all emojis and non-ASCII characters with professional ASCII equivalents across the entire repository.
+
 ## [0.2.0] - 2026-03-18
 
 ### Added
@@ -18,7 +33,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 - **Roslyn Versioning:** Pinned `Microsoft.CodeAnalysis` to 4.14.0 to guarantee host compatibility across all stable versions of Visual Studio 2022 and .NET 9 while enabling Interceptors.
-- **Documentation Refinement:** Comprehensive cleanup of project-wide documentation (README, VitePress, Roadmap) to reflect new v0.2.0 features.
+- **Documentation Refinement:** Comprehensive cleanup of project-wide documentation (README, VitePress, Roadmap) to reflect new v0.3.0 features.
 
 ### Security
 - **Version Hardening:** Updated all NuGet dependencies to their latest stable patches.

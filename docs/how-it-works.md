@@ -39,10 +39,10 @@ graph LR
 
 ## 2. Compile-Time Validation (Zero Slop)
 
-Because AutoMappic understands your code before it runs, it can provide immediate feedback. If you attempt to map a `Source` to a `Destination` where a property is missing or types are incompatible, you don't find out in Production—you find out in your IDE.
+Because AutoMappic understands your code before it runs, it can provide immediate feedback. If you attempt to map a `Source` to a `Destination` where a property is missing or types are incompatible, you don't find out in Production--you find out in your IDE.
 
 ::: info
-**Diagnostics AM001–AM008** ensure that your mapping profiles are always in sync with your models. If a build passes, the mapping is guaranteed to work.
+**Diagnostics AM001-AM008** ensure that your mapping profiles are always in sync with your models. If a build passes, the mapping is guaranteed to work.
 :::
 
 ## 3. High-Performance Collection Mapping
@@ -80,4 +80,4 @@ To ensure maximum compatibility without sacrificing performance, we pin our anal
 
 *Factual Source: Comparison based on official documentation and community discussions from [riok/mapperly](https://github.com/riok/mapperly), [AutoMapper/AutoMapper](https://github.com/AutoMapper/AutoMapper), and [MapsterMapper/Mapster](https://github.com/MapsterMapper/Mapster) as of March 2026.*
 
-[Next: Sustainability & ESG →](./sustainability.md)
+[Next: Sustainability & ESG ->](./sustainability.md)

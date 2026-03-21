@@ -1,6 +1,6 @@
 # Sustainability & ESG
 
-In the modern era of cloud computing, performance isn't just about speed—it's about **Environmental Impact**. Every CPU cycle saved is a reduction in carbon emissions.
+In the modern era of cloud computing, performance isn't just about speed--it's about **Environmental Impact**. Every CPU cycle saved is a reduction in carbon emissions.
 
 ## The Green Engineering Advantage
 
@@ -54,4 +54,4 @@ You can display the AutoMappic badge on your project to show your commitment to 
 
 ---
 
-[Back: How it Works ←](./how-it-works.md)
+[Back: How it Works <-](./how-it-works.md)

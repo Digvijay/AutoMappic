@@ -69,7 +69,7 @@ internal sealed class Program
         if (errors.Count == 0 && models.Count > 0)
         {
             Console.WriteLine($"[SUCCESS] Validation successful! Found {models.Count} valid mapping pairs.");
-            foreach(var model in models)
+            foreach (var model in models)
             {
                 Console.WriteLine($"  -> {model.SourceTypeFullName} to {model.DestinationTypeFullName}");
             }
@@ -116,7 +116,7 @@ internal sealed class Program
 
     private static async Task<Compilation?> GetCompilation(string projectPath)
     {
-        try 
+        try
         {
             using var workspace = MSBuildWorkspace.Create();
             var project = await workspace.OpenProjectAsync(projectPath);

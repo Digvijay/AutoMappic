@@ -82,9 +82,9 @@ AutoMappic will detect `GetPrice()` and map it to `Price`.
 ## 5. Value Type Conversions
 
 AutoMappic handles common value type conversions natively with zero reflection:
-- **Nullable to Non-Nullable**: `int?` → `int` (uses `.GetValueOrDefault()`).
+- **Nullable to Non-Nullable**: `int?` -> `int` (uses `.GetValueOrDefault()`).
 - **Primitive to String**: Implicitly calls `.ToString()`.
-- **Numeric Widening**: `int` → `double` (implicit cast).
+- **Numeric Widening**: `int` -> `double` (implicit cast).
 
 ---
 

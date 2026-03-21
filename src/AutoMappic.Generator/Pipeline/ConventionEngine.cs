@@ -7,27 +7,9 @@ using Microsoft.CodeAnalysis;
 
 namespace AutoMappic.Generator.Pipeline;
 
-/// <summary>
-///   The convention engine: given a source <see cref="ITypeSymbol" /> and a destination
-///   <see cref="ITypeSymbol" />, resolves a <see cref="PropertyMap" /> for every writable
-///   destination property.
-/// </summary>
 internal static class ConventionEngine
 {
-    private static readonly Regex PascalSplitter =
-        new(@"([A-Z][a-z0-9]*)", RegexOptions.Compiled, TimeSpan.FromMilliseconds(100));
 
-    /// <summary>
-    ///   Resolves the property mappings for a given source and destination type.
-    /// </summary>
-    /// <param name="source">The source type symbol.</param>
-    /// <param name="destination">The destination type symbol.</param>
-    /// <param name="explicitMaps">A dictionary of explicit member mappings.</param>
-    /// <param name="ignoredMembers">A collection of members to ignore.</param>
-    /// <param name="profileLocation">The location of the profile declaration for diagnostics.</param>
-    /// <param name="reportDiagnostic">A delegate to report diagnostics.</param>
-    /// <param name="mappingStack"></param>
-    /// <returns>A list of resolved <see cref="PropertyMap"/> instances.</returns>
     public static (IReadOnlyList<PropertyMap> Properties, IReadOnlyList<PropertyMap> ConstructorArguments) Resolve(
         ITypeSymbol source,
         ITypeSymbol destination,
@@ -35,28 +17,25 @@ internal static class ConventionEngine
         IReadOnlyCollection<string> ignoredMembers,
         Location? profileLocation,
         Action<Diagnostic> reportDiagnostic,
-        HashSet<(ITypeSymbol, ITypeSymbol)>? mappingStack = null)
+        HashSet<(ITypeSymbol, ITypeSymbol)>? mappingStack = null,
+        string? sourceNaming = null,
+        string? destNaming = null)
     {
         var properties = new List<PropertyMap>();
         var constructorArgs = new List<PropertyMap>();
         mappingStack ??= new HashSet<(ITypeSymbol, ITypeSymbol)>(new TypePairComparer());
 
-        var key = (source, destination);
+        var key = (UnwrapNullable(source), UnwrapNullable(destination));
         if (mappingStack.Contains(key))
         {
-            reportDiagnostic(Diagnostic.Create(
-                AutoMappicDiagnostics.CircularReference,
-                profileLocation ?? Location.None,
-                source.Name, destination.Name));
+            reportDiagnostic(Diagnostic.Create(AutoMappicDiagnostics.CircularReference, profileLocation ?? Location.None, source.Name, destination.Name));
             return (properties, constructorArgs);
         }
 
         mappingStack.Add(key);
         try
         {
-
-            // 1. Find the best constructor
-            IMethodSymbol? bestCtor = null;
+            // 1. Constructor Matching
             if (destination is INamedTypeSymbol namedDest && namedDest.TypeKind == TypeKind.Class)
             {
                 var publicCtors = namedDest.Constructors
@@ -70,7 +49,7 @@ internal static class ConventionEngine
                     bool allSatisfied = true;
                     foreach (var param in ctor.Parameters)
                     {
-                        var paramMap = ResolveSourceForMember(source, param.Name, param.Type, explicitMaps, ignoredMembers, profileLocation, reportDiagnostic, mappingStack);
+                        var paramMap = ResolveSourceForMember(source, param.Name, param.Type, explicitMaps, ignoredMembers, profileLocation, reportDiagnostic, mappingStack, sourceNaming, destNaming, "source", destination.Name);
                         if (paramMap is null || paramMap.Kind == PropertyMapKind.Ignored)
                         {
                             allSatisfied = false;
@@ -78,63 +57,64 @@ internal static class ConventionEngine
                         }
                         candidateArgs.Add(paramMap);
                     }
-
                     if (allSatisfied)
                     {
-                        bestCtor = ctor;
                         constructorArgs = candidateArgs;
                         break;
                     }
                 }
+            }
 
-                if (bestCtor is null && publicCtors.Count > 0 && !publicCtors.Any(c => c.Parameters.Length == 0))
+            // 2. Property/Field Matching
+            var destMembers = GetAllWritableMembers(destination);
+
+            if (constructorArgs.Count == 0 && destination is INamedTypeSymbol classDest && classDest.TypeKind == TypeKind.Class)
+            {
+                if (!classDest.Constructors.Any(c => c.DeclaredAccessibility == Accessibility.Public && c.Parameters.Length == 0))
                 {
-                    // No satisfyable constructor found, and no parameterless constructor exists
-                    reportDiagnostic(Diagnostic.Create(
-                        AutoMappicDiagnostics.MissingConstructor,
-                        profileLocation ?? Location.None,
-                        destination.Name));
+                    reportDiagnostic(Diagnostic.Create(AutoMappicDiagnostics.MissingConstructor, profileLocation ?? Location.None, destination.Name));
                 }
             }
 
-            // 2. Resolve properties
-            var destProperties = GetAllProperties(destination)
-                .Where(p => p.IsRequired || (p.SetMethod is not null && (p.SetMethod.DeclaredAccessibility == Accessibility.Public || p.SetMethod.DeclaredAccessibility == Accessibility.Internal || p.SetMethod.DeclaredAccessibility == Accessibility.ProtectedOrInternal)) || IsCollection(p.Type, out _))
-                .ToList();
-
-            // If we are using a constructor, we might want to skip properties already set by it?
-            // AutoMapper typically sets them again if they have a setter.
             var constructorParamNames = new HashSet<string>(constructorArgs.Select(a => a.DestinationProperty), StringComparer.OrdinalIgnoreCase);
 
-            foreach (var destProp in destProperties)
+            foreach (var memberName in destMembers.Keys)
             {
-                var name = destProp.Name;
+                var member = destMembers[memberName];
+                if (member.GetAttributes().Any(a => a.AttributeClass?.Name == "AutoMappicIgnoreAttribute"))
+                {
+                    properties.Add(new PropertyMap(memberName, null, PropertyMapKind.Ignored));
+                    continue;
+                }
 
-                // Skip if it was already used in constructor?
-                // Actually, we usually don't skip unless there's no setter (handled via GetAllProperties).
-                // But if it's 'required', we MUST ensure it's mapped either via ctor or property.
-
-                var map = ResolveSourceForMember(source, name, destProp.Type, explicitMaps, ignoredMembers, profileLocation, reportDiagnostic, mappingStack);
+                var map = ResolveSourceForMember(source, memberName, GetMemberType(member), explicitMaps, ignoredMembers, profileLocation, reportDiagnostic, mappingStack, sourceNaming, destNaming, "source", destination.Name);
                 if (map is not null)
                 {
-                    var finalMap = map with { IsInitOnly = destProp.SetMethod?.IsInitOnly ?? false, IsReadOnly = destProp.SetMethod == null };
-                    properties.Add(finalMap);
-                }
-                else
-                {
-                    var isRequired = destProp.IsRequired || destProp.GetAttributes().Any(a => a.AttributeClass?.Name == "RequiredAttribute");
-                    // If it's required but was mapped via constructor, it's satisfied!
-                    if (isRequired && constructorParamNames.Contains(name))
+                    bool isInit = false;
+                    bool isReadOnly = false;
+                    if (member is IPropertySymbol p)
                     {
-                        continue;
+                        isInit = p.SetMethod?.IsInitOnly ?? false;
+                        isReadOnly = p.SetMethod == null || p.SetMethod.DeclaredAccessibility != Accessibility.Public;
                     }
-
-                    var messageSuffix = isRequired ? " (This property is marked as [Required] or using the 'required' modifier.)" : "";
-                    reportDiagnostic(Diagnostic.Create(
-                        AutoMappicDiagnostics.UnmappedProperty,
-                        destProp.Locations.Length > 0 ? destProp.Locations[0] : Location.None,
-                        name + messageSuffix, destination.Name, source.Name));
+                    else if (member is IFieldSymbol f)
+                    {
+                        isReadOnly = f.IsReadOnly;
+                    }
+                    properties.Add(map with { IsInitOnly = isInit, IsReadOnly = isReadOnly });
                 }
+                else if (!constructorParamNames.Contains(memberName))
+                {
+                    if (source.Name != "IDataReader" && source.Name != "DataRow" && source.Name != "SqlDataReader")
+                    {
+                        reportDiagnostic(Diagnostic.Create(AutoMappicDiagnostics.UnmappedProperty, member.Locations.FirstOrDefault() ?? Location.None, memberName, destination.Name, source.Name));
+                    }
+                }
+            }
+
+            if (properties.Count == 0 && constructorArgs.Count == 0)
+            {
+                reportDiagnostic(Diagnostic.Create(AutoMappicDiagnostics.AsymmetricMapping, profileLocation ?? Location.None, source.Name, destination.Name));
             }
 
             return (properties, constructorArgs);
@@ -153,33 +133,32 @@ internal static class ConventionEngine
         IReadOnlyCollection<string> ignoredMembers,
         Location? profileLocation,
         Action<Diagnostic> reportDiagnostic,
-        HashSet<(ITypeSymbol, ITypeSymbol)> mappingStack)
+        HashSet<(ITypeSymbol, ITypeSymbol)> mappingStack,
+        string? sourceNaming = null,
+        string? destNaming = null,
+        string sourceAccess = "source",
+        string destTypeName = "Unknown")
     {
-        var sourceProperties = GetAllProperties(source).Where(p => p.GetMethod is not null).ToList();
-        var sourceMethods = GetAllZeroArgMethods(source);
-
         if (ignoredMembers.Contains(targetName))
         {
             return new PropertyMap(targetName, null, PropertyMapKind.Ignored);
         }
 
-        // Special handling for IDataReader to enable optimized DB-to-DTO mapping
-        var isReader = source.Name == "IDataReader" || source.AllInterfaces.Any(i => i.Name == "IDataReader");
-        if (isReader)
+        // Tuple Handling
+        if (source.IsTupleType && source is INamedTypeSymbol tupleSource)
         {
-            var ordinal = $"source.GetOrdinal(\"{targetName}\")";
-            var readerMethod = GetReaderMethod(targetType);
-            var expr = $"source.{readerMethod}({ordinal})";
-
-            // Handle nullability if the reader column can be null
-            if (IsNullable(targetType))
+            for (int i = 0; i < tupleSource.TupleElements.Length; i++)
             {
-                expr = $"(source.IsDBNull({ordinal}) ? ({targetType.ToDisplayString()})null : {expr})";
+                var element = tupleSource.TupleElements[i];
+                var subMap = ResolveSourceForMember(element.Type, targetName, targetType, explicitMaps, Array.Empty<string>(), profileLocation, reportDiagnostic, mappingStack, sourceNaming, destNaming, $"{sourceAccess}.Item{i + 1}", destTypeName);
+                if (subMap is not null && subMap.Kind != PropertyMapKind.Ignored)
+                {
+                    return subMap;
+                }
             }
-
-            return new PropertyMap(targetName, expr, PropertyMapKind.Direct);
         }
 
+        // Explicit Maps
         string? conditionBody = null;
         if (explicitMaps.TryGetValue(targetName, out var explicitData))
         {
@@ -190,185 +169,347 @@ internal static class ConventionEngine
             }
         }
 
-        var directMatch = sourceProperties.FirstOrDefault(
-            p => string.Equals(p.Name, targetName, StringComparison.OrdinalIgnoreCase) ||
-                 string.Equals(Normalize(p.Name), Normalize(targetName), StringComparison.OrdinalIgnoreCase));
-
-        var methodMatch = sourceMethods.FirstOrDefault(
-            m => string.Equals(m.Name, "Get" + targetName, StringComparison.OrdinalIgnoreCase) ||
-                 string.Equals(Normalize(m.Name), Normalize("Get" + targetName), StringComparison.OrdinalIgnoreCase));
-
-        var flatPath = ResolveFlattenedPath(source, targetName);
-        bool isTrulyFlattened = flatPath is not null && flatPath.Contains('.');
-
-        if (directMatch is not null && isTrulyFlattened)
+        // IDataReader projection
+        if (source.Name == "IDataReader" || source.Name == "DataRow" || source.Name == "SqlDataReader")
         {
-            reportDiagnostic(Diagnostic.Create(
-                AutoMappicDiagnostics.AmbiguousMapping,
-                profileLocation ?? Location.None,
-                targetName, "???", flatPath));
-            return null;
+            var keyName = targetName;
+            if (sourceNaming?.Contains("Kebab") == true)
+                keyName = NamingUtility.ToKebabCase(targetName);
+            else if (sourceNaming?.Contains("LowerUnderscore") == true || sourceNaming?.Contains("Snake") == true)
+                keyName = NamingUtility.ToSnakeCase(targetName);
+
+            var unwrapped = UnwrapNullable(targetType);
+            var method = unwrapped.SpecialType switch
+            {
+                SpecialType.System_String => "GetString",
+                SpecialType.System_Int32 => "GetInt32",
+                SpecialType.System_Int64 => "GetInt64",
+                SpecialType.System_Int16 => "GetInt16",
+                SpecialType.System_Decimal => "GetDecimal",
+                SpecialType.System_Double => "GetDouble",
+                SpecialType.System_Single => "GetFloat",
+                SpecialType.System_Boolean => "GetBoolean",
+                SpecialType.System_Byte => "GetByte",
+                SpecialType.System_DateTime => "GetDateTime",
+                _ => "GetValue"
+            };
+
+            var ordinal = $"{sourceAccess}.GetOrdinal(\"{keyName}\")";
+            var expr = $"{sourceAccess}.{method}({ordinal})";
+            if (method == "GetValue" || unwrapped.TypeKind == TypeKind.Enum)
+                expr = $"({unwrapped.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat)}){expr}";
+
+            var typeStr = targetType.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat);
+            var isNullable = targetType.IsReferenceType || (targetType.IsValueType && targetType.NullableAnnotation == NullableAnnotation.Annotated);
+            if (isNullable)
+                expr = $"{sourceAccess}.IsDBNull({ordinal}) ? default({typeStr})! : {expr}";
+
+            return new PropertyMap(targetName, expr, PropertyMapKind.Direct, DataReaderColumn: keyName, ConditionBody: conditionBody);
         }
 
-        if (directMatch is not null)
+        // Dictionary -> Object indexer projection
+        if (IsDictionary(source, out var srcKey, out var srcValue) && srcKey.SpecialType == SpecialType.System_String)
         {
-            var sourceExpr = $"source.{directMatch.Name}";
+            var keyName = targetName;
+            if (sourceNaming?.Contains("Kebab") == true)
+                keyName = NamingUtility.ToKebabCase(targetName);
+            else if (sourceNaming?.Contains("LowerUnderscore") == true || sourceNaming?.Contains("Snake") == true)
+                keyName = NamingUtility.ToSnakeCase(targetName);
 
-            if (directMatch.Type.TypeKind == TypeKind.Enum && targetType.SpecialType == SpecialType.System_String)
-            {
-                sourceExpr = $"{sourceExpr}.ToString()";
-                return new PropertyMap(targetName, sourceExpr, PropertyMapKind.Direct, ConditionBody: conditionBody);
-            }
-            else if (!SymbolEqualityComparer.Default.Equals(directMatch.Type, targetType) || IsCollection(targetType, out _) || (targetType.TypeKind == TypeKind.Class && targetType.SpecialType == SpecialType.None))
-            {
-                var (nestedExpr, nSrc, nDest, isColl, isArr, itemExpr, rawExpr) = WrapWithNestedMapper(sourceExpr, directMatch.Type, targetType, profileLocation, reportDiagnostic, mappingStack);
-                return new PropertyMap(targetName, nestedExpr, PropertyMapKind.Direct,
-                    NestedSourceTypeFullName: nSrc,
-                    NestedDestTypeFullName: nDest,
-                    IsCollection: isColl,
-                    IsArray: isArr,
-                    NestedExpression: itemExpr,
-                    SourceRawExpression: rawExpr,
-                    ConditionBody: conditionBody);
-            }
-            else
-            {
-                sourceExpr = ApplyNullabilityGuard(sourceExpr, directMatch.Type, targetType);
-                return new PropertyMap(targetName, sourceExpr, PropertyMapKind.Direct, ConditionBody: conditionBody);
-            }
+            var sourceExpr = $"{sourceAccess} != null && {sourceAccess}.ContainsKey(\"{keyName}\") ? {sourceAccess}[\"{keyName}\"] : default!";
+            var (nE, nS, nD, iC, iA, iE, rE, nCond) = WrapWithNestedMapper(sourceExpr, srcValue, targetType, profileLocation, reportDiagnostic, mappingStack, targetName);
+            return new PropertyMap(targetName, nE, PropertyMapKind.Direct, NestedSourceTypeFullName: nS, NestedDestTypeFullName: nD, NestedFullDestTypeFullName: targetType.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat), IsCollection: iC, IsArray: iA, NestedExpression: iE, SourceRawExpression: rE, ConditionBody: conditionBody ?? nCond);
         }
 
-        if (methodMatch is not null)
+        // Discovery
+        var readableMembers = GetReadableMembers(source);
+        var directMatches = readableMembers.Where(m =>
+            string.Equals(m.Name, targetName, StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(NamingUtility.Normalize(m.Name), NamingUtility.Normalize(targetName), StringComparison.OrdinalIgnoreCase)).ToList();
+
+        var sourceMethods = GetAllZeroArgMethods(source);
+        var methodMatches = sourceMethods.Where(m =>
+            string.Equals(m.Name, "Get" + targetName, StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(NamingUtility.Normalize(m.Name), NamingUtility.Normalize("Get" + targetName), StringComparison.OrdinalIgnoreCase)).ToList();
+
+        // Flattening
+        var flatPath = ResolveFlattenedPath(source, targetName, sourceNaming, destNaming, targetType);
+
+        // Ambiguity Detection: Check if direct/method matches and a flattened path both exist
+        if ((directMatches.Count + methodMatches.Count > 0) && flatPath != null)
         {
-            return new PropertyMap(targetName, $"source.{methodMatch.Name}()", PropertyMapKind.Method, ConditionBody: conditionBody);
+            reportDiagnostic(Diagnostic.Create(AutoMappicDiagnostics.AmbiguousMapping, profileLocation ?? Location.None, targetName, destTypeName, source.Name));
         }
 
-        if (isTrulyFlattened)
+        // Return direct/method match if found
+        ISymbol? directMatch = directMatches.FirstOrDefault();
+        IMethodSymbol? methodMatch = methodMatches.FirstOrDefault();
+        if (directMatch is not null || methodMatch is not null)
         {
-            var sourceExpr = $"source.{flatPath}";
-            if (!IsNullable(targetType))
-            {
-                sourceExpr = AppendNullDefault($"({sourceExpr})", targetType);
-            }
+            var sourceType = directMatch is not null ? GetMemberType(directMatch) : methodMatch!.ReturnType;
+            var sourceExpr = directMatch is not null ? $"{sourceAccess}.{directMatch.Name}" : $"{sourceAccess}.{methodMatch!.Name}()";
 
-            return new PropertyMap(targetName, sourceExpr, PropertyMapKind.Flattened, ConditionBody: conditionBody);
+            var (nestedExpr, nSrc, nDest, isColl, isArr, itemExpr, rawExpr, nCond) = WrapWithNestedMapper(sourceExpr, sourceType, targetType, profileLocation, reportDiagnostic, mappingStack, targetName);
+            return new PropertyMap(targetName, nestedExpr, PropertyMapKind.Direct,
+                NestedSourceTypeFullName: nSrc, NestedDestTypeFullName: nDest,
+                NestedFullDestTypeFullName: targetType.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat),
+                IsCollection: isColl, IsArray: isArr, NestedExpression: itemExpr, SourceRawExpression: rawExpr, ConditionBody: conditionBody ?? nCond);
         }
 
-        if (conditionBody != null)
+        if (flatPath != null)
         {
-            // If we have a condition but no source match, it's still an unmapped error?
-            // Actually, we SHOULD try to find a source to apply the condition to.
-            // If we got here, we didn't find any match.
+            return new PropertyMap(targetName, $"{sourceAccess}.{flatPath}", PropertyMapKind.Flattened, ConditionBody: conditionBody);
         }
 
         return null;
     }
 
-    private static string GetMapMethodName(ITypeSymbol type) => $"MapTo{type.Name}";
-
-    /// <summary>
-    ///   Wraps an expression with appropriate mapping logic based on type compatibility.
-    /// </summary>
-    /// <param name="expression">The base source expression.</param>
-    /// <param name="sourceType">The type of the source expression.</param>
-    /// <param name="destType">The target destination type.</param>
-    /// <param name="profileLoc"></param>
-    /// <param name="reportDiag"></param>
-    /// <param name="stack"></param>
-    /// <returns> A tuple containing the resolved expression and metadata about the mapping.</returns>
-    private static (string Expression, string? NestedSource, string? NestedDest, bool IsCollection, bool IsArray, string? ItemExpression, string RawExpression)
-        WrapWithNestedMapper(string expression, ITypeSymbol sourceType, ITypeSymbol destType, Location? profileLoc, Action<Diagnostic> reportDiag, HashSet<(ITypeSymbol, ITypeSymbol)> stack)
+    private static (string Expression, string? NestedSource, string? NestedDest, bool IsCollection, bool IsArray, string? ItemExpression, string? RawExpression, string? Condition) WrapWithNestedMapper(
+        string expression, ITypeSymbol sourceType, ITypeSymbol destType, Location? profileLoc, Action<Diagnostic> reportDiag, HashSet<(ITypeSymbol, ITypeSymbol)> stack, string targetName)
     {
-        // 1. Nullable Value Type Conversion (int? -> int)
-        if (sourceType.IsValueType && IsNullable(sourceType) && !IsNullable(destType))
-        {
-            return (Expression: $"{expression}.GetValueOrDefault()", null, null, false, false, null, expression);
-        }
+        var sBase = UnwrapNullable(sourceType);
+        var dBase = UnwrapNullable(destType);
+        string? cond = null;
 
-        // 2. Dictionary Mapping
-        if (IsDictionary(sourceType, out var sKey, out var sVal) && IsDictionary(destType, out var dKey, out var dVal))
+        if (destType.SpecialType == SpecialType.System_String)
         {
-            var guard = IsNullable(sourceType) ? "?" : "";
-
-            // For primitive key/value types, use direct assignment or ToString() if it matches
-            var keyExpr = "kv.Key";
-            string? knSrc = null, knDest = null;
-            if (!SymbolEqualityComparer.Default.Equals(sKey, dKey))
+            if (sourceType.SpecialType == SpecialType.System_String)
             {
-                if (dKey.SpecialType == SpecialType.System_String) keyExpr = "kv.Key.ToString()";
-                else if (dKey.TypeKind == TypeKind.Class)
+                if (sourceType.NullableAnnotation == NullableAnnotation.Annotated && destType.NullableAnnotation == NullableAnnotation.NotAnnotated)
                 {
-                    keyExpr = $"kv.Key.{GetMapMethodName(dKey)}()";
-                    knSrc = GetDisplayString(sKey);
-                    knDest = GetDisplayString(dKey);
+                    return ($"{expression} ?? \"\"", null, null, false, false, null, expression, cond);
                 }
-                // Add more implicit coversions if needed. Fallback to cast.
-                else keyExpr = $"({dKey.ToDisplayString()})kv.Key";
+                return (expression, null, null, false, false, null, expression, cond);
             }
 
-            var valExpr = "kv.Value";
-            string? vnSrc = null, vnDest = null;
-            if (!SymbolEqualityComparer.Default.Equals(sVal, dVal))
+            if (sourceType.IsReferenceType || IsNullableStruct(sourceType))
             {
-                if (dVal.SpecialType == SpecialType.System_String) valExpr = "kv.Value?.ToString() ?? string.Empty";
-                else if (dVal.TypeKind == TypeKind.Class)
-                {
-                    valExpr = $"kv.Value.{GetMapMethodName(dVal)}()";
-                    vnSrc = GetDisplayString(sVal);
-                    vnDest = GetDisplayString(dVal);
-                }
-                else valExpr = $"({dVal.ToDisplayString()})kv.Value";
+                return ($"{expression}?.ToString() ?? \"\"", null, null, false, false, null, expression, cond);
+            }
+            else
+            {
+                return ($"{expression}.ToString()", null, null, false, false, null, expression, cond);
+            }
+        }
+
+        if (IsTypeCompatible(sourceType, destType) && !IsCollection(destType, out _) && !IsDictionary(destType, out _, out _))
+        {
+            if (IsNullableStruct(sourceType) && !IsNullableStruct(destType))
+            {
+                return ($"{expression}.GetValueOrDefault()", null, null, false, false, null, expression, cond);
+            }
+            if (sBase.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat) != dBase.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat) && IsNumeric(sBase) && IsNumeric(dBase))
+            {
+                return ($"({destType.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat)}){expression}", null, null, false, false, null, expression, cond);
+            }
+            return (expression, null, null, false, false, null, expression, cond);
+        }
+
+        if (destType.TypeKind == TypeKind.Enum && IsNumeric(sourceType))
+        {
+            return ($"({destType.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat)}){expression}", null, null, false, false, null, expression, cond);
+        }
+
+        if (sourceType.TypeKind == TypeKind.Enum && IsNumeric(destType))
+        {
+            return ($"({destType.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat)}){expression}", null, null, false, false, null, expression, cond);
+        }
+
+        if (sourceType.TypeKind == TypeKind.Enum && destType.TypeKind == TypeKind.Enum)
+        {
+            return ($"({destType.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat)}){expression}", null, null, false, false, null, expression, cond);
+        }
+
+        // Dictionary logic
+        if (IsDictionary(sourceType, out var sKey, out var sValue) && IsDictionary(destType, out var dKey, out var dValue))
+        {
+            var keyMap = WrapWithNestedMapper("x.Key", sKey, dKey, profileLoc, reportDiag, stack, "Key");
+            var valueMap = WrapWithNestedMapper("x.Value", sValue, dValue, profileLoc, reportDiag, stack, "Value");
+            return ($"({expression} ?? new()).ToDictionary(x => {keyMap.Expression}, x => {valueMap.Expression})", null, GetDisplayString(destType), false, false, null, expression, cond);
+        }
+
+        // Recursion / Collection logic
+        if (IsCollection(sourceType, out var sItem) && IsCollection(destType, out var dItem))
+        {
+            var isArr = destType.TypeKind == TypeKind.Array || destType.ToDisplayString().Contains("[]");
+            var itemMap = WrapWithNestedMapper("x", sItem, dItem, profileLoc, reportDiag, stack, targetName + "Item");
+
+            string linq;
+            string sItemName = GetDisplayString(sItem);
+            string cast = $"(global::System.Collections.Generic.IEnumerable<{sItemName}>?)";
+            if (itemMap.Expression == "x")
+            {
+                linq = $"({cast}{expression} ?? global::System.Array.Empty<{sItemName}>())";
+            }
+            else
+            {
+                linq = $"({cast}{expression} ?? global::System.Array.Empty<{sItemName}>()).Select(x => {itemMap.Expression})";
             }
 
-            var fallback = !IsNullable(destType) ? $" ?? new global::System.Collections.Generic.Dictionary<{dKey.ToDisplayString()}, {dVal.ToDisplayString()}>()" : "";
-            // Dictionary mapping can have two nested mappings, but PropertyMap only has one.
-            // We prioritize the Value mapping as it's more likely to be recursive.
-            return (Expression: $"{expression}{guard}.ToDictionary(kv => {keyExpr}, kv => {valExpr}){fallback}", vnSrc ?? knSrc, vnDest ?? knDest, false, false, null, expression);
+            string toContainer = "";
+            string finalExpr = "";
+
+            if (destType.Name == "Stack")
+                finalExpr = $"new global::System.Collections.Generic.Stack<{GetDisplayString(dItem)}>({linq})";
+            else if (destType.Name == "Queue")
+                finalExpr = $"new global::System.Collections.Generic.Queue<{GetDisplayString(dItem)}>({linq})";
+            else if (destType.Name == "HashSet" || destType.Name == "ISet")
+                finalExpr = $"new global::System.Collections.Generic.HashSet<{GetDisplayString(dItem)}>({linq})";
+            else if (destType.Name == "ReadOnlyCollection")
+                finalExpr = $"{linq}.ToList().AsReadOnly()";
+            else if (isArr)
+            {
+                toContainer = ".ToArray()";
+                finalExpr = $"{linq}{toContainer}";
+            }
+            else
+            {
+                toContainer = ".ToList()";
+                finalExpr = $"{linq}{toContainer}";
+            }
+
+            return (finalExpr, GetDisplayString(sItem), GetDisplayString(dItem), false, false, null, expression, cond);
         }
 
-        // 3. Collection Mapping
-        if (IsCollection(sourceType, out var sourceItemType) && IsCollection(destType, out var destItemType))
+        var key = (sBase, dBase);
+        if (stack.Contains(key))
         {
-            var guard = IsNullable(sourceType) ? "?" : "";
-            var (innerExpr, nSrc, nDest, iColl, iArr, iItem, rExpr) = WrapWithNestedMapper("x", sourceItemType, destItemType, profileLoc, reportDiag, stack);
-
-            // For the return 'Expression', we provide a LINQ fallback so that nested collections work 
-            // even if the emitter only loop-optimizes the top-level.
-            var linqSuffix = destType.TypeKind == TypeKind.Array || destType.ToDisplayString().Contains("[]") ? ".ToArray()" : ".ToList()";
-            var linqExpr = $"{expression}{guard}.Select(x => {innerExpr}){linqSuffix}";
-
-            bool isArray = destType.TypeKind == TypeKind.Array || destType.ToDisplayString().Contains("[]");
-            return (Expression: linqExpr, NestedSource: GetDisplayString(sourceItemType), NestedDest: GetDisplayString(destItemType), IsCollection: true, IsArray: isArray, ItemExpression: innerExpr, RawExpression: expression);
+            reportDiag(Diagnostic.Create(AutoMappicDiagnostics.CircularReference, profileLoc ?? Location.None, sBase.Name, dBase.Name));
         }
-
-        // 4. Complex Type Mapping
-        if (destType.TypeKind == TypeKind.Class && destType.SpecialType == SpecialType.None)
+        else
         {
-            var _ = Resolve(sourceType, destType, new Dictionary<string, (string?, string?, bool)>(), new HashSet<string>(), profileLoc, reportDiag, stack);
-            var op = IsNullable(sourceType) ? "?." : ".";
-            return (Expression: $"{expression}{op}{GetMapMethodName(destType)}()", NestedSource: GetDisplayString(sourceType), NestedDest: GetDisplayString(destType), IsCollection: false, IsArray: false, ItemExpression: null, RawExpression: expression);
+            // run dry validation to detect deeper indirect cycles
+            Resolve(sBase, dBase, new Dictionary<string, (string? Expression, string? Condition, bool IsAsync)>(), Array.Empty<string>(), profileLoc, reportDiag, stack, null, null);
         }
 
-        return (Expression: expression, NestedSource: null, NestedDest: null, IsCollection: false, IsArray: false, ItemExpression: null, RawExpression: expression);
+        if (destType.NullableAnnotation == NullableAnnotation.NotAnnotated && !destType.IsValueType && sourceType.NullableAnnotation == NullableAnnotation.Annotated)
+        {
+            cond = $"{expression} != null";
+            return ($"{expression}.MapTo{destType.Name}()", null, GetDisplayString(destType), false, false, null, expression, cond);
+        }
+
+        return ($"({expression} == null ? default! : {expression}.MapTo{destType.Name}())", null, GetDisplayString(destType), false, false, null, expression, cond);
+    }
+
+    private static ITypeSymbol UnwrapNullable(ITypeSymbol type)
+    {
+        if (IsNullableStruct(type) && type is INamedTypeSymbol named && named.TypeArguments.Length == 1)
+        {
+            return named.TypeArguments[0];
+        }
+        return type.WithNullableAnnotation(NullableAnnotation.None);
+    }
+
+    private static bool IsNullableStruct(ITypeSymbol type)
+    {
+        return type.IsValueType && type.NullableAnnotation == NullableAnnotation.Annotated;
+    }
+
+    private static List<ISymbol> GetReadableMembers(ITypeSymbol type)
+    {
+        var list = new List<ISymbol>();
+        var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var current = type;
+        while (current is not null)
+        {
+            foreach (var m in current.GetMembers())
+            {
+                if (m.IsStatic || m.DeclaredAccessibility != Accessibility.Public)
+                {
+                    continue;
+                }
+                if (m is IPropertySymbol p && p.GetMethod is not null)
+                {
+                    if (seen.Add(p.Name)) list.Add(p);
+                }
+                else if (m is IFieldSymbol f)
+                {
+                    if (seen.Add(f.Name)) list.Add(f);
+                }
+            }
+            current = current.BaseType;
+        }
+        return list;
+    }
+
+    private static IEnumerable<IMethodSymbol> GetAllZeroArgMethods(ITypeSymbol type)
+    {
+        var current = type;
+        var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        while (current is not null)
+        {
+            foreach (var m in current.GetMembers().OfType<IMethodSymbol>())
+            {
+                if (m.IsStatic || m.MethodKind != MethodKind.Ordinary || m.Parameters.Length != 0 || m.DeclaredAccessibility != Accessibility.Public)
+                {
+                    continue;
+                }
+                if (seen.Add(m.Name)) yield return m;
+            }
+            current = current.BaseType;
+        }
+    }
+
+    private static Dictionary<string, ISymbol> GetAllWritableMembers(ITypeSymbol type)
+    {
+        var dict = new Dictionary<string, ISymbol>(StringComparer.Ordinal);
+        var current = type;
+        while (current is not null)
+        {
+            foreach (var m in current.GetMembers())
+            {
+                if (m.IsStatic || dict.ContainsKey(m.Name) || m.DeclaredAccessibility != Accessibility.Public)
+                {
+                    continue;
+                }
+                if (m is IPropertySymbol p && ((p.SetMethod is not null && (p.SetMethod.DeclaredAccessibility == Accessibility.Public || p.SetMethod.IsInitOnly)) || IsCollection(p.Type, out _) || IsDictionary(p.Type, out _, out _)))
+                {
+                    dict.Add(p.Name, p);
+                }
+                else if (m is IFieldSymbol f && !f.IsReadOnly)
+                {
+                    dict.Add(f.Name, f);
+                }
+            }
+            current = current.BaseType;
+        }
+        return dict;
+    }
+
+    private static bool IsTypeCompatible(ITypeSymbol source, ITypeSymbol dest)
+    {
+        var sBase = UnwrapNullable(source);
+        var dBase = UnwrapNullable(dest);
+
+        var s = sBase.WithNullableAnnotation(NullableAnnotation.None).ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat);
+        var d = dBase.WithNullableAnnotation(NullableAnnotation.None).ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat);
+
+        if (s == d || (IsNumeric(sBase) && IsNumeric(dBase)))
+        {
+            return true;
+        }
+        return false;
     }
 
     private static bool IsDictionary(ITypeSymbol type, out ITypeSymbol keyType, out ITypeSymbol valueType)
     {
         keyType = null!;
         valueType = null!;
-
-        if (type is INamedTypeSymbol named)
+        if (type is INamedTypeSymbol named && named.IsGenericType && named.TypeArguments.Length == 2)
         {
-            var dictionary = named.AllInterfaces.FirstOrDefault(i => i.Name == "IDictionary" && i.IsGenericType && i.TypeArguments.Length == 2);
-            if (dictionary is null && named.Name == "IDictionary" && named.IsGenericType && named.TypeArguments.Length == 2)
+            if (named.Name == "Dictionary" || named.Name == "IDictionary" || named.Name == "IReadOnlyDictionary")
             {
-                dictionary = named;
+                keyType = named.TypeArguments[0];
+                valueType = named.TypeArguments[1];
+                return true;
             }
-
-            if (dictionary is not null)
+        }
+        foreach (var inf in type.AllInterfaces)
+        {
+            if (inf.IsGenericType && inf.TypeArguments.Length == 2 && inf.Name.Contains("Dictionary"))
             {
-                keyType = dictionary.TypeArguments[0];
-                valueType = dictionary.TypeArguments[1];
+                keyType = inf.TypeArguments[0];
+                valueType = inf.TypeArguments[1];
                 return true;
             }
         }
@@ -378,182 +519,111 @@ internal static class ConventionEngine
     private static bool IsCollection(ITypeSymbol type, out ITypeSymbol itemType)
     {
         itemType = null!;
+        if (type.SpecialType == SpecialType.System_String)
+        {
+            return false;
+        }
+
         if (type is IArrayTypeSymbol array)
         {
             itemType = array.ElementType;
             return true;
         }
-
         if (type is INamedTypeSymbol named)
         {
-            if (named.SpecialType == SpecialType.System_String) return false;
-
-            var enumerable = named.AllInterfaces.FirstOrDefault(i => i.IsGenericType && i.OriginalDefinition.SpecialType == SpecialType.System_Collections_Generic_IEnumerable_T);
-            if (enumerable is not null)
+            if (named.OriginalDefinition.SpecialType == SpecialType.System_Nullable_T)
             {
-                itemType = enumerable.TypeArguments[0];
-                return true;
+                return false;
             }
 
-            // Also check the type itself if it is IEnumerable<T>
             if (named.IsGenericType && named.OriginalDefinition.SpecialType == SpecialType.System_Collections_Generic_IEnumerable_T)
             {
                 itemType = named.TypeArguments[0];
                 return true;
             }
-        }
 
+            foreach (var i in named.AllInterfaces)
+            {
+                if (i.IsGenericType && i.OriginalDefinition.SpecialType == SpecialType.System_Collections_Generic_IEnumerable_T)
+                {
+                    itemType = i.TypeArguments[0];
+                    return true;
+                }
+            }
+        }
         return false;
     }
 
-    private static IEnumerable<IPropertySymbol> GetAllProperties(ITypeSymbol type)
+
+    private static string Sanitise(string name)
     {
-        var current = type;
-        while (current is not null)
+        var res = new System.Text.StringBuilder();
+        foreach (var c in name)
         {
-            foreach (var prop in current.GetMembers().OfType<IPropertySymbol>().Where(p => !p.IsStatic && p.DeclaredAccessibility == Accessibility.Public))
+            if (char.IsLetterOrDigit(c))
             {
-                yield return prop;
+                res.Append(c);
             }
-            current = current.BaseType;
-        }
-    }
-
-    private static IEnumerable<IMethodSymbol> GetAllZeroArgMethods(ITypeSymbol type)
-    {
-        var current = type;
-        while (current is not null)
-        {
-            foreach (var method in current.GetMembers().OfType<IMethodSymbol>()
-                .Where(m => !m.IsStatic && m.MethodKind == MethodKind.Ordinary && m.Parameters.Length == 0 && m.DeclaredAccessibility == Accessibility.Public && m.Name.StartsWith("Get", StringComparison.Ordinal)))
+            else
             {
-                yield return method;
+                res.Append('_');
             }
-            current = current.BaseType;
         }
+        return res.ToString();
     }
 
-    private static string? ResolveFlattenedPath(ITypeSymbol source, string destPropertyName)
+    private static ITypeSymbol GetMemberType(ISymbol symbol) => symbol switch { IPropertySymbol p => p.Type, IFieldSymbol f => f.Type, _ => throw new InvalidOperationException() };
+    private static string GetDisplayString(ITypeSymbol type) => type.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat);
+
+    private static string? ResolveFlattenedPath(ITypeSymbol source, string name, string? sEnv, string? dEnv, ITypeSymbol destType)
     {
-        var parts = SplitPascalCase(destPropertyName);
-        if (parts.Count < 2) return null;
-        return WalkPath(source, parts, 0);
+        return TryMatchFlattenedPath(source, name, "", "", destType);
     }
 
-    private static string? WalkPath(ITypeSymbol current, IReadOnlyList<string> parts, int index)
+    private static string? TryMatchFlattenedPath(ITypeSymbol currentType, string targetName, string currentPath, string currentNameMatch, ITypeSymbol destType, int depth = 0)
     {
-        if (index == parts.Count) return string.Empty;
-        for (var length = parts.Count - index; length >= 1; length--)
+        if (depth > 6) return null; // Safety limit
+
+        foreach (var m in GetReadableMembers(currentType))
         {
-            var segment = string.Concat(parts.Skip(index).Take(length));
-            var prop = GetAllProperties(current)
-                .FirstOrDefault(p => string.Equals(p.Name, segment, StringComparison.OrdinalIgnoreCase));
+            // Do not allow single-level exact matches in flatten logic since they are Direct Matches
+            if (depth == 0 && string.Equals(m.Name, targetName, StringComparison.OrdinalIgnoreCase)) continue;
 
-            if (prop is null) continue;
+            var nextNameMatch = currentNameMatch + m.Name;
+            var nextPath = string.IsNullOrEmpty(currentPath) ? m.Name : $"{currentPath}?.{m.Name}";
 
-            // If we found a match at the root with the full name, it's not flattening.
-            if (index == 0 && length == parts.Count) continue;
-
-            if (index + length == parts.Count) return prop.Name;
-
-            var rest = WalkPath(prop.Type, parts, index + length);
-            if (rest is not null)
+            if (string.Equals(nextNameMatch, targetName, StringComparison.OrdinalIgnoreCase))
             {
-                var separator = prop.Type.IsReferenceType ? "?." : ".";
-                return rest.Length > 0 ? $"{prop.Name}{separator}{rest}" : prop.Name;
+                var t = GetMemberType(m);
+                var defaultVal = $"default({GetDisplayString(t)})!";
+                if (destType.SpecialType == SpecialType.System_String && destType.NullableAnnotation == NullableAnnotation.NotAnnotated)
+                {
+                    defaultVal = "\"\"";
+                }
+                return $"{nextPath} ?? {defaultVal}";
+            }
+
+            var tMember = GetMemberType(m);
+            if (tMember.TypeKind == TypeKind.Class && tMember.SpecialType == SpecialType.None)
+            {
+                var result = TryMatchFlattenedPath(tMember, targetName, nextPath, nextNameMatch, destType, depth + 1);
+                if (result != null) return result;
             }
         }
         return null;
     }
 
-    private static List<string> SplitPascalCase(string name)
+    private static bool IsNumeric(ITypeSymbol type)
     {
-        var matches = PascalSplitter.Matches(name);
-        var parts = new List<string>(matches.Count);
-        foreach (System.Text.RegularExpressions.Match m in matches) parts.Add(m.Value);
-        return parts;
+        var unwrapped = UnwrapNullable(type);
+        return unwrapped.SpecialType == SpecialType.System_Int16 || unwrapped.SpecialType == SpecialType.System_Int32 || unwrapped.SpecialType == SpecialType.System_Int64 ||
+               unwrapped.SpecialType == SpecialType.System_Decimal || unwrapped.SpecialType == SpecialType.System_Double || unwrapped.SpecialType == SpecialType.System_Single ||
+               unwrapped.SpecialType == SpecialType.System_Byte || unwrapped.SpecialType == SpecialType.System_UInt16 || unwrapped.SpecialType == SpecialType.System_UInt32 || unwrapped.SpecialType == SpecialType.System_UInt64;
     }
-
-    private static string Normalize(string name) => name.Replace("_", "");
-
-    private static string Sanitise(string name) =>
-        name.Replace('.', '_').Replace('<', '_').Replace('>', '_').Replace(',', '_').Replace(' ', '_');
 
     private sealed class TypePairComparer : IEqualityComparer<(ITypeSymbol, ITypeSymbol)>
     {
-        public bool Equals((ITypeSymbol, ITypeSymbol) x, (ITypeSymbol, ITypeSymbol) y)
-        {
-            return SymbolEqualityComparer.Default.Equals(x.Item1, y.Item1) &&
-                   SymbolEqualityComparer.Default.Equals(x.Item2, y.Item2);
-        }
-
-        public int GetHashCode((ITypeSymbol, ITypeSymbol) obj)
-        {
-            unchecked
-            {
-                int hash = 17;
-                hash = hash * 23 + SymbolEqualityComparer.Default.GetHashCode(obj.Item1);
-                hash = hash * 23 + SymbolEqualityComparer.Default.GetHashCode(obj.Item2);
-                return hash;
-            }
-        }
+        public bool Equals((ITypeSymbol, ITypeSymbol) x, (ITypeSymbol, ITypeSymbol) y) => SymbolEqualityComparer.Default.Equals(x.Item1, y.Item1) && SymbolEqualityComparer.Default.Equals(x.Item2, y.Item2);
+        public int GetHashCode((ITypeSymbol, ITypeSymbol) obj) => (SymbolEqualityComparer.Default.GetHashCode(obj.Item1) * 397) ^ SymbolEqualityComparer.Default.GetHashCode(obj.Item2);
     }
-
-    private static string GetReaderMethod(ITypeSymbol type)
-    {
-        var special = type.SpecialType;
-        if (special == SpecialType.System_Int32) return "GetInt32";
-        if (special == SpecialType.System_Int64) return "GetInt64";
-        if (special == SpecialType.System_String) return "GetString";
-        if (special == SpecialType.System_Boolean) return "GetBoolean";
-        if (special == SpecialType.System_DateTime) return "GetDateTime";
-        if (special == SpecialType.System_Decimal) return "GetDecimal";
-        if (special == SpecialType.System_Double) return "GetDouble";
-        if (type.Name == "Guid") return "GetGuid";
-
-        // Fallback for custom/uncommon types
-        return $"GetValue /* ({type.Name}) */";
-    }
-
-    private static bool IsNullable(ITypeSymbol type) =>
-        type.NullableAnnotation == NullableAnnotation.Annotated
-        || IsActuallyNullableValueType(type);
-
-    private static bool IsActuallyNullableValueType(ITypeSymbol type) =>
-        type is INamedTypeSymbol { IsValueType: true } nt
-            && nt.OriginalDefinition.SpecialType == SpecialType.System_Nullable_T;
-
-    private static string ApplyNullabilityGuard(string expression, ITypeSymbol sourceType, ITypeSymbol destType)
-    {
-        bool sourceNullable = IsNullable(sourceType);
-        bool destNullable = IsNullable(destType);
-
-        if (sourceNullable && !destNullable)
-        {
-            if (IsActuallyNullableValueType(sourceType))
-            {
-                return $"{expression}.GetValueOrDefault()";
-            }
-            return AppendNullDefault(expression, destType);
-        }
-
-        return expression;
-    }
-
-    private static string AppendNullDefault(string sourceExpr, ITypeSymbol destType)
-    {
-        if (destType.SpecialType == SpecialType.System_String)
-            return $"{sourceExpr} ?? string.Empty";
-
-        if (destType.TypeKind == TypeKind.Array)
-            return $"{sourceExpr} ?? global::System.Array.Empty<{((IArrayTypeSymbol)destType).ElementType.ToDisplayString()}>()";
-
-        if (destType.IsValueType && !IsNullable(destType))
-            return $"{sourceExpr}.GetValueOrDefault()";
-
-        return $"{sourceExpr}!";
-    }
-
-    private static string GetDisplayString(ITypeSymbol type) =>
-        type.WithNullableAnnotation(NullableAnnotation.None).ToDisplayString();
 }

@@ -164,9 +164,9 @@ public class Program
 }
 ";
         var result = GeneratorTestHelper.RunGenerator(source);
-        var mapSource = result.Sources.First(f => f.HintName.Contains("Source_To_Dest")).SourceText.ToString();
-        Assert.Contains("kv.Key.MapToDKey()", mapSource);
-        Assert.Contains("kv.Value.MapToDVal()", mapSource);
+        var mapSource = result.Sources.First(f => f.HintName.Contains("Source_") && f.HintName.Contains("_To_") && f.HintName.Contains("_Dest")).SourceText.ToString();
+        Assert.Contains("x.Key.MapToDKey()", mapSource);
+        Assert.Contains("x.Value.MapToDVal()", mapSource);
     }
 
     /// <summary> Confirm nullability handling logic when mapping nullable types to non-nullable destinations </summary>
@@ -174,6 +174,7 @@ public class Program
     public void Generator_MixedTypes_TriggerNullabilityBranches()
     {
         var source = @"
+#nullable enable
 using AutoMappic;
 
 public class Profile1 : Profile
@@ -199,10 +200,10 @@ public class Dest
 }
 ";
         var result = GeneratorTestHelper.RunGenerator(source);
-        var mapSource = result.Sources.First(f => f.HintName.Contains("Source_To_Dest")).SourceText.ToString();
+        var mapSource = result.Sources.First(f => f.HintName.Contains("Source_") && f.HintName.Contains("_To_") && f.HintName.Contains("_Dest")).SourceText.ToString();
         Assert.Contains("Value1.GetValueOrDefault()", mapSource);
-        Assert.Contains("Value2 ?? string.Empty", mapSource);
-        Assert.Contains("MapCollection_Value3(source.Value3)", mapSource);
+        Assert.Contains("Value2 ?? \"\"", mapSource);
+        Assert.Contains(".ToArray()", mapSource);
     }
 
     /// <summary> Explicitly trigger branches for ConstructUsing and Condition in the generator </summary>
@@ -229,7 +230,7 @@ public class Dest {
     public int Age { get; set; }
 }";
         var result = GeneratorTestHelper.RunGenerator(source);
-        var mapSource = result.Sources.First(f => f.HintName.Contains("Source_To_Dest")).SourceText.ToString();
+        var mapSource = result.Sources.First(f => f.HintName.Contains("Source_") && f.HintName.Contains("_To_") && f.HintName.Contains("_Dest")).SourceText.ToString();
         Assert.Contains("new Dest(source.Name)", mapSource);
         Assert.Contains("if (source.Id > 0)", mapSource);
     }

@@ -27,11 +27,19 @@ internal sealed class MappingExpression<TSource, TDestination> :
     private Func<TSource, TDestination, Task>? _afterMapAsync;
     private Func<TSource, TDestination>? _constructionFactory;
     private readonly Dictionary<string, Func<TSource, TDestination, bool>> _memberConditions = new(StringComparer.Ordinal);
+    private INamingConvention? _sourceNaming;
+    private INamingConvention? _destNaming;
 
     public MappingExpression(Profile? profile = null)
     {
         _profile = profile;
     }
+
+    /// <inheritdoc />
+    public INamingConvention? SourceNaming => _sourceNaming ?? _profile?.SourceNamingConvention;
+
+    /// <inheritdoc />
+    public INamingConvention? DestinationNaming => _destNaming ?? _profile?.DestinationNamingConvention;
 
     /// <inheritdoc />
     public Type SourceType => typeof(TSource);
@@ -119,6 +127,13 @@ internal sealed class MappingExpression<TSource, TDestination> :
     }
 
     /// <inheritdoc />
+    public IMappingExpression<TSource, TDestination> ConvertUsing(Expression<Func<TSource, TDestination>> converter)
+    {
+        _constructionFactory = converter.Compile();
+        return this;
+    }
+
+    /// <inheritdoc />
     public IMappingExpression ConvertUsing(Type converterType)
     {
         _converterType = converterType;
@@ -175,10 +190,34 @@ internal sealed class MappingExpression<TSource, TDestination> :
         if (_afterMapAsync != null) await _afterMapAsync(source, destination).ConfigureAwait(false);
     }
 
-    void IMappingExpression.ExecuteBefore(object source, object destination) => ExecuteBefore((TSource)source, (TDestination)destination);
-    void IMappingExpression.ExecuteAfter(object source, object destination) => ExecuteAfter((TSource)source, (TDestination)destination);
-    Task IMappingExpression.ExecuteBeforeAsync(object source, object destination) => ExecuteBeforeAsync((TSource)source, (TDestination)destination);
-    Task IMappingExpression.ExecuteAfterAsync(object source, object destination) => ExecuteAfterAsync((TSource)source, (TDestination)destination);
+    void IMappingExpression.ExecuteBefore(object source, object destination)
+    {
+        if (source is null || destination is null) return;
+        ExecuteBefore((TSource)source, (TDestination)destination);
+    }
+    void IMappingExpression.ExecuteAfter(object source, object destination)
+    {
+        if (source is null || destination is null) return;
+        ExecuteAfter((TSource)source, (TDestination)destination);
+    }
+    Task IMappingExpression.ExecuteBeforeAsync(object source, object destination)
+    {
+        if (source is null || destination is null) return Task.CompletedTask;
+        return ExecuteBeforeAsync((TSource)source, (TDestination)destination);
+    }
+    Task IMappingExpression.ExecuteAfterAsync(object source, object destination)
+    {
+        if (source is null || destination is null) return Task.CompletedTask;
+        return ExecuteAfterAsync((TSource)source, (TDestination)destination);
+    }
+
+    /// <inheritdoc />
+    public IMappingExpression<TSource, TDestination> WithNamingConvention(INamingConvention sourceNaming, INamingConvention destinationNaming)
+    {
+        _sourceNaming = sourceNaming;
+        _destNaming = destinationNaming;
+        return this;
+    }
 
     private static string GetMemberName<TMember>(Expression<Func<TDestination, TMember>> selector)
     {
@@ -229,5 +268,11 @@ internal sealed class MemberConfigurationExpression<TSource, TDestination, TMemb
     public void Condition(Expression<Func<TSource, TDestination, bool>> condition)
     {
         ConditionPredicate = condition.Compile();
+    }
+
+    /// <inheritdoc />
+    public void ConvertUsing<TConverter, TSourceMember>(Expression<Func<TSource, TSourceMember>> sourceMember) where TConverter : IValueConverter<TSourceMember, TMember>, new()
+    {
+        MapFromExpression = src => new TConverter().Convert(sourceMember.Compile()(src));
     }
 }

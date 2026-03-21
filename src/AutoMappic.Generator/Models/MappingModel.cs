@@ -35,7 +35,9 @@ internal sealed record PropertyMap(
     string? SourceRawExpression = null,
     bool IsReadOnly = false,
     bool IsAsync = false,
-    string? ConditionBody = null);
+    string? ConditionBody = null,
+    string? NestedFullDestTypeFullName = null,
+    string? DataReaderColumn = null);
 
 /// <summary>Describes how a <see cref="PropertyMap" /> was resolved by the convention engine.</summary>
 internal enum PropertyMapKind
@@ -52,7 +54,7 @@ internal enum PropertyMapKind
     /// <summary>An explicit <c>MapFrom</c> lambda stitched from source text.</summary>
     Explicit,
 
-    /// <summary>The property was explicitly ignored via <c>ForMember … Ignore()</c>.</summary>
+    /// <summary>The property was explicitly ignored via <c>ForMember ... Ignore()</c>.</summary>
     Ignored,
 }
 
@@ -94,7 +96,15 @@ internal sealed record MappingModel(
     string? AfterMapBody = null,
     string? BeforeMapAsyncBody = null,
     string? AfterMapAsyncBody = null,
-    string? ConstructionBody = null)
+    string? ConstructionBody = null,
+    string? SourceNamingStrategyFullName = null,
+    string? DestinationNamingStrategyFullName = null,
+    bool EnablePerformanceProfiling = false,
+    string? ProfileName = null,
+    bool IsSourceValueType = false,
+    bool IsDestinationValueType = false,
+    EquatableArray<string>? UnmappedProperties = null,
+    EquatableArray<string>? TypeParameters = null)
 {
     /// <summary>Returns true if any property in this mapping is resolved asynchronously.</summary>
     public bool IsAsync => Properties.Any(p => p.IsAsync) || ConstructorArguments.Any(p => p.IsAsync) || !string.IsNullOrEmpty(BeforeMapAsyncBody) || !string.IsNullOrEmpty(AfterMapAsyncBody);
@@ -104,10 +114,7 @@ internal sealed record MappingModel(
     ///   <c>context.AddSource()</c>, e.g. <c>Order_To_OrderDto</c>.
     /// </summary>
     public string HintName =>
-        $"{Sanitise(SourceTypeFullName)}_To_{Sanitise(DestinationTypeFullName)}";
-
-    private static string Sanitise(string name) =>
-        name.Replace('.', '_').Replace('+', '_').Replace('<', '_').Replace('>', '_');
+        $"{Pipeline.SourceEmitter.Sanitise(SourceTypeFullName)}_To_{Pipeline.SourceEmitter.Sanitise(DestinationTypeFullName)}";
 }
 
 internal enum InterceptKind
@@ -133,4 +140,7 @@ internal sealed record InterceptLocation(
     bool IsCollectionMapping = false,
     bool IsDestinationMapped = false,
     string? EffectiveSourceTypeFullName = null,
-    string? EffectiveDestTypeFullName = null);
+    string? EffectiveDestTypeFullName = null,
+    string? GenericParameters = null,
+    EquatableArray<string>? TypeArguments = null,
+    EquatableArray<string>? ExtraParameters = null);

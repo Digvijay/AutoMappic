@@ -11,24 +11,22 @@ namespace AutoMappic.Tests;
 #pragma warning disable AM003 // CreateMap called outside constructor (intentional for runtime-only tests)
 public class RuntimeCoverageTests
 {
-    /// <summary> Verify that MapAsync correctly returns a faulted task when an exception occurs during parameter validation </summary>
+    /// <summary> Verify that MapAsync correctly returns null (not faulted) when source is null </summary>
     [Fact]
-    public async Task MapAsync_WhenExceptionOccurs_ReturnsFaultedTask()
+    public async Task MapAsync_WhenSourceIsNull_ReturnsNull()
     {
         var mapper = new MapperConfiguration(p => { }).CreateMapper();
-        var task = mapper.MapAsync<UserDto>(null!);
-        Assert.True(task.IsFaulted, "Task should be faulted");
-        try { await task; } catch (ArgumentNullException) { /* Expected */ }
+        var result = await mapper.MapAsync<UserDto>(null!);
+        Assert.Null(result);
     }
 
-    /// <summary> Ensure that the generic MapAsync overload maintains consistent error behavior by returning a faulted task </summary>
+    /// <summary> Ensure that the generic MapAsync overload returns null when source is null </summary>
     [Fact]
-    public async Task MapAsyncGeneric_WhenExceptionOccurs_ReturnsFaultedTask()
+    public async Task MapAsyncGeneric_WhenSourceIsNull_ReturnsNull()
     {
         var mapper = new MapperConfiguration(p => { }).CreateMapper();
-        var task = mapper.MapAsync<User, UserDto>(null!);
-        Assert.True(task.IsFaulted, "Task should be faulted");
-        try { await task; } catch (ArgumentNullException) { /* Expected */ }
+        var result = await mapper.MapAsync<User, UserDto>(null!);
+        Assert.Null(result);
     }
 
     /// <summary> Test dictionary value transformation where numeric source values are converted to destination strings </summary>
@@ -183,7 +181,9 @@ public class RuntimeCoverageTests
     public void QueryableExtensions_ProjectTo_ThrowsAtRuntime()
     {
         var queryable = new List<User>().AsQueryable();
-        var method = typeof(QueryableExtensions).GetMethod("ProjectTo")!.MakeGenericMethod(typeof(User), typeof(UserDto));
+        var method = typeof(QueryableExtensions).GetMethods()
+            .First(m => m.Name == "ProjectTo" && m.GetGenericArguments().Length == 2)
+            .MakeGenericMethod(typeof(User), typeof(UserDto));
         // Calling via reflection avoids interceptor
         var ex = Assert.Throws<System.Reflection.TargetInvocationException>(() => method.Invoke(null, new object[] { queryable }));
         Assert.True(ex.InnerException is AutoMappicException);

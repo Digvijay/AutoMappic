@@ -38,7 +38,7 @@ Building bidirectional mappings is common for UI models and entities. AutoMappic
 CreateMap<Customer, CustomerDto>().ReverseMap();
 ```
 
-This will automatically create both `Customer → CustomerDto` and `CustomerDto → Customer`.
+This will automatically create both `Customer -> CustomerDto` and `CustomerDto -> Customer`.
 
 ## 4. Custom Type Converters
 
@@ -172,4 +172,4 @@ At compile-time, AutoMappic generates a high-efficiency `.ToString()` call. This
 
 ---
 
-[Next: Collections and Dictionaries →](./collections-and-dictionaries.md)
+[Next: Collections and Dictionaries ->](./collections-and-dictionaries.md)

@@ -1,0 +1,28 @@
+# Set default behavior to automatically normalize line endings.
+* text=auto eol=lf
+
+# Explicitly declare text files you want to always be normalized and converted
+# to native line endings on checkout.
+*.cs text diff=csharp
+*.csproj text
+*.sln text
+*.md text
+*.json text
+*.yml text
+*.yaml text
+*.mts text
+*.css text
+
+# Declare files that will always have LF line endings on checkout.
+*.sh text eol=lf
+.gitignore text eol=lf
+.editorconfig text eol=lf
+
+# Denote all files that are truly binary and should not be modified.
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.woff binary
+*.woff2 binary

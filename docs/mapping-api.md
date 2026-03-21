@@ -1,35 +1,34 @@
 # Mapping API Reference
 
-AutoMappic provides a fluent API for configuring how properties are mapped between source and destination types. All configurations are declared within a `Profile` constructor.
+AutoMappic provides a fluent, type-safe API for configuring object-to-object mappings. All configurations are declared within a `Profile` constructor and are used by the Roslyn source generator to emit statically-optimized C# code.
 
-## 1. Destination Instantiation
+## 1. Object Creation
 
 ### ConstructUsing
-Sets a custom factory expression for the destination type. This is used instead of the default constructor and provides manual control over object creation.
+Defines a custom factory for the destination type. This replaces the default constructor call in the generated code.
 
 ```csharp
 CreateMap<Order, OrderDto>()
     .ConstructUsing(src => new OrderDto(src.OrderId, DateTime.UtcNow));
 ```
 
-## 2. Member Configuration
+## 2. Member Mapping
 
 ### ForMember
-Configures a specific destination member.
+The primary way to override default conventions for a specific destination property.
 
 ```csharp
 CreateMap<User, UserDto>()
     .ForMember(dest => dest.FullName, opt => opt.MapFrom(src => $"{src.FirstName} {src.LastName}"));
 ```
 
-### MapFrom (Custom Source)
+### MapFrom (Custom Logic)
 Redirects the source of a destination property.
-- **Lambda:** `opt.MapFrom(src => ...)`
-- **Member Name:** Not yet supported (use lambda).
-- **Value Resolver:** Use `opt.MapFrom<MyResolver>()` for complex logic.
+- **Lambda Expressions:** Fully supported for direct assignments.
+- **Value Resolvers:** Use `opt.MapFrom<TResolver>()` for complex logic that requires DI services. AutoMappic generates a direct instantiation of your resolver, ensuring zero-reflection overhead.
 
 ### Condition
-Gates a property assignment with a predicate. If the predicate returns `false`, the property is not assigned.
+Gates a property assignment with a predicate. If the condition is not met, the property assignment is skipped in the generated code.
 
 ```csharp
 CreateMap<Product, ProductDto>()
@@ -37,23 +36,17 @@ CreateMap<Product, ProductDto>()
 ```
 
 ### Ignore
-Suppresses the mapping of a destination member, also satisfying the **AM001 (Unmapped Property)** diagnostic.
+Explicitly prevents a property from being mapped. This is required for properties that have no source match to satisfy the **AM001** (Unmapped Property) diagnostic.
 
 ```csharp
 CreateMap<Employee, EmployeeDto>()
     .ForMemberIgnore(dest => dest.InternalSecret);
 ```
 
-### ConvertUsing
-Provides a custom converter for the entire type-pair.
-```csharp
-CreateMap<String, int>().ConvertUsing<StringToIntConverter>();
-```
-
 ## 3. Directional Mapping
 
 ### ReverseMap
-Automatically creates a mapping in the opposite direction (`TDestination` $\to$ `TSource`). 
+Automatically generates a mapping in the opposite direction (`TDestination` -> `TSource`). You can continue the fluent chain to add specific overrides for the reverse direction.
 
 ```csharp
 CreateMap<User, UserDto>()
@@ -64,28 +57,28 @@ CreateMap<User, UserDto>()
 ## 4. Lifecycle Hooks
 
 ### BeforeMap / AfterMap
-Executes custom logic before or after the property mapping phase. Supports both synchronous and asynchronous (`BeforeMapAsync`) implementations.
-
-```csharp
-CreateMap<Source, Dest>()
-    .AfterMap((src, dest) => dest.Timestamp = DateTime.UtcNow);
-```
+Executes custom logic before or after the property assignment phase.
+- **Synchronous:** `.BeforeMap((src, dest) => ...)`
+- **Asynchronous:** `.BeforeMapAsync(async (src, dest) => ...)`
+- **Interceptors:** When using these hooks, AutoMappic generates an internal wrapper to ensure they are executed in the correct sequence within the intercepted call.
 
 ## 5. Projections and Collections
 
 ### Zero-LINQ Collections
-AutoMappic automatically handles `List<T>`, `T[]`, and `IEnumerable<T>`. 
-- Deep mapping of items is generated as optimized `for` loops.
-- Pre-allocation of list capacity is used whenever the source count is known.
+AutoMappic automatically handles `List<T>`, `T[]`, and `IEnumerable<T>` using specialized generators:
+- **Loop Emission**: Emits a standard `for` loop (or `foreach` for iterables) instead of calling LINQ methods.
+- **Pre-allocation**: Uses `new List<T>(count)` or `new T[count]` to optimize memory pressure when the source size is known at runtime.
 
-### ProjectTo
-Converts an `IQueryable<T>` into an `IQueryable<U>` at compile-time by rewriting the `Select` tree.
+### ProjectTo (EF Core)
+Converts an `IQueryable<T>` into an `IQueryable<U>` at compile-time.
 ```csharp
-var dtos = dbContext.Users.ProjectTo<User, UserDto>();
+// Standard usage
+var dtos = dbContext.Users.ProjectTo<UserDto>(_mapper.ConfigurationProvider);
 ```
 
-### IDataReader.Map
-Fast projection from `IDataReader` to DTOs without runtime column name scanning.
+### DataReader.Map
+High-performance, non-reflective projection from an ADO.NET `IDataReader`.
 ```csharp
-var dto = reader.MapToUserDto();
+using var reader = cmd.ExecuteReader();
+var users = reader.Map<UserDto>();
 ```

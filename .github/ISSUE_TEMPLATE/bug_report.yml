@@ -30,7 +30,7 @@ body:
     attributes:
       label: AutoMappic Version
       description: Which version of AutoMappic are you using?
-      placeholder: v0.1.0
+      placeholder: v0.3.0
     validations:
       required: true
   - type: input

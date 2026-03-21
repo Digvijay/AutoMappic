@@ -1,0 +1,8 @@
+/bin/
+/obj/
+/dist/
+/.vitepress/dist/
+/.vitepress/cache/
+node_modules/
+/artifacts/
+/BenchmarkDotNet.Artifacts/

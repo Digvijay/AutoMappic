@@ -76,19 +76,4 @@ Console.WriteLine();
 Console.WriteLine("Result: Instantly Native AOT ready. Zero startup delay.");
 Console.WriteLine("─────────────────────────────────────────────────────────────────");
 
-// --- Profile ---
-
-public class eShopMappingProfile : Profile
-{
-    public eShopMappingProfile()
-    {
-        // Mirrors dotnet/eShop's mapping registration:
-        CreateMap<CatalogItem, CatalogItemDto>()
-            .ReverseMap(); // Now supported!
-        
-        CreateMap<Order, OrderSummaryDto>()
-            .ForMember(dest => dest.Date, opt => opt.MapFrom(src => src.OrderDate));
-            
-        CreateMap<OrderItem, OrderItemDto>();
-    }
-}
+// eShopMappingProfile moved to its own file.

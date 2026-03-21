@@ -27,6 +27,12 @@ public abstract class Profile
     /// <summary>Naming strategy for destination member names (defaults to <see cref="PascalCaseNamingConvention" />).</summary>
     public INamingConvention DestinationNamingConvention { get; set; } = new PascalCaseNamingConvention();
 
+    /// <summary>
+    ///   When <see langword="true" />, the source generator will inject diagnostic performance markers 
+    ///   into the generated mapping code to help identify high-latency property assignments.
+    /// </summary>
+    public bool EnablePerformanceProfiling { get; set; }
+
     internal void AddMapping(IMappingExpression expression) => _mappings.Add(expression);
 
     /// <summary>
@@ -39,7 +45,7 @@ public abstract class Profile
     ///   A fluent <see cref="IMappingExpression{TSource, TDestination}" /> that lets you
     ///   override conventions with explicit <c>ForMember</c> calls.
     /// </returns>
-    protected IMappingExpression<TSource, TDestination> CreateMap<TSource, TDestination>()
+    protected internal IMappingExpression<TSource, TDestination> CreateMap<TSource, TDestination>()
     {
         var expression = new MappingExpression<TSource, TDestination>(this);
         _mappings.Add(expression);
@@ -52,7 +58,7 @@ public abstract class Profile
     /// <param name="sourceType">The source type (generic or closed).</param>
     /// <param name="destinationType">The destination type (generic or closed).</param>
     /// <returns>A non-generic configuration expression.</returns>
-    protected IMappingExpression CreateMap(Type sourceType, Type destinationType)
+    protected internal IMappingExpression CreateMap(Type sourceType, Type destinationType)
     {
         var expr = new OpenGenericMappingExpression(sourceType, destinationType);
         _mappings.Add(expr);
@@ -72,6 +78,8 @@ internal sealed class OpenGenericMappingExpression(Type s, Type d) : IMappingExp
     public IReadOnlyDictionary<string, string> MemberConditions => new Dictionary<string, string>();
     public Delegate? ConstructionFactory => null;
     public IReadOnlyDictionary<string, Delegate> RuntimeConditions => new Dictionary<string, Delegate>();
+    public INamingConvention? SourceNaming => null;
+    public INamingConvention? DestinationNaming => null;
 
     public IMappingExpression ConvertUsing(Type converterType)
     {

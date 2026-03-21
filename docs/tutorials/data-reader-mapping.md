@@ -33,10 +33,11 @@ IEnumerable<UserDto> users = reader.Map<UserDto>();
 
 When you call `reader.Map<UserDto>()`, AutoMappic generates a specialized, non-reflective loop:
 
-1.  **Ordinal Pre-fetching**: It calls `GetOrdinal` for every property.
-2.  **Typed Access**: It calls the correct typed method (`GetInt32`, `GetString`, `GetGuid`) based on your DTO's property type.
-3.  **Null-Safety**: Automatically checks `reader.IsDBNull(ordinal)` for nullable properties.
-4.  **Static Speed**: The entire mapping logic is baked into your assembly—no expression trees or IL generation at runtime.
+1.  **Conventional Matching (v0.3.0)**: It automatically transforms property names using your profile's `SourceNamingConvention`. For example, `FirstName` will map to column `first_name` if `LowerUnderscoreNamingConvention` is used.
+2.  **Ordinal Pre-fetching**: It calls `GetOrdinal` for every property.
+3.  **Typed Access**: It calls the correct typed method (`GetInt32`, `GetString`, `GetGuid`) based on your DTO's property type.
+4.  **Null-Safety**: Automatically checks `reader.IsDBNull(ordinal)` for nullable properties.
+5.  **Static Speed**: The entire mapping logic is baked into your assembly--no expression trees or IL generation at runtime.
 
 ---
 

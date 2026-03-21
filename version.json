@@ -1,0 +1,10 @@
+{
+  "version": "0.3.0",
+  "publicReleaseRefSpecs": [
+    "^refs/heads/main$",
+    "^refs/heads/master$"
+  ],
+  "nugetPackageVersion": {
+    "semver": 2
+  }
+}

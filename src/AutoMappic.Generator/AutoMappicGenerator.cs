@@ -17,7 +17,7 @@ public sealed class AutoMappicGenerator : IIncrementalGenerator
     /// <inheritdoc />
     public void Initialize(IncrementalGeneratorInitializationContext context)
     {
-        // ── Pipeline 0: Source-Only Injection ────────────────────────────────────
+        // -- Pipeline 0: Source-Only Injection ------------------------------------
         context.RegisterSourceOutput(context.AnalyzerConfigOptionsProvider, static (spc, options) =>
         {
             options.GlobalOptions.TryGetValue("build_property.automappic_sourceonly", out var v1);
@@ -30,7 +30,7 @@ public sealed class AutoMappicGenerator : IIncrementalGenerator
             }
         });
 
-        // ── Pipeline 1: Mapping Profiles ─────────────────────────────────────────
+        // -- Pipeline 1: Mapping Profiles -----------------------------------------
 
         var profileCandidates = context.SyntaxProvider.CreateSyntaxProvider(
             predicate: ProfileExtractor.IsProfileClassCandidate,
@@ -61,7 +61,7 @@ public sealed class AutoMappicGenerator : IIncrementalGenerator
             spc.AddSource(hintName, source);
         });
 
-        // ── Pipeline 1.5: Cycle Detection ─────────────────────────────────────────
+        // -- Pipeline 1.5: Cycle Detection -----------------------------------------
 
         var allModels = uniqueMappingModels.Collect();
         context.RegisterSourceOutput(allModels, static (spc, models) =>
@@ -74,7 +74,7 @@ public sealed class AutoMappicGenerator : IIncrementalGenerator
             }
         });
 
-        // ── Pipeline 2: Interceptors ──────────────────────────────────────────────
+        // -- Pipeline 2: Interceptors ----------------------------------------------
 
         var interceptLocations = context.SyntaxProvider.CreateSyntaxProvider(
             predicate: InterceptorCollector.IsInvocationCandidate,
@@ -95,14 +95,36 @@ public sealed class AutoMappicGenerator : IIncrementalGenerator
 
             // Use the first registration found for each pair to resolve interception.
             var mappingsByKey = new Dictionary<string, MappingModel>(System.StringComparer.Ordinal);
+            var collisionCheck = new Dictionary<string, MappingModel>(System.StringComparer.Ordinal);
 
             // 1. Local mappings
             foreach (var m in models)
             {
-                var key = $"{Sanitise(m.SourceTypeFullName)}_To_{Sanitise(m.DestinationTypeFullName)}";
+                var fullKey = $"{m.SourceTypeFullName}_To_{m.DestinationTypeFullName}";
+                if (collisionCheck.TryGetValue(fullKey, out var existing))
+                {
+                    spc.ReportDiagnostic(Diagnostic.Create(
+                        AutoMappicDiagnostics.DuplicateMapping,
+                        global::Microsoft.CodeAnalysis.Location.None,
+                        m.SourceTypeName, m.DestinationTypeName,
+                        existing.ProfileName ?? "UnknownProfile", m.ProfileName ?? "UnknownProfile"));
+                }
+                else
+                {
+                    collisionCheck.Add(fullKey, m);
+                }
+
+                var key = $"{SourceEmitter.Sanitise(m.SourceTypeFullName)}_To_{SourceEmitter.Sanitise(m.DestinationTypeFullName)}";
                 if (!mappingsByKey.ContainsKey(key))
                 {
                     mappingsByKey[key] = m;
+                }
+
+                // Also add an unbound fallback key
+                var unboundKey = $"{SourceEmitter.Sanitise(SourceEmitter.GetUnbound(m.SourceTypeFullName))}_To_{SourceEmitter.Sanitise(SourceEmitter.GetUnbound(m.DestinationTypeFullName))}";
+                if (unboundKey != key && !mappingsByKey.ContainsKey(unboundKey))
+                {
+                    mappingsByKey[unboundKey] = m;
                 }
             }
 
@@ -115,9 +137,9 @@ public sealed class AutoMappicGenerator : IIncrementalGenerator
                         attr.ConstructorArguments[0].Value is INamedTypeSymbol src &&
                         attr.ConstructorArguments[1].Value is INamedTypeSymbol dest)
                     {
-                        var srcFull = src.ToDisplayString();
-                        var destFull = dest.ToDisplayString();
-                        var key = $"{Sanitise(srcFull)}_To_{Sanitise(destFull)}";
+                        var srcFull = Pipeline.SourceEmitter.GetDisplayString(src);
+                        var destFull = Pipeline.SourceEmitter.GetDisplayString(dest);
+                        var key = $"{Pipeline.SourceEmitter.Sanitise(srcFull)}_To_{Pipeline.SourceEmitter.Sanitise(destFull)}";
 
                         if (!mappingsByKey.ContainsKey(key))
                         {
@@ -135,12 +157,13 @@ public sealed class AutoMappicGenerator : IIncrementalGenerator
             // 3. Emit AM008 for potential ProjectTo incompatibilities
             foreach (var loc in locations.Where(l => l.Kind == InterceptKind.ProjectTo))
             {
-                var key = $"{Sanitise(loc.SourceTypeFullName)}_To_{Sanitise(loc.DestinationTypeFullName)}";
+                var key = $"{SourceEmitter.Sanitise(loc.SourceTypeFullName)}_To_{SourceEmitter.Sanitise(loc.DestinationTypeFullName)}";
                 if (mappingsByKey.TryGetValue(key, out var model))
                 {
-                    bool hasRuntimeFeatures = model.Properties.Any(p => !string.IsNullOrEmpty(p.ConditionBody)) ||
+                    bool hasRuntimeFeatures = model.Properties.Any(p => !string.IsNullOrEmpty(p.ConditionBody) || p.Kind == PropertyMapKind.Explicit) ||
                                               !string.IsNullOrEmpty(model.BeforeMapBody) ||
                                               !string.IsNullOrEmpty(model.AfterMapBody) ||
+                                              !string.IsNullOrEmpty(model.ConstructionBody) ||
                                               !string.IsNullOrEmpty(model.BeforeMapAsyncBody) ||
                                               !string.IsNullOrEmpty(model.AfterMapAsyncBody);
 
@@ -165,7 +188,7 @@ public sealed class AutoMappicGenerator : IIncrementalGenerator
             spc.AddSource(hintName, source);
         });
 
-        // ── Pipeline 3: DI Registration ──────────────────────────────────────────
+        // -- Pipeline 3: DI Registration ------------------------------------------
 
         var profileClasses = context.SyntaxProvider.CreateSyntaxProvider(
             predicate: static (node, _) => node is Microsoft.CodeAnalysis.CSharp.Syntax.ClassDeclarationSyntax cls && cls.BaseList is not null,
@@ -226,12 +249,6 @@ public sealed class AutoMappicGenerator : IIncrementalGenerator
         });
     }
 
-    private static string Sanitise(string name)
-    {
-        var res = new System.Text.StringBuilder();
-        foreach (var c in name ?? "Default") if (char.IsLetterOrDigit(c)) res.Append(c); else res.Append('_');
-        return res.ToString();
-    }
 
     private sealed class MappingResultComparer
         : IEqualityComparer<(MappingModel Model, IReadOnlyList<Diagnostic> Diagnostics)>
