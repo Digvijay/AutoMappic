@@ -8,7 +8,16 @@
     <ToolCommandName>automappic</ToolCommandName>
     <PackageId>AutoMappic.Cli</PackageId>
     <Description>CLI tool for AutoMappic: mapping validation and visualization.</Description>
+    <PackageIcon>icon.png</PackageIcon>
+    <PackageTags>mapper;mapping;cli;dotnet-tool;aot;performance</PackageTags>
+    <IncludeSymbols>true</IncludeSymbols>
+    <SymbolPackageFormat>snupkg</SymbolPackageFormat>
   </PropertyGroup>
+
+  <!-- Include the icon in the package -->
+  <ItemGroup>
+    <None Include="..\..\icon.png" Pack="true" PackagePath="" />
+  </ItemGroup>
 
   <ItemGroup>
     <InternalsVisibleTo Include="AutoMappic.Cli.Tests" />
