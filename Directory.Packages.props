@@ -33,5 +33,8 @@
     <!-- Source Link -->
     <PackageVersion Include="Microsoft.SourceLink.GitHub" Version="10.0.201" />
     <PackageVersion Include="Nerdbank.GitVersioning" Version="3.6.143" />
+    <!-- Security Overrides for Transitive Dependencies -->
+    <PackageVersion Include="System.Formats.Asn1" Version="9.0.2" />
+    <PackageVersion Include="System.Text.Json" Version="9.0.2" />
   </ItemGroup>
 </Project>
