@@ -14,11 +14,6 @@
     <SymbolPackageFormat>snupkg</SymbolPackageFormat>
   </PropertyGroup>
 
-  <!-- Include the icon in the package -->
-  <ItemGroup>
-    <None Include="..\..\icon.png" Pack="true" PackagePath="" />
-  </ItemGroup>
-
   <ItemGroup>
     <InternalsVisibleTo Include="AutoMappic.Cli.Tests" />
   </ItemGroup>

@@ -24,10 +24,6 @@
   </ItemGroup>
 
   <ItemGroup>
-    <None Include="..\..\icon.png" Pack="true" PackagePath="" />
-  </ItemGroup>
-
-  <ItemGroup>
     <ProjectReference Include="..\AutoMappic.Generator\AutoMappic.Generator.csproj" 
                       OutputItemType="Analyzer"
                       ReferenceOutputAssembly="false" 
