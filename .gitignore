@@ -105,6 +105,7 @@ yarn-debug.log*
 yarn-error.log*
 # Artifacts
 artifacts/
+local_artifacts/
 
 # Redundant Root Docs
 GettingStarted.md

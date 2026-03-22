@@ -35,6 +35,8 @@ jobs:
       run: dotnet run --project tests/AutoMappic.Tests/AutoMappic.Tests.csproj --configuration Release
 
     - name: Pack
+      env:
+        PublicRelease: true
       run: |
         dotnet pack src/AutoMappic.Core/AutoMappic.Core.csproj -c Release -o ./artifacts
         dotnet pack src/AutoMappic.Cli/AutoMappic.Cli.csproj -c Release -o ./artifacts
