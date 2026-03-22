@@ -2,7 +2,8 @@
   "version": "0.3.0",
   "publicReleaseRefSpecs": [
     "^refs/heads/main$",
-    "^refs/heads/master$"
+    "^refs/heads/master$",
+    "^refs/tags/v\\d+\\.\\d+"
   ],
   "nugetPackageVersion": {
     "semver": 2
