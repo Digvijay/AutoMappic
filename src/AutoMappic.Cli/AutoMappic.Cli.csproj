@@ -12,6 +12,7 @@
     <PackageTags>mapper;mapping;cli;dotnet-tool;aot;performance</PackageTags>
     <IncludeSymbols>true</IncludeSymbols>
     <SymbolPackageFormat>snupkg</SymbolPackageFormat>
+    <IsPackable>true</IsPackable>
   </PropertyGroup>
 
   <ItemGroup>
