@@ -24,7 +24,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **ProjectTo Context Scope**: Fixed an issue where `MappingContext` references in nested collection expressions caused compilation errors in IQueryable `ProjectTo` expression trees.
 - **Read-Only Collection In-Place Mapping**: Fixed a missing closing brace in generated code for in-place mapping of read-only collection properties.
 
-## [0.3.0] - 2026-03-21
+## [0.4.0] - 2026-03-21
 
 ### Added
 - **Multi-Targeting Support**: Explicitly added support for both .NET 9 and .NET 10 to ensure first-class performance on the latest .NET SDKs.
