@@ -52,7 +52,7 @@ public sealed class CircularReferenceTests
     public async System.Threading.Tasks.Task MapAsync_CircularReference_TriggersTrackers()
     {
         var services = new Microsoft.Extensions.DependencyInjection.ServiceCollection();
-        // Manually build configuration to avoid AM006 during full build if needed
+        // Manually build configuration to avoid AM0006 during full build if needed
         var config = new MapperConfiguration(cfg => cfg.AddProfile<UnsafeProfile>());
         var mapper = config.CreateMapper();
 
@@ -81,9 +81,9 @@ public sealed class CircularReferenceTests
     {
         public UnsafeProfile()
         {
-#pragma warning disable AM006
+#pragma warning disable AM0006
             CreateMap<Node, NodeDto>();
-#pragma warning restore AM006
+#pragma warning restore AM0006
         }
     }
 }

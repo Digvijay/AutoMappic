@@ -2,16 +2,16 @@
 
 Rule ID | Category | Severity | Notes
 --------|----------|----------|--------------------
-AM001 | AutoMappic | Error | Unmapped destination property.
-AM002 | AutoMappic | Error | Ambiguous property mapping.
-AM003 | AutoMappic | Warning | CreateMap called outside a Profile constructor.
-AM004 | AutoMappic | Warning | No generated mapping for intercepted IMapper.Map call.
-AM005 | AutoMappic | Error | Missing parameterless constructor.
-AM006 | AutoMappic | Error | Circular reference detected.
-AM007 | AutoMappic | Warning | Could not resolve CreateMap symbol.
-AM008 | AutoMappic | Warning | Unsupported ProjectTo feature.
-AM009 | AutoMappic | Warning | Duplicate mapping configuration.
-AM010 | AutoMappic | Info | Performance hotpath detected.
-AM011 | AutoMappic | Error | Multi-Source ProjectTo not supported.
-AM012 | AutoMappic | Warning | Asymmetric mapping configuration.
-AM013 | AutoMappic | Warning | Required property patch mismatch.
+AM0001 | AutoMappic | Error | Unmapped destination property.
+AM0002 | AutoMappic | Error | Ambiguous property mapping.
+AM0003 | AutoMappic | Warning | CreateMap called outside a Profile constructor.
+AM0004 | AutoMappic | Warning | No generated mapping for intercepted IMapper.Map call.
+AM0005 | AutoMappic | Error | Missing parameterless constructor.
+AM0006 | AutoMappic | Error | Circular reference detected.
+AM0007 | AutoMappic | Warning | Could not resolve CreateMap symbol.
+AM0008 | AutoMappic | Warning | Unsupported ProjectTo feature.
+AM0009 | AutoMappic | Warning | Duplicate mapping configuration.
+AM0010 | AutoMappic | Info | Performance hotpath detected.
+AM0011 | AutoMappic | Error | Multi-Source ProjectTo not supported.
+AM0012 | AutoMappic | Warning | Asymmetric mapping configuration.
+AM0013 | AutoMappic | Warning | Required property patch mismatch.

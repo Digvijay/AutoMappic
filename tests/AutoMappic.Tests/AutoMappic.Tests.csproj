@@ -11,7 +11,7 @@
     <InterceptorsNamespaces>$(InterceptorsNamespaces);AutoMappic.Generated</InterceptorsNamespaces>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
     <EmitCompilerGeneratedFiles>true</EmitCompilerGeneratedFiles>
-    <NoWarn>$(NoWarn);CS1591;CS1584;CS1658;AM007;AM006;AM009</NoWarn>
+    <NoWarn>$(NoWarn);CS1591;CS1584;CS1658;AM0007;AM0006;AM0009</NoWarn>
   </PropertyGroup>
 
   <ItemGroup>

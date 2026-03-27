@@ -9,7 +9,7 @@ namespace AutoMappic.Tests;
 public class CircularityTests
 {
     [Fact]
-    [Prova.Description("Verify that circular references in the mapping graph are detected at compile-time and report AM006.")]
+    [Prova.Description("Verify that circular references in the mapping graph are detected at compile-time and report AM0006.")]
     public void Generator_CircularReference_ReportsError()
     {
         var sourceCode = @"
@@ -27,7 +27,7 @@ public class CircularProfile : Profile
 
         var result = GeneratorTestHelper.RunGenerator(sourceCode);
         
-        var errors = result.Diagnostics.Where(d => d.Id == "AM006").ToList();
+        var errors = result.Diagnostics.Where(d => d.Id == "AM0006").ToList();
         Prova.Assertions.Assert.NotEmpty(errors);
         Prova.Assertions.Assert.Contains("Circular reference detected", errors[0].GetMessage());
     }

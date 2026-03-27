@@ -6,9 +6,9 @@ namespace AutoMappic.Tests;
 
 public sealed class NegativeDiagnosticTests
 {
-    /// <summary> Verify that AM001 is reported when a property is missing and not ignored </summary>
+    /// <summary> Verify that AM0001 is reported when a property is missing and not ignored </summary>
     [Fact]
-    public void Generator_ReportAM001_WhenPropertyIsMissingInSource()
+    public void Generator_ReportAM0001_WhenPropertyIsMissingInSource()
     {
         var source = @"
 using AutoMappic;
@@ -24,13 +24,13 @@ public class MyProfile : Profile
     }
 }";
         var result = GeneratorTestHelper.RunGenerator(source);
-        var am001 = result.Diagnostics.FirstOrDefault(d => d.Id == "AM001");
+        var am001 = result.Diagnostics.FirstOrDefault(d => d.Id == "AM0001");
         Assert.NotNull(am001);
     }
 
-    /// <summary> Verify that AM005 is reported when the destination class lacks a parameterless constructor </summary>
+    /// <summary> Verify that AM0005 is reported when the destination class lacks a parameterless constructor </summary>
     [Fact]
-    public void Generator_ReportAM005_WhenDestConstructorIsInvalid()
+    public void Generator_ReportAM0005_WhenDestConstructorIsInvalid()
     {
         var source = @"
 using AutoMappic;
@@ -47,13 +47,13 @@ public class MyProfile : Profile
     }
 }";
         var result = GeneratorTestHelper.RunGenerator(source);
-        var am005 = result.Diagnostics.FirstOrDefault(d => d.Id == "AM005");
+        var am005 = result.Diagnostics.FirstOrDefault(d => d.Id == "AM0005");
         Assert.NotNull(am005);
     }
 
-    /// <summary> Verify that AM003 is reported when CreateMap is called outside a Profile constructor (as a warning) </summary>
+    /// <summary> Verify that AM0003 is reported when CreateMap is called outside a Profile constructor (as a warning) </summary>
     [Fact]
-    public void Generator_ReportAM003_WhenCreateMapIsOutsideProfile()
+    public void Generator_ReportAM0003_WhenCreateMapIsOutsideProfile()
     {
         var source = @"
 using AutoMappic;
@@ -79,7 +79,7 @@ public class S { }
 public class D { }
 ";
         var result = GeneratorTestHelper.RunGenerator(source);
-        var am003 = result.Diagnostics.FirstOrDefault(d => d.Id == "AM003");
+        var am003 = result.Diagnostics.FirstOrDefault(d => d.Id == "AM0003");
         Assert.NotNull(am003);
     }
 }

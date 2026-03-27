@@ -8,7 +8,7 @@ using Assert = Prova.Assertions.Assert;
 namespace AutoMappic.Tests;
 
 /// <summary>
-///   Tests for v0.4.0 Identity Management, Collection Syncing, Patch Mode, AM013 Diagnostic,
+///   Tests for v0.4.0 Identity Management, Collection Syncing, Patch Mode, AM0013 Diagnostic,
 ///   and Static Converter features.
 /// </summary>
 public class IdentityManagementTests
@@ -102,11 +102,11 @@ public class PatchProfile : Profile
 
     #endregion
 
-    #region Generator-Level: AM013 Diagnostic
+    #region Generator-Level: AM0013 Diagnostic
 
-    /// <summary> AM013 should fire when a required destination property is mapped from a nullable source with identity management. </summary>
+    /// <summary> AM0013 should fire when a required destination property is mapped from a nullable source with identity management. </summary>
     [Fact]
-    public void Generator_AM013_WarnsOnRequiredPatchMismatch()
+    public void Generator_AM0013_WarnsOnRequiredPatchMismatch()
     {
         var source = @"
 #nullable enable
@@ -126,12 +126,12 @@ public class MyProfile : Profile
         var result = GeneratorTestHelper.RunGenerator(source, options);
         var diagIds = result.Diagnostics.Select(d => d.Id).ToList();
 
-        Assert.Contains("AM013", diagIds);
+        Assert.Contains("AM0013", diagIds);
     }
 
-    /// <summary> AM013 should NOT fire without identity management enabled. </summary>
+    /// <summary> AM0013 should NOT fire without identity management enabled. </summary>
     [Fact]
-    public void Generator_AM013_NotEmittedWithoutIdentityManagement()
+    public void Generator_AM0013_NotEmittedWithoutIdentityManagement()
     {
         var source = @"
 #nullable enable
@@ -147,13 +147,13 @@ public class MyProfile : Profile
         var result = GeneratorTestHelper.RunGenerator(source);
         var diagIds = result.Diagnostics.Select(d => d.Id).ToList();
 
-        Assert.True(!diagIds.Contains("AM013"),
-            $"AM013 should not fire without identity management. Diagnostics: {string.Join(", ", diagIds)}");
+        Assert.True(!diagIds.Contains("AM0013"),
+            $"AM0013 should not fire without identity management. Diagnostics: {string.Join(", ", diagIds)}");
     }
 
-    /// <summary> AM013 should NOT fire when the destination property is not required. </summary>
+    /// <summary> AM0013 should NOT fire when the destination property is not required. </summary>
     [Fact]
-    public void Generator_AM013_NotEmittedForNonRequired()
+    public void Generator_AM0013_NotEmittedForNonRequired()
     {
         var source = @"
 #nullable enable
@@ -173,8 +173,8 @@ public class MyProfile : Profile
         var result = GeneratorTestHelper.RunGenerator(source, options);
         var diagIds = result.Diagnostics.Select(d => d.Id).ToList();
 
-        Assert.True(!diagIds.Contains("AM013"),
-            $"AM013 should not fire for non-required properties. Diagnostics: {string.Join(", ", diagIds)}");
+        Assert.True(!diagIds.Contains("AM0013"),
+            $"AM0013 should not fire for non-required properties. Diagnostics: {string.Join(", ", diagIds)}");
     }
 
     #endregion

@@ -1,6 +1,6 @@
-# Conditional Mapping & AM008
+# Conditional Mapping & AM0008
 
-AutoMappic v0.3.0 introduces **Conditional Member Mapping**, allowing you to gate property assignments with custom predicates. This is essential for complex business logic where you only want to map a value if certain criteria are met.
+AutoMappic v0.4.0 introduces **Conditional Member Mapping**, allowing you to gate property assignments with custom predicates. This is essential for complex business logic where you only want to map a value if certain criteria are met.
 
 ## Basic Usage
 
@@ -29,18 +29,18 @@ Unlike some other mappers, AutoMappic gives you access to **both** the source an
 
 This is extremely useful for "Only update if newer/better" logic.
 
-## The AM008 Shield: ProjectTo Protection
+## The AM0008 Shield: ProjectTo Protection
 
 One of the most powerful features of AutoMappic is its **Build-Time Analytics**. Because `Condition` predicates are emitted as procedural C# code (e.g., `if (src.IsAdmin) { ... }`), they cannot be translated into SQL by LINQ providers like Entity Framework Core.
 
-To protect you from runtime crashes, AutoMappic includes the **AM008 Diagnostic**:
+To protect you from runtime crashes, AutoMappic includes the **AM0008 Diagnostic**:
 
-### What triggers AM008?
+### What triggers AM0008?
 If you have a profile with a `Condition` and you attempt to use it inside a `.ProjectTo<T>()` call, the compiler will issue a warning:
 
-> **AM008**: ProjectTo may fail at runtime for mapping 'User' -> 'UserDto' because the profile contains procedural logic (Condition) that cannot be translated to SQL.
+> **AM0008**: ProjectTo may fail at runtime for mapping 'User' -> 'UserDto' because the profile contains procedural logic (Condition) that cannot be translated to SQL.
 
-### How to resolve AM008?
+### How to resolve AM0008?
 1. **Use `Map` instead of `ProjectTo`**: Fetch the entity first, then map it in-memory.
 2. **Move logic to the SQL layer**: Use a `MapFrom` with a ternary expression that the LINQ provider *can* translate (e.g., `src => src.IsAdmin ? src.Value : dest.Value`).
 

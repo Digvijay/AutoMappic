@@ -67,9 +67,9 @@ public class CycleProfile : Profile
 {
     public CycleProfile()
     {
-#pragma warning disable AM006
+#pragma warning disable AM0006
         CreateMap<CycleNode, CycleNode>();
-#pragma warning restore AM006
+#pragma warning restore AM0006
     }
 }
 

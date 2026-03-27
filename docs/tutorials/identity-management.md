@@ -84,12 +84,12 @@ The generated in-place mapping will:
 - **Update** existing items in-place (preserving EF Core change tracking).
 - **Add** new items that exist in source but not in destination.
 
-## AM013 Diagnostic
+## AM0013 Diagnostic
 
 When using Patch Mode, AutoMappic warns you about dangerous patterns:
 
 ```csharp
-// WARNING AM013: Patching into required 'Name' from nullable source
+// WARNING AM0013: Patching into required 'Name' from nullable source
 public class Dest { public required string Name { get; set; } }
 public class Source { public string? Name { get; set; } }
 ```

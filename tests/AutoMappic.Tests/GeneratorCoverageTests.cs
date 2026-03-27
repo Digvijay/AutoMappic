@@ -235,9 +235,9 @@ public class Dest {
         Assert.Contains("if (source.Id > 0)", mapSource);
     }
 
-    /// <summary> Verify that AM008 is emitted when ProjectTo is used with a profile containing runtime features. </summary>
+    /// <summary> Verify that AM0008 is emitted when ProjectTo is used with a profile containing runtime features. </summary>
     [Fact]
-    public void Generator_AM008_ProjectTo_WarnsOnRuntimeFeatures()
+    public void Generator_AM0008_ProjectTo_WarnsOnRuntimeFeatures()
     {
         var source = @"
 using AutoMappic;
@@ -264,6 +264,6 @@ public class Program
 }";
         var result = GeneratorTestHelper.RunGenerator(source);
         var ids = result.Diagnostics.Select(d => d.Id).ToList();
-        Assert.Contains("AM008", ids);
+        Assert.Contains("AM0008", ids);
     }
 }

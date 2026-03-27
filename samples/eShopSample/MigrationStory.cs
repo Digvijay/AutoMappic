@@ -50,5 +50,5 @@ public class CatalogService
 }
 
 // The mapping profile is already defined in Program.cs.
-// Defining it again here would cause a duplicate mapping error (AM009),
+// Defining it again here would cause a duplicate mapping error (AM0009),
 // which verifies AutoMappic's strict architecture enforcement.

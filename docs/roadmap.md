@@ -2,9 +2,9 @@
 
 AutoMappic is a high-performance, AOT-friendly code generator designed to replace AutoMapper with zero-reflection static code.
 
-## Known Limitations (v0.3.0 Stable)
+## Known Limitations (v0.4.0 Stable)
 
-- **Circular Reference Enforcement**: AutoMappic prioritizes safety by preventing infinite recursion disasters. Circular references are detected at compile-time and reported as an error (AM006). You must manually break cycles via `ForMemberIgnore` to maintain static code integrity.
+- **Circular Reference Enforcement**: AutoMappic prioritizes safety by preventing infinite recursion disasters. Circular references are detected at compile-time and reported as an error (AM0006). You must manually break cycles via `ForMemberIgnore` to maintain static code integrity.
 - **Advanced LINQ Translation in ProjectTo**: While standard property projection and flattening are robust, complex custom expressions inside a profile (e.g., custom I/O or complex logic blocks) may not always translate correctly to every ORM provider (EF Core / Dapper / NHibernate).
 - **Struct Support**: Basic struct mapping is supported, but complex nested struct-to-class hierarchies are less optimized than class-to-class mapping in the current release.
 
@@ -27,14 +27,14 @@ AutoMappic is a high-performance, AOT-friendly code generator designed to replac
 - [x] **Dependency Injection Overhaul**: Support for multiple/named mappers and better scoped lifetime management via Keyed Services.
 - [x] **Visualizer**: A tool (`automappic visualize`) to generate Mermaid graphs of the mapping architecture.
 
-### Phase 4: Advanced Optimizations & Parity (v0.3.0 Release)
+### Phase 4: Advanced Optimizations & Parity (v0.4.0 Release)
 - [x] **ReverseMap Lifecycle**: Support full configuration (like `ForMember`) for the reversed direction.
 - [x] **Async Value Resolvers**: Enable true asynchronous resolution during mapping for I/O-bound properties.
 - [x] **MapAsync Multi-overload Support**: Full parity with synchronous `Map` for both instance mapping and in-place updates.
 - [x] **Deep Open Generics**: Support recursive member mapping within `CreateMap(typeof(S<>), typeof(D<>))`.
 
-### Phase 5: Production Readiness (v0.3.0 Stable)
-- [x] **Production Grade Diagnostics**: All AM001-AM012 diagnostics are verified and stable.
+### Phase 5: Production Readiness (v0.4.0 Stable)
+- [x] **Production Grade Diagnostics**: All AM0001-AM0013 diagnostics are verified and stable.
 - [x] **Native AOT & Trimming**: 100% compatibility across all mapping patterns.
 - [x] **High-Frequency Parity**: Performance throughput matches manual code for all primitive and object-level mappings.
 

@@ -36,7 +36,7 @@ CreateMap<Product, ProductDto>()
 ```
 
 ### Ignore
-Explicitly prevents a property from being mapped. This is required for properties that have no source match to satisfy the **AM001** (Unmapped Property) diagnostic.
+Explicitly prevents a property from being mapped. This is required for properties that have no source match to satisfy the **AM0001** (Unmapped Property) diagnostic.
 
 ```csharp
 CreateMap<Employee, EmployeeDto>()

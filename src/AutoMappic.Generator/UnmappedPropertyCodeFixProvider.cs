@@ -18,7 +18,7 @@ namespace AutoMappic.Generator
     [ExportCodeFixProvider(LanguageNames.CSharp, Name = nameof(UnmappedPropertyCodeFixProvider)), Shared]
     internal sealed class UnmappedPropertyCodeFixProvider : CodeFixProvider
     {
-        public override ImmutableArray<string> FixableDiagnosticIds => ImmutableArray.Create("AM001");
+        public override ImmutableArray<string> FixableDiagnosticIds => ImmutableArray.Create("AM0001");
 
         public override FixAllProvider GetFixAllProvider() => WellKnownFixAllProviders.BatchFixer;
 

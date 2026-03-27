@@ -21,7 +21,7 @@ In your project file (`.csproj`), remove the AutoMapper packages and add AutoMap
   <!-- <PackageReference Include="AutoMapper.Extensions.Microsoft.DependencyInjection" Version="..." /> -->
 
   <!-- Add this -->
-  <PackageReference Include="AutoMappic" Version="0.3.0" />
+  <PackageReference Include="AutoMappic" Version="0.4.0" />
 </ItemGroup>
 ```
 
@@ -79,8 +79,8 @@ builder.Services.AddAutoMappic();
 
 ## Troubleshooting Common Issues
 
-### AM002: Ambiguous Mapping
+### AM0002: Ambiguous Mapping
 AutoMappic is stricter than AutoMapper regarding ambiguous paths. If a property `UserCity` on a DTO could be mapped from either a direct property `UserCity` or a flattened property `User.City`, AutoMappic will prioritize the direct match but may warn you if it's unclear.
 
-### AM008: Unsupported ProjectTo Feature
+### AM0008: Unsupported ProjectTo Feature
 Because `ProjectTo` generates Entity Framework-compatible `Expression` trees, it does not support procedural logic like `BeforeMap` or `AfterMap`. If your mapping uses these, AutoMappic will report a diagnostic suggesting you use `Map<T>` instead of `ProjectTo<T>`.

@@ -198,7 +198,7 @@ public sealed class AutoMappicGenerator : IIncrementalGenerator
                 }
             }
 
-            // 3. Emit AM008 for potential ProjectTo incompatibilities
+            // 3. Emit AM0008 for potential ProjectTo incompatibilities
             foreach (var loc in locations.Where(l => l.Kind == InterceptKind.ProjectTo))
             {
                 var key = $"{SourceEmitter.Sanitise(loc.SourceTypeFullName)}_To_{SourceEmitter.Sanitise(loc.DestinationTypeFullName)}";

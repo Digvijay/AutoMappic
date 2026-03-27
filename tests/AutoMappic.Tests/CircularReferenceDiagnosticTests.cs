@@ -6,9 +6,9 @@ namespace AutoMappic.Tests;
 
 public sealed class CircularReferenceDiagnosticTests
 {
-    /// <summary> Verify that AM006 is reported when a self-referencing model is detected </summary>
+    /// <summary> Verify that AM0006 is reported when a self-referencing model is detected </summary>
     [Fact]
-    public void Generator_ReportAM006_WhenSelfReferencingModelIsDetected()
+    public void Generator_ReportAM0006_WhenSelfReferencingModelIsDetected()
     {
         var source = @"
 using AutoMappic;
@@ -35,14 +35,14 @@ public class MyProfile : Profile
         var result = GeneratorTestHelper.RunGenerator(source);
         var diagnostics = result.Diagnostics;
 
-        var am006 = diagnostics.FirstOrDefault(d => d.Id == "AM006");
+        var am006 = diagnostics.FirstOrDefault(d => d.Id == "AM0006");
         Assert.NotNull(am006);
         Assert.Contains("Circular reference detected", am006!.GetMessage());
     }
 
-    /// <summary> Verify that AM006 is reported for indirect circular references (A -> B -> A) </summary>
+    /// <summary> Verify that AM0006 is reported for indirect circular references (A -> B -> A) </summary>
     [Fact]
-    public void Generator_ReportAM006_WhenIndirectCircularReferenceIsDetected()
+    public void Generator_ReportAM0006_WhenIndirectCircularReferenceIsDetected()
     {
         var source = @"
 using AutoMappic;
@@ -64,7 +64,7 @@ public class MyProfile : Profile
         var result = GeneratorTestHelper.RunGenerator(source);
         var diagnostics = result.Diagnostics;
 
-        var am006 = diagnostics.FirstOrDefault(d => d.Id == "AM006");
+        var am006 = diagnostics.FirstOrDefault(d => d.Id == "AM0006");
         Assert.NotNull(am006);
         Assert.Contains("Circular reference detected", am006!.GetMessage());
     }

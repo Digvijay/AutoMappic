@@ -69,7 +69,7 @@ In a single pass, AutoMappic will:
 
 ---
 
-## 5. Dictionary as Source (v0.3.0)
+## 5. Dictionary as Source (v0.4.0)
 
 AutoMappic can now use an `IDictionary<string, T>` as the primary source for a mapping. This is useful for mapping dynamic data like configuration or JSON metadata to a typed DTO.
 

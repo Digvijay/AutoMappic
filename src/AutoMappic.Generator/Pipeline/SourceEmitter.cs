@@ -699,7 +699,7 @@ internal static class SourceEmitter
                 {
                     shimSb.AppendLine($"        public static global::System.Linq.IQueryable<{item.DestinationTypeFullName}> {shimName}(this global::System.Linq.IQueryable<{item.SourceTypeFullName}> source)");
                     shimSb.AppendLine("        {");
-                    shimSb.AppendLine("             throw new global::AutoMappic.AutoMappicException(\"ProjectTo is not supported for mappings with procedural logic (BeforeMap, AfterMap) or Async hooks (AM008).\");");
+                    shimSb.AppendLine("             throw new global::AutoMappic.AutoMappicException(\"ProjectTo is not supported for mappings with procedural logic (BeforeMap, AfterMap) or Async hooks (AM0008).\");");
                     shimSb.AppendLine("        }");
                 }
                 else

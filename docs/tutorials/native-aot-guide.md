@@ -47,7 +47,7 @@ builder.Services.AddAutoMappic(); // Uses generated static code
 
 ## 3. Detecting AOT Incompatibilities
 
-AutoMappic's **Diagnostic Suite** (AM001-AM012) ensures that your mappings are safe for AOT before you even attempt to publish.
+AutoMappic's **Diagnostic Suite** (AM0001-AM0013) ensures that your mappings are safe for AOT before you even attempt to publish.
 
 If the generator cannot satisfy a mapping statically, it will report a build-time error, preventing runtime failures in your production AOT binary.
 

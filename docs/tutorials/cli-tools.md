@@ -21,9 +21,9 @@ automappic validate path/to/project.csproj
 ```
 
 ### What `validate` checks:
-- **Unmapped Properties (AM001)**: Every destination property must be accounted for either via convention or explicit configuration.
-- **Flattening Ambiguity (AM002)**: Multiple source properties merging into the same destination property name.
-- **Recursive Cycles (AM003)**: Potential `StackOverflowException` scenarios found during mapping.
+- **Unmapped Properties (AM0001)**: Every destination property must be accounted for either via convention or explicit configuration.
+- **Flattening Ambiguity (AM0002)**: Multiple source properties merging into the same destination property name.
+- **Recursive Cycles (AM0003)**: Potential `StackOverflowException` scenarios found during mapping.
 
 ### Status Codes
 - `0`: Validation successful.

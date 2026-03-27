@@ -6,7 +6,7 @@ AutoMappic transforms the traditional runtime "configuration validation" phase i
 
 A diagnostic with **Error** severity will cause the build to fail. This is intentional: AutoMappic prioritizes application correctness.
 
-### AM001: Unmapped Destination Property
+### AM0001: Unmapped Destination Property
 *   **Severity**: Error
 *   **Target**: Destination Member
 *   **Description**: Emitted when a writable property on the destination type has no matching source (via convention or explicit ForMember configuration). 
@@ -16,19 +16,19 @@ A diagnostic with **Error** severity will cause the build to fail. This is inten
     2.  Use .ForMember() to specify a source path.
     3.  Use .ForMemberIgnore() to explicitly exclude the property.
 
-### AM002: Ambiguous Property Mapping
+### AM0002: Ambiguous Property Mapping
 *   **Severity**: Error
 *   **Target**: Destination Member
 *   **Description**: Occurs when a destination property name matches both a direct source property and a flattened path (e.g., CustomerName vs Customer.Name). AutoMappic prioritizes the direct match but warns when a collision exists.
 *   **Remediation**: Use .ForMember() to explicitly declare the intended mapping source.
 
-### AM005: Missing Parameterless Constructor
+### AM0005: Missing Parameterless Constructor
 *   **Severity**: Error
 *   **Target**: Destination Type
 *   **Description**: AutoMappic requires a public constructor to instantiate the destination type. It can use a parameterless constructor or a parameterized one if all its arguments can be resolved from the source by name convention or explicit mapping.
 *   **Remediation**: Ensure the destination class has a public parameterless constructor or parameters that match source properties.
 
-### AM006: Circular Reference Detected
+### AM0006: Circular Reference Detected
 *   **Severity**: Error
 *   **Target**: Type Pair
 *   **Description**: AutoMappic's static generator does not support recursive object graphs (e.g., Parent -> Child -> Parent) by default, as they would cause StackOverflowException in the generated static code.
@@ -38,49 +38,49 @@ A diagnostic with **Error** severity will cause the build to fail. This is inten
 
 Warnings identify potential configuration issues that do not block code generation but may result in unexpected behavior or fallback to less efficient engines.
 
-### AM003: Misplaced CreateMap Call
+### AM0003: Misplaced CreateMap Call
 *   **Severity**: Warning
 *   **Target**: Call Site
 *   **Description**: Emitted when CreateMap is called outside of a Profile subclass constructor.
 *   **Analysis**: The source generator only processes mappings declared within Profile constructors. Calls in other locations are ignored by the generator, though they may still function in the reflection-based fallback engine at runtime.
 
-### AM004: Unresolved Interceptor Mapping
+### AM0004: Unresolved Interceptor Mapping
 *   **Severity**: Warning
 *   **Target**: Call Site
 *   **Description**: An IMapper.Map call was detected for a type pair that has no corresponding source-generated mapping.
 *   **Impact**: The call will fall back to the runtime Mapper engine, which utilizes reflection and is not optimized for Native AOT environments.
 
-### AM007: Unresolved CreateMap Symbol
+### AM0007: Unresolved CreateMap Symbol
 *   **Severity**: Warning
 *   **Target**: Call Site
 *   **Description**: The generator found a CreateMap call but could not resolve its symbol.
 *   **Impact**: This usually means the project is missing a reference to AutoMappic.Core or there are compilation errors preventing semantic analysis.
 
-### AM008: Unsupported ProjectTo Feature
+### AM0008: Unsupported ProjectTo Feature
 *   **Severity**: Warning
 *   **Target**: Call Site
 *   **Description**: A ProjectTo call was detected using a mapping that contains procedural logic (e.g., BeforeMap, AfterMap) that cannot be translated to SQL.
 *   **Impact**: The query would fail at runtime; AutoMappic warns you about this at compile-time to prevent production errors.
 
-### AM009: Duplicate Mapping Configuration
+### AM0009: Duplicate Mapping Configuration
 *   **Severity**: Warning
 *   **Target**: Type Pair
 *   **Description**: The same source-to-destination type pair is configured across multiple different profiles.
 *   **Analysis**: AutoMappic will only generate a single interceptor for the first discovered configuration.
 
-### AM010: Performance Hotpath Detected
+### AM0010: Performance Hotpath Detected
 *   **Severity**: Info
 *   **Target**: Mapping Path
 *   **Description**: Identifies deeply nested collection mappings that may lead to high allocation pressure in performance-critical paths.
 *   **Advice**: Consider flattening the models or using a specialized DTO to reduce GC load.
 
-### AM011: Multi-Source ProjectTo
+### AM0011: Multi-Source ProjectTo
 *   **Severity**: Error
 *   **Target**: ProjectTo Call
 *   **Description**: Database projections currently only support mapping from a single entity source.
 *   **Remediation**: Use in-memory mapping or a manual Select tree for complex multi-source LINQ queries.
 
-### AM012: Asymmetric Mapping Configuration
+### AM0012: Asymmetric Mapping Configuration
 *   **Severity**: Warning
 *   **Target**: Mapping Configuration
 *   **Description**: Emitted when a mapping is configured between two types, but zero property assignments or constructor arguments are actually generated.
@@ -90,7 +90,7 @@ Warnings identify potential configuration issues that do not block code generati
     2.  Use .ForMember() to bridge non-convention matches.
     3.  Check if the target type is intended to be a marker class.
 
-### AM013: Required Property Patch Mismatch
+### AM0013: Required Property Patch Mismatch
 *   **Severity**: Warning
 *   **Target**: Property Mapping
 *   **Description**: Emitted when Identity Management is active (`<AutoMappic_EnableIdentityManagement>true`) and a destination property marked with C# 11's `required` modifier is being mapped from a nullable source property without a default fallback. In Patch Mode, nullable sources generate conditional assignments (`if (source.Prop != null)`), which means the `required` destination property may never be assigned.

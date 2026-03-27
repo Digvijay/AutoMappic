@@ -12,7 +12,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Smart Key Inference**: The source generator automatically detects primary keys (`Id`, `ClassNameId`, `[Key]`) on destination types when identity management is active.
 - **Collection Syncing (Diffing Engine)**: When identity management is active, collection mapping uses a key-based "Match-and-Sync" algorithm instead of "Clear-and-Add", preserving EF Core change tracker state.
 - **Conditional Patch Mode (Null-Ignore)**: With identity management active, property assignments are wrapped in `if (source.Prop != null)` checks, enabling seamless HTTP PATCH support.
-- **AM013 Diagnostic**: New build-time warning when patching a `required` destination property from a nullable source without a default fallback.
+- **AM0013 Diagnostic**: New build-time warning when patching a `required` destination property from a nullable source without a default fallback.
 - **Static Converters**: New `[AutoMappicConverter]` attribute allows developers to define zero-allocation static conversion methods that the generator delegates to directly.
 - **Shallow Clone Optimization**: `Map<T, T>` generates efficient property-by-property copy for same-type mappings.
 
@@ -30,8 +30,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Multi-Targeting Support**: Explicitly added support for both .NET 9 and .NET 10 to ensure first-class performance on the latest .NET SDKs.
 - **Enhanced ProjectTo Interception**: Upgraded the source generator to handle ProjectTo calls with additional arguments (e.g. IConfigurationProvider), enabling seamless migration for CleanArchitecture-style projects.
 - **AutoMapper Bridge**: Added an AddAutoMapper extension method and IConfigurationProvider interface to AutoMappic.Core to provide 1:1 API compatibility for migrating projects.
-- **Ambiguity Resolution**: Refined the mapping convention engine to prioritize direct property matches over flattened paths, resolving internal conflicts (AM002) in complex domain models.
-- **Full Diagnostic Suite**: Expanded build-time safety checks to include AM001 through AM009, covering duplicate mappings and symbol resolution failures.
+- **Ambiguity Resolution**: Refined the mapping convention engine to prioritize direct property matches over flattened paths, resolving internal conflicts (AM0002) in complex domain models.
+- **Full Diagnostic Suite**: Expanded build-time safety checks to include AM0001 through AM0009, covering duplicate mappings and symbol resolution failures.
 - **Professional Documentation**: Comprehensive overhaul of README and VitePress tutorials, drawing inspiration from the Mediator project for clarity and precision.
 
 ### Fixed
@@ -44,7 +44,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - **Zero-LINQ Collection Mapping:** Implemented high-performance, statically generated `for` loops for list and array mapping, bypassing `System.Linq` overhead.
 - **Pre-allocation Optimization:** Automatically sizes destination collections (`List<T>` with capacity or `new T[]`) to eliminate unnecessary Gen 0 allocations.
-- **Improved AM001 Diagnostics:** Enhanced "Unmapped Destination" detection to intelligently handle `[Required]` and C# 11 `required` modifiers.
+- **Improved AM0001 Diagnostics:** Enhanced "Unmapped Destination" detection to intelligently handle `[Required]` and C# 11 `required` modifiers.
 - **Expanded Interceptor Support:** Improved `ProjectTo` and `DataReader` interceptors to support advanced collection-to-collection mapping shims.
 - **Official NuGet Icon:** Included a high-resolution, square branding asset (`icon.png`) within the package metadata.
 - **Performance Benchmarks:** Added a new `ListMappingBenchmarks` suite to provide transparent performance data for high-volume collection mapping.
@@ -69,6 +69,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Dependency Injection:** Seamless configuration via `services.AddAutoMappic(typeof(Program).Assembly)` to drop-in replace existing enterprise architectures.
 - **Complex Hierarchies:** Deep list and dictionary (`Dictionary<TKey, TValue>`) projection generation natively mapped into arrays or generic lists.
 - **Enterprise Proven:** Fully verified against complex base classes and manually mapped DTOs in the official Microsoft `eShopOnWeb` architecture.
-- **Diagnostic Analyzers:** Ships with build-time guards (`AM001`, `AM002`) to help developers catch mapping mistakes immediately within the IDE.
+- **Diagnostic Analyzers:** Ships with build-time guards (`AM0001`, `AM0002`) to help developers catch mapping mistakes immediately within the IDE.
 - **Native AOT & Trimming Support:** Initial release is 100% compatible with Native AOT, featuring robust handling for `object` mappings and null-conditional flattened paths.
 - **Transitive Analyzer Support:** Improved NuGet packaging ensuring the source generator is correctly referenced by all consumer projects.

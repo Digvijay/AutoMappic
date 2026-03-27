@@ -59,7 +59,7 @@ AutoMappic generates a loop that reads the columns from the reader and assigns t
 - **Database Efficiency**: Using `ProjectTo` tells your database provider exactly which columns to fetch, reducing network traffic and memory usage on the SQL server.
 - **Native AOT Ready**: Projections are statically generated, meaning no dynamic code generation is required at runtime.
 - **Zero Overhead**: Because the projection is generated at compile-time, it has the same raw performance as manual `Select` mapping.
-- **Validated at Build-Time**: If a projection is invalid (e.g., trying to use `BeforeMap` which isn't supported by EF Core), AutoMappic emits the **AM008** diagnostic early.
+- **Validated at Build-Time**: If a projection is invalid (e.g., trying to use `BeforeMap` which isn't supported by EF Core), AutoMappic emits the **AM0008** diagnostic early.
 
 ---
 

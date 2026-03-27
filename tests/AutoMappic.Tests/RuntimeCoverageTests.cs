@@ -8,7 +8,7 @@ using Assert = Prova.Assertions.Assert;
 
 namespace AutoMappic.Tests;
 
-#pragma warning disable AM003 // CreateMap called outside constructor (intentional for runtime-only tests)
+#pragma warning disable AM0003 // CreateMap called outside constructor (intentional for runtime-only tests)
 public class RuntimeCoverageTests
 {
     /// <summary> Verify that MapAsync correctly returns null (not faulted) when source is null </summary>

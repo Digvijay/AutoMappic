@@ -11,7 +11,7 @@ AutoMappic comes with three standard naming conventions:
 - `PascalCaseNamingConvention`: Matches words that start with an uppercase letter (e.g., `FirstName`).
 - `CamelCaseNamingConvention`: Similar to Pascal but starts with a lowercase letter (e.g., `firstName`).
 - `LowerUnderscoreNamingConvention`: Standard `snake_case` matching (e.g., `first_name`).
-- `KebabCaseNamingConvention`: Standard `kebab-case` matching (e.g., `first-name`). (v0.3.0)
+- `KebabCaseNamingConvention`: Standard `kebab-case` matching (e.g., `first-name`). (v0.4.0)
 
 ## Configuring Conventions
 
@@ -50,7 +50,7 @@ public class ExternalApiProfile : Profile
 }
 ```
 
-## Dictionary & Reader Conventions (v0.3.0)
+## Dictionary & Reader Conventions (v0.4.0)
 
 AutoMappic now uses naming conventions when mapping from specialized sources like `IDataReader` and `IDictionary<string, T>`.
 
@@ -71,4 +71,4 @@ public class DbProfile : Profile
 
 ### Acronym Support
 
-In v0.3.0, the `PascalCase` and `CamelCase` conventions have been upgraded to handle acronyms (e.g., `CustomerID` → `customerId` or `customer-id`).
+In v0.4.0, the `PascalCase` and `CamelCase` conventions have been upgraded to handle acronyms (e.g., `CustomerID` → `customerId` or `customer-id`).

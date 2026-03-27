@@ -37,7 +37,7 @@ v0.4.0 introduces **Graph Mapping** -- moving AutoMappic from simple tree-based 
 | **Collection Syncing** | Key-based "Match-and-Sync" diffing replaces "Clear-and-Add" for collections, preserving EF Core change tracker state. |
 | **Patch Mode** | With identity management active, nullable source properties generate conditional assignments (`if (source.Prop != null)`), enabling seamless HTTP PATCH. |
 | **Static Converters** | `[AutoMappicConverter]` attribute enables zero-allocation custom mapping methods that bypass reflection entirely. |
-| **AM013 Diagnostic** | Build-time warning for required property/nullable source mismatches in patch mode. |
+| **AM0013 Diagnostic** | Build-time warning for required property/nullable source mismatches in patch mode. |
 
 ---
 
@@ -98,7 +98,7 @@ AutoMappic achieves performance parity with manual hand-written C# by shifting a
 - **Native AOT Compatible**: No runtime reflection, no dynamic IL emission.
 - **Zero Resolution Tax**: Call-site interception binds source to destination at compile-time.
 - **Enterprise Ready**: Support for cyclic graphs, identity management, and collection syncing.
-- **Diagnostic Safety**: Rich build-time feedback (e.g., **AM013** for patch-mode integrity).
+- **Diagnostic Safety**: Rich build-time feedback (e.g., **AM0013** for patch-mode integrity).
 
 ## Performance Comparison (v0.4.0)
 
@@ -123,11 +123,11 @@ AutoMappic provides a rigorous build-time validation layer, ensuring structural 
 
 | ID | Name | Severity | Description |
 | :--- | :--- | :--- | :--- |
-| **AM001** | Unmapped Property | Error | Destination property has no source match. |
-| **AM004** | Fallback Warning | Warning | Call-site not intercepted; falling back to reflection. |
-| **AM006** | Circular Map | Error | Infinite recursion detected in static graph. |
-| **AM008** | ProjectTo Warning | Warning | Procedural logic found in database projection. |
-| **AM013** | Patch Integrity | Warning | Warns when patching `required` properties from nullable sources. |
+| **AM0001** | Unmapped Property | Error | Destination property has no source match. |
+| **AM0004** | Fallback Warning | Warning | Call-site not intercepted; falling back to reflection. |
+| **AM0006** | Circular Map | Error | Infinite recursion detected in static graph. |
+| **AM0008** | ProjectTo Warning | Warning | Procedural logic found in database projection. |
+| **AM0013** | Patch Integrity | Warning | Warns when patching `required` properties from nullable sources. |
 
 ## Proven at Scale
 

@@ -62,7 +62,7 @@ public class SelfReferencingNodeDto
     public SelfReferencingNodeDto? Right { get; set; }
 }
 
-// Ensure the AM006 doesn't crash generation if explicitly configured
+// Ensure the AM0006 doesn't crash generation if explicitly configured
 public class RegressionProfile : Profile
 {
     public RegressionProfile()
