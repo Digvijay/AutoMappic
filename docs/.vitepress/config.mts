@@ -39,7 +39,9 @@ export default withMermaid(defineConfig({
           { text: 'Performance Profiling', link: '/tutorials/performance-profiling' },
           { text: 'CLI Tools & Visualization', link: '/tutorials/cli-tools' },
           { text: 'Native AOT Guide', link: '/tutorials/native-aot-guide' },
-          { text: 'Porting from AutoMapper', link: '/tutorials/porting-from-automapper' }
+          { text: 'Porting from AutoMapper', link: '/tutorials/porting-from-automapper' },
+          { text: 'Identity Management', link: '/tutorials/identity-management' },
+          { text: 'Static Converters', link: '/tutorials/static-converters' }
         ]
       },
       {

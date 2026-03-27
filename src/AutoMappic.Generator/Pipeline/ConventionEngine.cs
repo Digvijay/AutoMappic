@@ -92,16 +92,19 @@ internal static class ConventionEngine
                 {
                     bool isInit = false;
                     bool isReadOnly = false;
+                    bool isRequired = false;
                     if (member is IPropertySymbol p)
                     {
                         isInit = p.SetMethod?.IsInitOnly ?? false;
                         isReadOnly = p.SetMethod == null || p.SetMethod.DeclaredAccessibility != Accessibility.Public;
+                        isRequired = p.IsRequired;
                     }
                     else if (member is IFieldSymbol f)
                     {
                         isReadOnly = f.IsReadOnly;
+                        isRequired = f.IsRequired;
                     }
-                    properties.Add(map with { IsInitOnly = isInit, IsReadOnly = isReadOnly });
+                    properties.Add(map with { IsInitOnly = isInit, IsReadOnly = isReadOnly, IsRequired = isRequired });
                 }
                 else if (!constructorParamNames.Contains(memberName))
                 {
@@ -165,7 +168,7 @@ internal static class ConventionEngine
             conditionBody = explicitData.Condition;
             if (explicitData.Expression != null)
             {
-                return new PropertyMap(targetName, explicitData.Expression, PropertyMapKind.Explicit, IsAsync: explicitData.IsAsync, ConditionBody: conditionBody);
+                return new PropertyMap(targetName, explicitData.Expression, PropertyMapKind.Explicit, IsAsync: explicitData.IsAsync, ConditionBody: conditionBody, SourceCanBeNull: false);
             }
         }
 
@@ -204,7 +207,7 @@ internal static class ConventionEngine
             if (isNullable)
                 expr = $"{sourceAccess}.IsDBNull({ordinal}) ? default({typeStr})! : {expr}";
 
-            return new PropertyMap(targetName, expr, PropertyMapKind.Direct, DataReaderColumn: keyName, ConditionBody: conditionBody);
+            return new PropertyMap(targetName, expr, PropertyMapKind.Direct, DataReaderColumn: keyName, ConditionBody: conditionBody, SourceCanBeNull: CanBeNull(targetType));
         }
 
         // Dictionary -> Object indexer projection
@@ -217,8 +220,8 @@ internal static class ConventionEngine
                 keyName = NamingUtility.ToSnakeCase(targetName);
 
             var sourceExpr = $"{sourceAccess} != null && {sourceAccess}.ContainsKey(\"{keyName}\") ? {sourceAccess}[\"{keyName}\"] : default!";
-            var (nE, nS, nD, iC, iA, iE, rE, nCond) = WrapWithNestedMapper(sourceExpr, srcValue, targetType, profileLocation, reportDiagnostic, mappingStack, targetName);
-            return new PropertyMap(targetName, nE, PropertyMapKind.Direct, NestedSourceTypeFullName: nS, NestedDestTypeFullName: nD, NestedFullDestTypeFullName: targetType.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat), IsCollection: iC, IsArray: iA, NestedExpression: iE, SourceRawExpression: rE, ConditionBody: conditionBody ?? nCond);
+            var (nE, nS, nD, iC, iA, iE, rE, nCond, nKey) = WrapWithNestedMapper(sourceExpr, srcValue, targetType, profileLocation, reportDiagnostic, mappingStack, targetName);
+            return new PropertyMap(targetName, nE, PropertyMapKind.Direct, NestedSourceTypeFullName: nS, NestedDestTypeFullName: nD, NestedFullDestTypeFullName: targetType.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat), IsCollection: iC, IsArray: iA, NestedExpression: iE, SourceRawExpression: rE, ConditionBody: conditionBody ?? nCond, NestedDestKeyProperty: nKey, SourceCanBeNull: CanBeNull(srcValue));
         }
 
         // Discovery
@@ -249,22 +252,22 @@ internal static class ConventionEngine
             var sourceType = directMatch is not null ? GetMemberType(directMatch) : methodMatch!.ReturnType;
             var sourceExpr = directMatch is not null ? $"{sourceAccess}.{directMatch.Name}" : $"{sourceAccess}.{methodMatch!.Name}()";
 
-            var (nestedExpr, nSrc, nDest, isColl, isArr, itemExpr, rawExpr, nCond) = WrapWithNestedMapper(sourceExpr, sourceType, targetType, profileLocation, reportDiagnostic, mappingStack, targetName);
+            var (nestedExpr, nSrc, nDest, isColl, isArr, itemExpr, rawExpr, nCond, nKey) = WrapWithNestedMapper(sourceExpr, sourceType, targetType, profileLocation, reportDiagnostic, mappingStack, targetName);
             return new PropertyMap(targetName, nestedExpr, PropertyMapKind.Direct,
                 NestedSourceTypeFullName: nSrc, NestedDestTypeFullName: nDest,
                 NestedFullDestTypeFullName: targetType.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat),
-                IsCollection: isColl, IsArray: isArr, NestedExpression: itemExpr, SourceRawExpression: rawExpr, ConditionBody: conditionBody ?? nCond);
+                IsCollection: isColl, IsArray: isArr, NestedExpression: itemExpr, SourceRawExpression: rawExpr, ConditionBody: conditionBody ?? nCond, NestedDestKeyProperty: nKey, SourceCanBeNull: CanBeNull(sourceType));
         }
 
         if (flatPath != null)
         {
-            return new PropertyMap(targetName, $"{sourceAccess}.{flatPath}", PropertyMapKind.Flattened, ConditionBody: conditionBody);
+            return new PropertyMap(targetName, $"{sourceAccess}.{flatPath}", PropertyMapKind.Flattened, ConditionBody: conditionBody, SourceCanBeNull: CanBeNull(targetType));
         }
 
         return null;
     }
 
-    private static (string Expression, string? NestedSource, string? NestedDest, bool IsCollection, bool IsArray, string? ItemExpression, string? RawExpression, string? Condition) WrapWithNestedMapper(
+    private static (string Expression, string? NestedSource, string? NestedDest, bool IsCollection, bool IsArray, string? ItemExpression, string? RawExpression, string? Condition, string? NestedDestKey) WrapWithNestedMapper(
         string expression, ITypeSymbol sourceType, ITypeSymbol destType, Location? profileLoc, Action<Diagnostic> reportDiag, HashSet<(ITypeSymbol, ITypeSymbol)> stack, string targetName)
     {
         var sBase = UnwrapNullable(sourceType);
@@ -277,18 +280,18 @@ internal static class ConventionEngine
             {
                 if (sourceType.NullableAnnotation == NullableAnnotation.Annotated && destType.NullableAnnotation == NullableAnnotation.NotAnnotated)
                 {
-                    return ($"{expression} ?? \"\"", null, null, false, false, null, expression, cond);
+                    return ($"{expression} ?? \"\"", null, null, false, false, null, expression, cond, null);
                 }
-                return (expression, null, null, false, false, null, expression, cond);
+                return (expression, null, null, false, false, null, expression, cond, null);
             }
 
             if (sourceType.IsReferenceType || IsNullableStruct(sourceType))
             {
-                return ($"{expression}?.ToString() ?? \"\"", null, null, false, false, null, expression, cond);
+                return ($"{expression}?.ToString() ?? \"\"", null, null, false, false, null, expression, cond, null);
             }
             else
             {
-                return ($"{expression}.ToString()", null, null, false, false, null, expression, cond);
+                return ($"{expression}.ToString()", null, null, false, false, null, expression, cond, null);
             }
         }
 
@@ -296,28 +299,28 @@ internal static class ConventionEngine
         {
             if (IsNullableStruct(sourceType) && !IsNullableStruct(destType))
             {
-                return ($"{expression}.GetValueOrDefault()", null, null, false, false, null, expression, cond);
+                return ($"{expression}.GetValueOrDefault()", null, null, false, false, null, expression, cond, null);
             }
             if (sBase.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat) != dBase.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat) && IsNumeric(sBase) && IsNumeric(dBase))
             {
-                return ($"({destType.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat)}){expression}", null, null, false, false, null, expression, cond);
+                return ($"({destType.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat)}){expression}", null, null, false, false, null, expression, cond, null);
             }
-            return (expression, null, null, false, false, null, expression, cond);
+            return (expression, null, null, false, false, null, expression, cond, null);
         }
 
         if (destType.TypeKind == TypeKind.Enum && IsNumeric(sourceType))
         {
-            return ($"({destType.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat)}){expression}", null, null, false, false, null, expression, cond);
+            return ($"({destType.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat)}){expression}", null, null, false, false, null, expression, cond, null);
         }
 
         if (sourceType.TypeKind == TypeKind.Enum && IsNumeric(destType))
         {
-            return ($"({destType.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat)}){expression}", null, null, false, false, null, expression, cond);
+            return ($"({destType.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat)}){expression}", null, null, false, false, null, expression, cond, null);
         }
 
         if (sourceType.TypeKind == TypeKind.Enum && destType.TypeKind == TypeKind.Enum)
         {
-            return ($"({destType.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat)}){expression}", null, null, false, false, null, expression, cond);
+            return ($"({destType.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat)}){expression}", null, null, false, false, null, expression, cond, null);
         }
 
         // Dictionary logic
@@ -325,7 +328,7 @@ internal static class ConventionEngine
         {
             var keyMap = WrapWithNestedMapper("x.Key", sKey, dKey, profileLoc, reportDiag, stack, "Key");
             var valueMap = WrapWithNestedMapper("x.Value", sValue, dValue, profileLoc, reportDiag, stack, "Value");
-            return ($"({expression} ?? new()).ToDictionary(x => {keyMap.Expression}, x => {valueMap.Expression})", null, GetDisplayString(destType), false, false, null, expression, cond);
+            return ($"({expression} ?? new()).ToDictionary(x => {keyMap.Expression}, x => {valueMap.Expression})", null, GetDisplayString(destType), false, false, null, expression, cond, null);
         }
 
         // Recursion / Collection logic
@@ -368,7 +371,18 @@ internal static class ConventionEngine
                 finalExpr = $"{linq}{toContainer}";
             }
 
-            return (finalExpr, GetDisplayString(sItem), GetDisplayString(dItem), false, false, null, expression, cond);
+            string? kPropName = null;
+            if (dItem is INamedTypeSymbol nItem)
+            {
+                var dItemProps = GetReadableMembers(dItem);
+                var innerKey = dItemProps.FirstOrDefault(p =>
+                    string.Equals(p.Name, "Id", StringComparison.OrdinalIgnoreCase) ||
+                    string.Equals(p.Name, nItem.Name + "Id", StringComparison.OrdinalIgnoreCase) ||
+                    string.Equals(p.Name, "Key", StringComparison.OrdinalIgnoreCase));
+                if (innerKey != null) kPropName = innerKey.Name;
+            }
+
+            return (finalExpr, GetDisplayString(sItem), GetDisplayString(dItem), true, isArr, itemMap.Expression, expression, cond, kPropName);
         }
 
         var key = (sBase, dBase);
@@ -385,10 +399,10 @@ internal static class ConventionEngine
         if (destType.NullableAnnotation == NullableAnnotation.NotAnnotated && !destType.IsValueType && sourceType.NullableAnnotation == NullableAnnotation.Annotated)
         {
             cond = $"{expression} != null";
-            return ($"{expression}.MapTo{destType.Name}()", null, GetDisplayString(destType), false, false, null, expression, cond);
+            return ($"{expression}.MapTo{destType.Name}(context)", null, GetDisplayString(destType), false, false, null, expression, cond, null);
         }
 
-        return ($"({expression} == null ? default! : {expression}.MapTo{destType.Name}())", null, GetDisplayString(destType), false, false, null, expression, cond);
+        return ($"({expression} == null ? default! : {expression}.MapTo{destType.Name}(context))", null, GetDisplayString(destType), false, false, null, expression, cond, null);
     }
 
     private static ITypeSymbol UnwrapNullable(ITypeSymbol type)
@@ -398,6 +412,11 @@ internal static class ConventionEngine
             return named.TypeArguments[0];
         }
         return type.WithNullableAnnotation(NullableAnnotation.None);
+    }
+
+    private static bool CanBeNull(ITypeSymbol type)
+    {
+        return !type.IsValueType || type.OriginalDefinition.SpecialType == SpecialType.System_Nullable_T || type.NullableAnnotation == NullableAnnotation.Annotated;
     }
 
     private static bool IsNullableStruct(ITypeSymbol type)

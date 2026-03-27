@@ -81,7 +81,7 @@ public static class ManualMapper
 ///   Expected result: AutoMappic ≈ Mapperly ≈ Manual (all ≪ AutoMapper).
 /// </remarks>
 [MemoryDiagnoser]
-[SimpleJob]
+[SimpleJob(BenchmarkDotNet.Jobs.RuntimeMoniker.Net90, iterationCount: 30, warmupCount: 10)]
 public class MappingBenchmarks
 {
     private global::AutoMapper.IMapper _autoMapper = null!;

@@ -135,6 +135,26 @@ internal static class InterceptorCollector
             return null;
         }
 
+        // ─── Collection mapping detection ───────────────────────────────
+        // When Map<List<A>, List<B>>() is called, callSiteSource=List<A>
+        // and callSiteDest=List<B>. We need to unwrap the element types
+        // so the shim can route to the per-element MapToX extension.
+        bool isCollectionMapping = false;
+        ITypeSymbol effectiveSource = callSiteSource;
+        ITypeSymbol effectiveDest = callSiteDest;
+
+        if (kind == InterceptKind.Map)
+        {
+            var srcElement = TryGetCollectionElementType(callSiteSource);
+            var dstElement = TryGetCollectionElementType(callSiteDest);
+            if (srcElement != null && dstElement != null)
+            {
+                isCollectionMapping = true;
+                effectiveSource = srcElement;
+                effectiveDest = dstElement;
+            }
+        }
+
         var lineSpan = invocation.GetLocation().GetLineSpan();
         if (!lineSpan.IsValid)
         {
@@ -160,10 +180,10 @@ internal static class InterceptorCollector
             MethodSignatureKey: BuildSignatureKey(symbol),
             ParameterSourceTypeFullName: originalMethod.Parameters.Length > 0 ? SourceEmitter.GetDisplayString(originalMethod.Parameters[0].Type) : "object",
             Kind: kind,
-            IsCollectionMapping: false,
+            IsCollectionMapping: isCollectionMapping,
             IsDestinationMapped: originalMethod.Parameters.Length > 1 && originalMethod.Parameters[1].Name == "destination",
-            EffectiveSourceTypeFullName: SourceEmitter.GetDisplayString(callSiteSource),
-            EffectiveDestTypeFullName: SourceEmitter.GetDisplayString(callSiteDest),
+            EffectiveSourceTypeFullName: SourceEmitter.GetDisplayString(effectiveSource),
+            EffectiveDestTypeFullName: SourceEmitter.GetDisplayString(effectiveDest),
             GenericParameters: originalMethod.TypeParameters.Length > 0 ? "<" + string.Join(", ", originalMethod.TypeParameters.Select(p => p.Name)) + ">" : null,
             TypeArguments: symbol.TypeArguments.Length > 0 ? new EquatableArray<string>(symbol.TypeArguments.Select(t => SourceEmitter.GetDisplayString(t))) : null,
             ExtraParameters: originalMethod.Parameters.Length > 1 ? new EquatableArray<string>(originalMethod.Parameters.Skip(1).Select(p => SourceEmitter.GetDisplayString(p.Type))) : null);
@@ -176,5 +196,43 @@ internal static class InterceptorCollector
             : string.Empty;
         var paramTypes = string.Join(", ", method.Parameters.Select(p => SourceEmitter.GetDisplayString(p.Type)));
         return $"{method.Name}{typeArgs}({paramTypes})";
+    }
+
+    /// <summary>
+    ///   Unwraps known collection wrappers to extract the element type.
+    ///   Returns <c>null</c> if the type is not a recognized collection wrapper.
+    /// </summary>
+    private static ITypeSymbol? TryGetCollectionElementType(ITypeSymbol type)
+    {
+        // Arrays: T[]
+        if (type is IArrayTypeSymbol array)
+        {
+            return array.ElementType;
+        }
+
+        // Named generics: List<T>, IList<T>, IEnumerable<T>, ICollection<T>, etc.
+        if (type is INamedTypeSymbol named && named.IsGenericType && named.TypeArguments.Length == 1)
+        {
+            var name = named.Name;
+            var ns = named.ContainingNamespace?.ToDisplayString() ?? "";
+
+            // System.Collections.Generic types
+            if (ns == "System.Collections.Generic" || ns.StartsWith("System.Collections.Generic", System.StringComparison.Ordinal))
+            {
+                return named.TypeArguments[0];
+            }
+
+            // Also check if it implements IEnumerable<T> (custom collections)
+            foreach (var iface in named.AllInterfaces)
+            {
+                if (iface.Name == "IEnumerable" && iface.IsGenericType && iface.TypeArguments.Length == 1 &&
+                    iface.ContainingNamespace?.ToDisplayString() == "System.Collections.Generic")
+                {
+                    return iface.TypeArguments[0];
+                }
+            }
+        }
+
+        return null;
     }
 }

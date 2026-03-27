@@ -71,6 +71,9 @@ internal sealed class MappingDiscoveryAttribute(global::System.Type sourceType, 
 
 [global::System.AttributeUsage(global::System.AttributeTargets.Assembly)]
 internal sealed class HasAutoMappicProfilesAttribute : global::System.Attribute;
+
+[global::System.AttributeUsage(global::System.AttributeTargets.Method)]
+internal sealed class AutoMappicConverterAttribute : global::System.Attribute;
 ");
     }
 }

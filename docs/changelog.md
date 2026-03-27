@@ -5,6 +5,25 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.0] - 2026-03-26
+
+### Added
+- **Identity Management (Graph Mapping)**: Opt-in MSBuild property `<AutoMappic_EnableIdentityManagement>true` enables entity-aware mapping with `MappingContext` for tracking object instances and preventing cyclic recursion.
+- **Smart Key Inference**: The source generator automatically detects primary keys (`Id`, `ClassNameId`, `[Key]`) on destination types when identity management is active.
+- **Collection Syncing (Diffing Engine)**: When identity management is active, collection mapping uses a key-based "Match-and-Sync" algorithm instead of "Clear-and-Add", preserving EF Core change tracker state.
+- **Conditional Patch Mode (Null-Ignore)**: With identity management active, property assignments are wrapped in `if (source.Prop != null)` checks, enabling seamless HTTP PATCH support.
+- **AM013 Diagnostic**: New build-time warning when patching a `required` destination property from a nullable source without a default fallback.
+- **Static Converters**: New `[AutoMappicConverter]` attribute allows developers to define zero-allocation static conversion methods that the generator delegates to directly.
+- **Shallow Clone Optimization**: `Map<T, T>` generates efficient property-by-property copy for same-type mappings.
+
+### Changed
+- **MappingContext Parameter**: All generated mapping extension methods now accept an optional `MappingContext?` parameter for identity tracking. This is backward-compatible as it defaults to `null`.
+- **Collection Helper Variables**: Internal loop variable in collection helpers changed from `element` to `x` for consistency with LINQ expressions.
+
+### Fixed
+- **ProjectTo Context Scope**: Fixed an issue where `MappingContext` references in nested collection expressions caused compilation errors in IQueryable `ProjectTo` expression trees.
+- **Read-Only Collection In-Place Mapping**: Fixed a missing closing brace in generated code for in-place mapping of read-only collection properties.
+
 ## [0.3.0] - 2026-03-21
 
 ### Added

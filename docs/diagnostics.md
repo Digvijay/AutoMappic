@@ -89,3 +89,13 @@ Warnings identify potential configuration issues that do not block code generati
     1.  Ensure destination properties have public/internal setters.
     2.  Use .ForMember() to bridge non-convention matches.
     3.  Check if the target type is intended to be a marker class.
+
+### AM013: Required Property Patch Mismatch
+*   **Severity**: Warning
+*   **Target**: Property Mapping
+*   **Description**: Emitted when Identity Management is active (`<AutoMappic_EnableIdentityManagement>true`) and a destination property marked with C# 11's `required` modifier is being mapped from a nullable source property without a default fallback. In Patch Mode, nullable sources generate conditional assignments (`if (source.Prop != null)`), which means the `required` destination property may never be assigned.
+*   **Impact**: Silent data corruption -- the destination object may be created with an uninitialized required field, violating the type's invariants.
+*   **Remediation**: 
+    1.  Provide a non-nullable source property.
+    2.  Use `.ForMember(d => d.Prop, opt => opt.MapFrom(src => src.Prop ?? "default"))` to guarantee a value.
+    3.  Remove the `required` modifier if the property is intentionally optional during patching.

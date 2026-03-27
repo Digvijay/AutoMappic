@@ -1,6 +1,6 @@
 ![AutoMappic Hero](./docs/public/assets/hero.png)
 
-# AutoMappic v0.3.0
+# AutoMappic v0.4.0
 
 [![NuGet](https://img.shields.io/nuget/v/AutoMappic?style=flat-square&logo=nuget)](https://www.nuget.org/packages/AutoMappic)
 [![CI](https://github.com/Digvijay/AutoMappic/actions/workflows/ci.yml/badge.svg?style=flat-square)](https://github.com/Digvijay/AutoMappic/actions/workflows/ci.yml)
@@ -16,13 +16,28 @@ AutoMappic is a high-performance object-to-object mapper for .NET 9 and .NET 10.
 ---
 
 ## Table of Contents
-1. [Goals](#goals)
-2. [Benchmarks](#benchmarks)
-3. [Quick Start](#quick-start)
-4. [NuGet Packages](#nuget-packages)
-5. [Diagnostics](#diagnostics)
-6. [Proven at Scale](#proven-at-scale)
-7. [Documentation](#documentation)
+1. [What's New in v0.4.0](#whats-new-in-v040)
+2. [Goals](#goals)
+3. [Benchmarks](#benchmarks)
+4. [Quick Start](#quick-start)
+5. [NuGet Packages](#nuget-packages)
+6. [Diagnostics](#diagnostics)
+7. [Proven at Scale](#proven-at-scale)
+8. [Documentation](#documentation)
+
+---
+
+## What's New in v0.4.0
+
+v0.4.0 introduces **Graph Mapping** -- moving AutoMappic from simple tree-based mapping to enterprise-grade entity graph management, all while maintaining Native AOT and zero-allocation performance.
+
+| Feature | Description |
+| :--- | :--- |
+| **Identity Management** | Opt-in `MappingContext` tracks object instances, prevents cyclic recursion, and enables entity-aware graph resolution. Enable via `<AutoMappic_EnableIdentityManagement>true` in your `.csproj`. |
+| **Collection Syncing** | Key-based "Match-and-Sync" diffing replaces "Clear-and-Add" for collections, preserving EF Core change tracker state. |
+| **Patch Mode** | With identity management active, nullable source properties generate conditional assignments (`if (source.Prop != null)`), enabling seamless HTTP PATCH. |
+| **Static Converters** | `[AutoMappicConverter]` attribute enables zero-allocation custom mapping methods that bypass reflection entirely. |
+| **AM013 Diagnostic** | Build-time warning for required property/nullable source mismatches in patch mode. |
 
 ---
 
@@ -59,37 +74,39 @@ AutoMappic achieves performance parity with manual hand-written C# by shifting a
 
 | Method | Engine | Mean | Ratio | Allocated |
 | :--- | :--- | :--- | :--- | :--- |
-| **Manual HandWritten** | Static Assignment | 0.81 ns | 1.00 | 0 B |
-| **AutoMappic_Intercepted** | **Source Gen + Interceptors** | **0.82 ns** | **1.01** | **0 B** |
-| Mapperly_Explicit | Source Generation | 0.84 ns | 1.04 | 0 B |
-| AutoMapper_Legacy | Reflection / IL Emit | 14.20 ns | 17.53 | 120 B |
+| **Manual HandWritten** | Static Assignment | 28.04 ns | 0.15 | 48 B |
+| **AutoMappic_Intercepted** | **Source Gen + Interceptors** | **29.12 ns** | **0.15** | **48 B** |
+| Mapperly_Explicit | Source Generation | 28.50 ns | 0.15 | 48 B |
+| AutoMapper_Legacy | Reflection / IL Emit | 188.00 ns | 1.00 | 48 B |
 
 ## Quick Start
 
-```csharp
-using AutoMappic;
-using Microsoft.Extensions.DependencyInjection;
-
-// 1. Define a Profile (Exactly like AutoMapper)
-public class UserProfile : Profile
-{
-    public UserProfile()
-    {
-        CreateMap<User, UserDto>().ReverseMap();
+1.  **Add the package**: `dotnet add package AutoMappic`
+2.  **Define your Profile**:
+    ```csharp
+    public class MyProfile : AutoMappic.Profile {
+        public MyProfile() { CreateMap<User, UserDto>(); }
     }
-}
+    ```
+3.  **Map with Zero Overhead**:
+    ```csharp
+    var dto = mapper.Map<User, UserDto>(user); // Intercepted at compile-time!
+    ```
 
-// 2. Setup Dependency Injection (AOT-Friendly!)
-var services = new ServiceCollection();
-services.AddAutoMappic(); // Compile-time discovery of all profiles
+## Why AutoMappic?
 
-// 3. Use it (Async-Ready!)
-var serviceProvider = services.BuildServiceProvider();
-var mapper = serviceProvider.GetRequiredService<IMapper>();
+- **Native AOT Compatible**: No runtime reflection, no dynamic IL emission.
+- **Zero Resolution Tax**: Call-site interception binds source to destination at compile-time.
+- **Enterprise Ready**: Support for cyclic graphs, identity management, and collection syncing.
+- **Diagnostic Safety**: Rich build-time feedback (e.g., **AM013** for patch-mode integrity).
 
-// Zero dynamic code, 100% static execution
-var dto = mapper.Map<User, UserDto>(new User { Name = "Digvijay Chauhan" });
-```
+## Performance Comparison (v0.4.0)
+
+| Metric | AutoMapper (JIT) | AutoMappic (Native AOT) | Advantage |
+| :--- | :--- | :--- | :--- |
+| **Startup Time** | ~400ms | **~15ms** | **26x Faster** |
+| **Throughput (1k List)**| 30.19 μs | **20.89 μs** | **1.45x Faster** |
+| **Memory usage** | ~120MB | **~24MB** | **5x Lower** |
 
 ## NuGet Packages
 
@@ -97,27 +114,20 @@ var dto = mapper.Map<User, UserDto>(new User { Name = "Digvijay Chauhan" });
 *   **AutoMappic.Generator**: The Roslyn incremental source generator. Typically included as a private asset/analyzer.
 
 ```xml
-<PackageReference Include="AutoMappic" Version="0.3.0" />
+<PackageReference Include="AutoMappic" Version="0.4.0" />
 ```
 
 ## Diagnostics
 
 AutoMappic provides a rigorous build-time validation layer, ensuring structural integrity before the application starts.
 
-| ID | Title | Severity | Impact |
+| ID | Name | Severity | Description |
 | :--- | :--- | :--- | :--- |
-| **AM001** | Unmapped Destination | Error | Detects writable properties with no source resolution. |
-| **AM002** | Ambiguous Mapping | Error | Flags collisions between direct matches and flattened paths. |
-| **AM003** | Misplaced CreateMap | Warning | Identifies mappings declared outside of Profile constructors. |
-| **AM004** | Unresolved Interceptor| Warning | Alerts when a map call falls back to the reflection engine. |
-| **AM005** | Missing Constructor | Error | Ensures destination types are instantiable without reflection. |
-| **AM006** | Circular Reference | Error | Detects recursive mapping loops to prevent StackOverflow. |
-| **AM007** | Symbol Resolution | Warning | Reports when Roslyn cannot fully resolve a mapping's types. |
-| **AM008** | ProjectTo Interjection | Warning | Identifies procedural logic that cannot be converted to SQL. |
-| **AM009** | Duplicate Mapping | Warning | Detects conflicting configurations for the same type-pair. |
-| **AM010** | Performance Hotpath | Info | Flags high-allocation nested collection mappings. |
-| **AM011** | Multi-Source ProjectTo | Error | Prevents unsupported multi-source database projections. |
-| **AM012** | Asymmetric Mapping | Warning | Flags mappings with no writable destination properties. |
+| **AM001** | Unmapped Property | Error | Destination property has no source match. |
+| **AM004** | Fallback Warning | Warning | Call-site not intercepted; falling back to reflection. |
+| **AM006** | Circular Map | Error | Infinite recursion detected in static graph. |
+| **AM008** | ProjectTo Warning | Warning | Procedural logic found in database projection. |
+| **AM013** | Patch Integrity | Warning | Warns when patching `required` properties from nullable sources. |
 
 ## Proven at Scale
 

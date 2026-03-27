@@ -36,8 +36,52 @@ public sealed class AutoMappicGenerator : IIncrementalGenerator
             predicate: ProfileExtractor.IsProfileClassCandidate,
             transform: ProfileExtractor.ExtractMappingModels);
 
-        var mappingResults = profileCandidates
+        var converterCandidates = context.SyntaxProvider.CreateSyntaxProvider(
+            predicate: ProfileExtractor.IsConverterMethodCandidate,
+            transform: ProfileExtractor.ExtractConverterModels);
+
+        var optionsProvider = context.AnalyzerConfigOptionsProvider;
+
+        var allCandidates = profileCandidates.Collect()
+            .Combine(converterCandidates.Collect())
+            .SelectMany(static (pair, _) => pair.Left.AddRange(pair.Right));
+
+        var mappingResults = allCandidates
             .SelectMany(static (list, _) => list)
+            .Combine(optionsProvider)
+            .Select(static (pair, _) =>
+            {
+                var (result, options) = pair;
+                options.GlobalOptions.TryGetValue("build_property.automappic_enableidentitymanagement", out var idFlagStr);
+                bool enableIdentity = "true".Equals(idFlagStr, System.StringComparison.OrdinalIgnoreCase);
+
+                if (result.Model != null)
+                {
+                    var diags = new List<Diagnostic>(result.Diagnostics);
+                    if (enableIdentity)
+                    {
+                        foreach (var prop in result.Model.Properties)
+                        {
+                            if (prop.IsRequired && prop.SourceCanBeNull && prop.ConditionBody == null)
+                            {
+                                var linePos = new global::Microsoft.CodeAnalysis.Text.LinePosition(result.Model.Line > 0 ? result.Model.Line - 1 : 0, result.Model.Column > 0 ? result.Model.Column - 1 : 0);
+                                var location = string.IsNullOrEmpty(result.Model.FilePath) ? global::Microsoft.CodeAnalysis.Location.None : global::Microsoft.CodeAnalysis.Location.Create(result.Model.FilePath!,
+                                    new global::Microsoft.CodeAnalysis.Text.TextSpan(0, 0),
+                                    new global::Microsoft.CodeAnalysis.Text.LinePositionSpan(linePos, linePos));
+
+                                diags.Add(Diagnostic.Create(
+                                    AutoMappicDiagnostics.PatchIntoRequired,
+                                    location,
+                                    prop.DestinationProperty,
+                                    result.Model.DestinationTypeName,
+                                    prop.SourceRawExpression ?? prop.SourceExpression ?? "unknown"));
+                            }
+                        }
+                    }
+                    return (Model: result.Model with { EnableIdentityManagement = enableIdentity }, Diagnostics: diags);
+                }
+                return result;
+            })
             .WithComparer(MappingResultComparer.Instance);
 
         var mappingModels = mappingResults

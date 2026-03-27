@@ -14,3 +14,4 @@ AM009 | AutoMappic | Warning | Duplicate mapping configuration.
 AM010 | AutoMappic | Info | Performance hotpath detected.
 AM011 | AutoMappic | Error | Multi-Source ProjectTo not supported.
 AM012 | AutoMappic | Warning | Asymmetric mapping configuration.
+AM013 | AutoMappic | Warning | Required property patch mismatch.

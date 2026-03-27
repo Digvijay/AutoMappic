@@ -63,6 +63,9 @@ internal static class ProfileExtractor
     public static bool IsProfileClassCandidate(SyntaxNode node, System.Threading.CancellationToken _) =>
         node is ClassDeclarationSyntax cls && cls.BaseList is not null;
 
+    public static bool IsConverterMethodCandidate(SyntaxNode node, System.Threading.CancellationToken _) =>
+        node is MethodDeclarationSyntax method && method.AttributeLists.Count > 0;
+
     /// <summary>
     ///   Semantic transform: given a <see cref="GeneratorSyntaxContext" /> whose
     ///   <c>Node</c> is a class declaration, extracts a <see cref="MappingModel" /> for
@@ -124,6 +127,57 @@ internal static class ProfileExtractor
         }
 
         return results;
+    }
+
+    public static IReadOnlyList<(MappingModel Model, IReadOnlyList<Diagnostic> Diagnostics)>
+        ExtractConverterModels(
+            GeneratorSyntaxContext context,
+            System.Threading.CancellationToken cancellationToken)
+    {
+        var methodDecl = (MethodDeclarationSyntax)context.Node;
+        var methodSymbol = context.SemanticModel.GetDeclaredSymbol(methodDecl, cancellationToken) as IMethodSymbol;
+        if (methodSymbol == null) return Array.Empty<(MappingModel, IReadOnlyList<Diagnostic>)>();
+
+        bool hasAttribute = false;
+        foreach (var attr in methodSymbol.GetAttributes())
+        {
+            if (attr.AttributeClass?.Name == "AutoMappicConverterAttribute")
+            {
+                hasAttribute = true;
+                break;
+            }
+        }
+
+        if (!hasAttribute) return Array.Empty<(MappingModel, IReadOnlyList<Diagnostic>)>();
+
+        // Must be static, have 1 parameter, and return something.
+        if (!methodSymbol.IsStatic || methodSymbol.Parameters.Length != 1 || methodSymbol.ReturnsVoid)
+            return Array.Empty<(MappingModel, IReadOnlyList<Diagnostic>)>();
+
+        var sourceType = methodSymbol.Parameters[0].Type;
+        var destType = methodSymbol.ReturnType;
+
+        var location = methodDecl.GetLocation();
+        var lineSpan = location.GetLineSpan();
+
+        var model = new MappingModel(
+            SourceTypeFullName: SourceEmitter.GetDisplayString(sourceType),
+            SourceTypeName: sourceType.Name,
+            DestinationTypeFullName: SourceEmitter.GetDisplayString(destType),
+            DestinationTypeName: destType.Name,
+            Properties: new EquatableArray<PropertyMap>(Array.Empty<PropertyMap>()),
+            ConstructorArguments: new EquatableArray<PropertyMap>(Array.Empty<PropertyMap>()),
+            SourceNamespace: sourceType.ContainingNamespace?.IsGlobalNamespace == false ? sourceType.ContainingNamespace.ToDisplayString() : null,
+            DestinationNamespace: destType.ContainingNamespace?.IsGlobalNamespace == false ? destType.ContainingNamespace.ToDisplayString() : null,
+            FilePath: lineSpan.Path,
+            Line: lineSpan.StartLinePosition.Line + 1,
+            Column: lineSpan.StartLinePosition.Character + 1,
+            StaticConverterMethodFullName: $"{methodSymbol.ContainingType.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat)}.{methodSymbol.Name}",
+            IsSourceValueType: sourceType.IsValueType || sourceType.IsTupleType,
+            IsDestinationValueType: destType.IsValueType || destType.IsTupleType
+        );
+
+        return new[] { (model, (IReadOnlyList<Diagnostic>)Array.Empty<Diagnostic>()) };
     }
 
     // --- Private helpers ----------------------------------------------------------

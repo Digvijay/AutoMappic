@@ -37,7 +37,10 @@ internal sealed record PropertyMap(
     bool IsAsync = false,
     string? ConditionBody = null,
     string? NestedFullDestTypeFullName = null,
-    string? DataReaderColumn = null);
+    string? DataReaderColumn = null,
+    string? NestedDestKeyProperty = null,
+    bool SourceCanBeNull = false,
+    bool IsRequired = false);
 
 /// <summary>Describes how a <see cref="PropertyMap" /> was resolved by the convention engine.</summary>
 internal enum PropertyMapKind
@@ -104,7 +107,9 @@ internal sealed record MappingModel(
     bool IsSourceValueType = false,
     bool IsDestinationValueType = false,
     EquatableArray<string>? UnmappedProperties = null,
-    EquatableArray<string>? TypeParameters = null)
+    EquatableArray<string>? TypeParameters = null,
+    bool EnableIdentityManagement = false,
+    string? StaticConverterMethodFullName = null)
 {
     /// <summary>Returns true if any property in this mapping is resolved asynchronously.</summary>
     public bool IsAsync => Properties.Any(p => p.IsAsync) || ConstructorArguments.Any(p => p.IsAsync) || !string.IsNullOrEmpty(BeforeMapAsyncBody) || !string.IsNullOrEmpty(AfterMapAsyncBody);

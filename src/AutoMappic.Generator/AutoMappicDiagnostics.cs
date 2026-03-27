@@ -29,4 +29,6 @@ internal static class AutoMappicDiagnostics
     public static readonly DiagnosticDescriptor UnsupportedMultiSourceProjectTo = new DiagnosticDescriptor("AM011", "Multi-Source ProjectTo not supported", "ProjectTo for multi-source mapping '{0}' -> '{1}' is not supported", Category, DiagnosticSeverity.Error, true, "Projection from multiple sources is currently only supported for in-memory mapping.");
 
     public static readonly DiagnosticDescriptor AsymmetricMapping = new DiagnosticDescriptor("AM012", "Asymmetric mapping configuration", "Mapping for '{0}' -> '{1}' has no writable destination properties", Category, DiagnosticSeverity.Warning, true, "The mapping might be intended to be a projection only, but no writable properties were found on the destination.");
+
+    public static readonly DiagnosticDescriptor PatchIntoRequired = new DiagnosticDescriptor("AM013", "Required property patch mismatch", "Property '{0}' on '{1}' is 'required' but mapped from nullable source '{2}' without a default fallback", Category, DiagnosticSeverity.Warning, true, "Patch Mode skips nulls, leaving 'required' properties uninitialized if no existing value was present.");
 }

@@ -1,66 +1,50 @@
-# Benchmarks: Performance Analysis of AutoMappic v0.3.0
+# Benchmarks: Performance Analysis of AutoMappic v0.4.0
 
 ## Abstract
 AutoMappic achieves high-performance object mapping by shifting resolution and execution paths from runtime reflection to compile-time static analysis. This document details the comparative performance of AutoMappic against legacy mappers, explicit source generators, and manual assignment.
 
 ## 1. Test Environment
-All benchmarks were executed using **BenchmarkDotNet v0.14+** on the following configuration:
-- **Runtime**: .NET 9.0.2
-- **Processor**: Apple M2 Pro (12 cores)
-- **OS**: macOS 15.1.0
-- **Compilation**: Release mode with `EmitCompilerGeneratedFiles=true`
+All benchmarks were executed using **BenchmarkDotNet v0.15.8** on the following configuration:
+- **Runtime**: .NET 9.0.11 (RyuJIT x86-64-v3)
+- **Processor**: Intel Core i7-4980HQ CPU 2.80GHz (Haswell), 4 physical / 8 logical cores
+- **OS**: macOS Sequoia 15.7
+- **Stabilization**: `iterationCount: 30`, `warmupCount: 10`
 
-## 2. Methodology
-We evaluate performance across two distinct axes: **Runtime Mapping Throughput** (operations per nanosecond) and **Startup Latency/Cold Start** (time to first successful map).
+## 2. Results: Runtime Execution (Single Object)
 
-### Case Study: Nested Flat-Mapping
-We measured mapping a complex `User` object graph to a flattened `UserDto`.
-- **Source**: `User` { `int Id`, `string Username`, `string Email`, `Address { string City } ` }
-- **Target**: `UserDto` { `int Id`, `string Username`, `string Email`, `string AddressCity` }
-
-## 3. Results: Runtime Execution
+Mapping a complex `User` object graph to a flattened `UserDto`.
 
 | Method | Engine | Mean | Ratio | Allocated |
 | --- | --- | --- | --- | --- |
-| **Manual HandWritten** | Static Assignment | 0.81 ns | 1.00 | 0 B |
-| **AutoMappic_Intercepted**| **Source Gen + Interceptors** | **0.82 ns** | **1.01** | **0 B** |
-| Mapperly_Explicit | Source Generation | 0.84 ns | 1.04 | 0 B |
-| AutoMapper_Legacy | Reflection / IL Emit | 14.20 ns | 17.53 | 120 B |
+| AutoMapper_Legacy | Reflection / IL Emit | 188.00 ns | 1.00 (baseline) | 48 B |
+| **Manual_HandWritten** | Static Assignment | **28.04 ns** | **0.15** | **48 B** |
+| **AutoMappic_Intercepted**| **Source Gen + Interceptors** | **29.12 ns** | **0.15** | **48 B** |
+| Mapperly_Explicit | Source Generation | 28.50 ns | 0.15 | 48 B |
 
 ### Analysis
-AutoMappic performs within the margin of error of manual, hand-written C#. By using **Roslyn Interceptors**, we eliminate the virtual dispatch overhead of an `IMapper` interface, allowing the JIT compiler to inline the mapping logic directly into the call site.
+AutoMappic maintains **parity with hand-written manual mapping** (~29ns vs ~28ns) and is **6.5x faster** than AutoMapper. The v0.4.0 additions (MappingContext, Patch Mode, Static Converters) introduce **zero measurable overhead** as the generated mapping path remains straight-line assignment code.
 
-## 4. Results: Zero-LINQ Collection Mapping
+## 3. Results: Collection Mapping (IMapper Interception)
 
-AutoMappic v0.3.0 introduces specialized generators for collection-to-collection mapping, bypassing the standard `System.Linq` operators like `.Select()` or `.ToList()`. This significantly reduces memory allocations (GC pressure) and increases throughput.
+v0.4.0-refined introduces full interception for `IMapper.Map<List<T1>, List<T2>>()`. This closes the gap where collection wrappers previously fell back to the reflection engine.
 
-### Comparison: mapping `List<Source>` to `List<Target>` (1,000 items)
+### Comparison: mapping `List<PointSource>` to `List<PointDto>` (1,000 items)
 
-| Method | Engine | Mean | Gen 0 | Allocated |
+| Method | Engine | Mean | Ratio | Allocated |
 | --- | --- | --- | --- | --- |
-| **Manual Loop** | for-loop / manually-sized List | 13.50 μs | 10.19 | 31.3 KB |
-| **AutoMappic_ZeroLinq** | **Generated static for-loop** | **13.51 μs** | **10.19** | **31.3 KB** |
-| AutoMapper_List | Runtime Reflection + LINQ | 20.47 μs | 12.91 | 39.6 KB |
+| AutoMapper_List | Runtime Reflection + LINQ | 30.19 μs | 1.00 (baseline) | 39.6 KB |
+| **Manual_List** | for-loop / manually-sized List | **21.37 μs** | **0.71** | **31.3 KB** |
+| **AutoMappic_ZeroLinq** | **Intercepted static for-loop**| **20.89 μs** | **0.69** | **31.3 KB** |
 
-### Sustainability Impact: The GC Tax
-By avoiding the "LINQ tax," AutoMappic reduces Gen 0 GC pressure by ~25% compared to reflection-based alternatives. This results in more predictable tail latencies (P99) and lower CPU utilization across high-volume services.
+### Analysis
+By intercepting the high-level `IMapper.Map<List<T>>` calls, AutoMappic now outperforms AutoMapper by **45%** in collection mapping throughput and matches manual loop performance exactly. Memory allocation is reduced by **21%** by bypassing the "LINQ tax" and pre-initializing list capacity based on source count.
 
-## 4. Results: Startup Performance (Cold Starts)
-
-One of the primary goals of AutoMappic is to eliminate the **Startup Scanning Phase**. Legacy mappers crawl the `AppDomain` at runtime, causing CPU spikes during container cold starts.
-
-| Implementation | Discovery Method | Startup Latency | Impact |
-| --- | --- | --- | --- |
-| Legacy AutoMapper | Runtime Reflection Scanning | ~450ms | Baseline |
-| **AutoMappic** | **Chained Static Registration** | **~125ms** | **-325ms** |
-
-**The Sales Angle:** In serverless environments like Azure Functions or AWS Lambda, this 300ms+ reduction represents a significant improvement in user-perceived responsiveness and a reduction in provisioned concurrency costs.
+## 4. Zero-Allocation Optimization: MappingContext
+In v0.4.0, `MappingContext` was converted from a `class` to a `readonly struct`. 
+- **Hot Path**: When identity management is not enabled (default), the `default(MappingContext)` occupies zero heap space.
+- **Result**: Even if the generator passes a context parameter to every method, there is **zero allocation overhead** for the context itself.
 
 ## 5. Native AOT & Container Performance
- 
-In cloud-native and serverless environments, startup time and binary size are critical. Reflection-based mappers often force the inclusion of massive runtime dependencies and prevent efficient trimming.
- 
-### Performance in a Native AOT Published Container
  
 | Metric | AutoMapper (JIT) | AutoMappic (Native AOT) | Advantage |
 | --- | --- | --- | --- |
@@ -69,22 +53,9 @@ In cloud-native and serverless environments, startup time and binary size are cr
 | **Binary Size** | ~85MB | **~12MB** | **7x Smaller** |
 | **Memory usage** | ~120MB | **~24MB** | **5x Lower** |
  
-### Why the difference?
-*   **Trimming**: AutoMappic allows the .NET SDK to trim away all unused properties and types because they are referenced statically, not via runtime strings.
-*   **No JIT**: No time is spent in the container "planning" or "compiling" mapping expressions at runtime.
- 
 ## 6. Reproducibility
  
-### Runtime Benchmarks
-To regenerate the performance throughput benchmarks:
+To reproduce these results, run the following from the project root:
 ```bash
 dotnet run -c Release --project tests/AutoMappic.Benchmarks/AutoMappic.Benchmarks.csproj
-```
- 
-### Native AOT Benchmark
-To see the Native AOT advantage in action (requires Docker):
-```bash
-cd samples/AotBenchmark
-docker build -t automappic-aot .
-docker run --rm automappic-aot
 ```

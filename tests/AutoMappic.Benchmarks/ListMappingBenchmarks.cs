@@ -5,7 +5,7 @@ using BenchmarkDotNet.Running;
 namespace AutoMappic.Benchmarks;
 
 [MemoryDiagnoser]
-[SimpleJob]
+[SimpleJob(BenchmarkDotNet.Jobs.RuntimeMoniker.Net90, iterationCount: 30, warmupCount: 10)]
 public class ListMappingBenchmarks
 {
     private global::AutoMapper.IMapper _autoMapper = null!;

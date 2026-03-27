@@ -165,8 +165,8 @@ public class Program
 ";
         var result = GeneratorTestHelper.RunGenerator(source);
         var mapSource = result.Sources.First(f => f.HintName.Contains("Source_") && f.HintName.Contains("_To_") && f.HintName.Contains("_Dest")).SourceText.ToString();
-        Assert.Contains("x.Key.MapToDKey()", mapSource);
-        Assert.Contains("x.Value.MapToDVal()", mapSource);
+        Assert.Contains("x.Key.MapToDKey(context)", mapSource);
+        Assert.Contains("x.Value.MapToDVal(context)", mapSource);
     }
 
     /// <summary> Confirm nullability handling logic when mapping nullable types to non-nullable destinations </summary>
