@@ -117,7 +117,7 @@ public sealed class UserService(IMapper mapper)
         {
             Id = id,
             Username = "alice",
-            Email = "alice@automappic.dev",
+            Email = "alice@automappic.digvijay.dev",
             Address = new Address { City = "Stockholm", Street = "Kungsgatan 1" },
         });
 }

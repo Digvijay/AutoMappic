@@ -26,7 +26,7 @@ public class CircularProfile : Profile
 }";
 
         var result = GeneratorTestHelper.RunGenerator(sourceCode);
-        
+
         var errors = result.Diagnostics.Where(d => d.Id == "AM0006").ToList();
         Prova.Assertions.Assert.NotEmpty(errors);
         Prova.Assertions.Assert.Contains("Circular reference detected", errors[0].GetMessage());

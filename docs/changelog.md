@@ -5,6 +5,25 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.5.0] - 2026-03-30
+
+### Added
+- **Smart-Sync (EF Core Identity Mapping)**: Enhanced collection mapping logic using a keyed-lookup approach to identify and update existing entity instances. This preserves EF Core's change tracking state by performing in-place updates instead of full collection replacements.
+- **Fuzzy-Match (AM0015 Smart-Match Analyzer)**: High-performance string similarity analyzer using Levenshtein distance to detect unmapped properties with similar names.
+- **Smart-Match IDE Code-Fix**: Integrated Roslyn Code-Fix provider that suggests valid property mappings directly in the IDE and automatically applies the `[MapProperty]` attribute.
+- **Performance Guardrails (AM0016)**: New diagnostic to warn when manual collection mapping logic (e.g. LINQ `.Select`) is used in a way that prevents compiler loop vectorization.
+- **Explicit Key Management**: New `[AutoMappicKey]` attribute in `AutoMappic.Core` to manually designate primary keys for entity synchronization when naming conventions are ambiguous.
+- **Explicit Mapping Overrides**: New `[MapProperty]` attribute to override default convention-based mapping for individual properties.
+- **Configurable Thresholds**: Support for `<AutoMappic_SmartMatchThreshold>` and `<AutoMappic_EnableEntitySync>` MSBuild properties to fine-tune analyzer sensitivity and opt-in to advanced features.
+
+### Breaking Changes
+- **In-Place Collection Updates**: Standard collection mapping for entities with identifiable keys now uses **Smart-Sync**. This preserves object references for matched IDs instead of recreating them. Applications relying on complete instance replacement for nested collections must now explicitly configure "Clear-and-Add" via `MappingContext`.
+- **Strict XML Enforcement**: Removed `#pragma warning disable CS1591` from generated source. All generated mapping methods now include formal XML Documentation.
+
+### Fixed
+- **Analyzer Stability**: Improved diagnostic reporting accuracy for ambiguous entity keys (AM0017).
+- **Type Casting Safety**: Standardized null-coalescing fallbacks to `(default!)` to resolve `CS8601` warnings in strict .NET 10 environments.
+
 ## [0.4.0] - 2026-03-26
 
 ### Added
@@ -24,7 +43,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **ProjectTo Context Scope**: Fixed an issue where `MappingContext` references in nested collection expressions caused compilation errors in IQueryable `ProjectTo` expression trees.
 - **Read-Only Collection In-Place Mapping**: Fixed a missing closing brace in generated code for in-place mapping of read-only collection properties.
 
-## [0.4.0] - 2026-03-21
+## [0.3.0] - 2026-03-21
 
 ### Added
 - **Multi-Targeting Support**: Explicitly added support for both .NET 9 and .NET 10 to ensure first-class performance on the latest .NET SDKs.
@@ -52,7 +71,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 - **Roslyn Versioning:** Pinned `Microsoft.CodeAnalysis` to 4.14.0 to guarantee host compatibility across all stable versions of Visual Studio 2022 and .NET 9 while enabling Interceptors.
-- **Documentation Refinement:** Comprehensive cleanup of project-wide documentation (README, VitePress, Roadmap) to reflect new v0.4.0 features.
+- **Documentation Refinement:** Comprehensive cleanup of project-wide documentation (README, VitePress, Roadmap) to reflect new v0.3.0 features.
 
 ### Security
 - **Version Hardening:** Updated all NuGet dependencies to their latest stable patches.

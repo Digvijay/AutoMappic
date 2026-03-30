@@ -17,17 +17,22 @@ Once installed, the `automappic` command will be available across your terminal.
 The `validate` command scans your project for any potential mapping errors (such as unmapped properties) that could cause runtime issues or code quality regressions.
 
 ```bash
+# Standard output
 automappic validate path/to/project.csproj
+
+# Machine-readable JSON output for CI/CD
+automappic validate path/to/project.csproj --format json
 ```
 
 ### What `validate` checks:
 - **Unmapped Properties (AM0001)**: Every destination property must be accounted for either via convention or explicit configuration.
 - **Flattening Ambiguity (AM0002)**: Multiple source properties merging into the same destination property name.
 - **Recursive Cycles (AM0003)**: Potential `StackOverflowException` scenarios found during mapping.
+- **Full Diagnostic Suite**: Reports all 17 diagnostics (AM0001-AM0017).
 
-### Status Codes
-- `0`: Validation successful.
-- `1`: Validation failed (one or more errors found).
+### Output Formats:
+- **text (default)**: Human-readable colored console output.
+- **json**: Structured data for automated build gates.
 
 ## 3. Visualizing Mapping Graphs (`visualize`)
 
@@ -39,7 +44,6 @@ automappic visualize path/to/project.csproj --format mermaid
 
 ### Supported Formats:
 - **Mermaid**: Emits a `graph LR` diagram that you can paste into your documentation or view in Mermaid-enabled editors.
-- **JSON**: Emits a machine-readable JSON structure of your mapping model.
 
 ### Sample Mermaid Output:
 ```mermaid

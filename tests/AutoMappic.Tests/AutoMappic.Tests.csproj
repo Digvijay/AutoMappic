@@ -9,10 +9,17 @@
     <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
     <!-- Enable interceptors from the generator in this test project -->
     <InterceptorsNamespaces>$(InterceptorsNamespaces);AutoMappic.Generated</InterceptorsNamespaces>
-    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <GenerateDocumentationFile>false</GenerateDocumentationFile>
     <EmitCompilerGeneratedFiles>true</EmitCompilerGeneratedFiles>
-    <NoWarn>$(NoWarn);CS1591;CS1584;CS1658;AM0007;AM0006;AM0009</NoWarn>
+    <NoWarn>$(NoWarn);AM0001;AM0002;AM0003;AM0004;AM0005;AM0006;AM0007;AM0008;AM0009;AM0010;AM0011;AM0012;AM0013;RS1038</NoWarn>
+    <AutoMappic_EnableEntitySync>true</AutoMappic_EnableEntitySync>
+    <AutoMappic_SmartMatchThreshold>0.49</AutoMappic_SmartMatchThreshold>
   </PropertyGroup>
+
+  <ItemGroup>
+    <CompilerVisibleProperty Include="AutoMappic_EnableEntitySync" />
+    <CompilerVisibleProperty Include="AutoMappic_SmartMatchThreshold" />
+  </ItemGroup>
 
   <ItemGroup>
     <PackageReference Include="Microsoft.CodeAnalysis.CSharp" />

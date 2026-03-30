@@ -350,8 +350,8 @@ public class RuntimeCoverageTests
     private class DictSourceNested { public Dictionary<int, NestedSource> Items { get; set; } = new(); }
     private class DictDestNested { public Dictionary<string, NestedDest> Items { get; set; } = new(); }
 
-    private class UnregisteredSource { }
-    private class UnregisteredDest { }
+    private class UnregisteredSource { public int Id { get; set; } }
+    private class UnregisteredDest { public int Id { get; set; } }
 
     public class User { public string Name { get; set; } = ""; }
     public class UserDto { public string Name { get; set; } = ""; }
@@ -370,11 +370,16 @@ public class RuntimeCoverageTests
     private class SnakeSource { public string first_name { get; set; } = ""; }
     private class PascalDest { public string FirstName { get; set; } = ""; }
 
+    public class S { public int Id { get; set; } }
+    public class D { public int Id { get; set; } }
+
     private class TestProfile : Profile
     {
         public IMappingExpression<S, D> Register<S, D>(Action<IMappingExpression<S, D>>? opt = null)
         {
+#pragma warning disable AM0012
             var exp = CreateMap<S, D>();
+#pragma warning restore AM0012
             opt?.Invoke(exp);
             return exp;
         }

@@ -1,8 +1,8 @@
+using System;
+using System.Collections.Generic;
 using System.Threading.Tasks;
 using Prova;
 using Assert = Prova.Assertions.Assert;
-using System;
-using System.Collections.Generic;
 
 namespace AutoMappic.Tests;
 
@@ -20,7 +20,7 @@ public sealed class AsyncEdgeCaseTests
     {
         var mapper = CreateMapper<MultiAsyncProfile>();
         var source = new MultiSource { A = "a", B = "b", C = "c" };
-        
+
         var result = await mapper.MapAsync<MultiSource, MultiDest>(source);
 
         Assert.Equal("A-VAL", result.A);
@@ -63,11 +63,11 @@ public sealed class AsyncEdgeCaseTests
         var source = new FailingSource { Value = "fail" };
 
         var task = mapper.MapAsync<FailingSource, FailingDest>(source);
-        
+
         // C# Task.Wait() or await will throw. Prova's Assert.Throws is sync, 
         // but we can use try-catch or await it.
         bool thrown = false;
-        try 
+        try
         {
             await task;
         }

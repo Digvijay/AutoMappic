@@ -33,9 +33,9 @@ public class UserProfile : Profile
 }
 ```
 
-## Global Type-to-Type Converters (v0.4.0)
+## Global Type-to-Type Converters (v0.5.0)
 
-In v0.4.0, you can also register a converter to handle **all mappings** between two types across an entire application.
+In v0.5.0, you can also register a converter to handle **all mappings** between two types across an entire application.
 
 ```csharp
 public class MoneyConverter : IValueConverter<decimal, MoneyDto>

@@ -1,6 +1,6 @@
 ![AutoMappic Hero](./docs/public/assets/hero.png)
 
-# AutoMappic v0.4.0
+# AutoMappic v0.5.0
 
 [![NuGet](https://img.shields.io/nuget/v/AutoMappic?style=flat-square&logo=nuget)](https://www.nuget.org/packages/AutoMappic)
 [![CI](https://github.com/Digvijay/AutoMappic/actions/workflows/ci.yml/badge.svg?style=flat-square)](https://github.com/Digvijay/AutoMappic/actions/workflows/ci.yml)
@@ -16,7 +16,7 @@ AutoMappic is a high-performance object-to-object mapper for .NET 9 and .NET 10.
 ---
 
 ## Table of Contents
-1. [What's New in v0.4.0](#whats-new-in-v040)
+1. [What's New in v0.5.0](#whats-new-in-v050)
 2. [Goals](#goals)
 3. [Benchmarks](#benchmarks)
 4. [Quick Start](#quick-start)
@@ -27,9 +27,18 @@ AutoMappic is a high-performance object-to-object mapper for .NET 9 and .NET 10.
 
 ---
 
-## What's New in v0.4.0
+## What's New in v0.5.0
 
-v0.4.0 introduces **Graph Mapping** -- moving AutoMappic from simple tree-based mapping to enterprise-grade entity graph management, all while maintaining Native AOT and zero-allocation performance.
+v0.5.0 introduces **Persistence Intelligence** and **Developer Productivity** features, bridging the gap between simple mapping and complex entity synchronization while making the mapping process even faster with Smart-Match suggestions.
+
+### Smart-Sync (EF Core Identity Mapping)
+AutoMappic now intelligently synchronizes nested collections by comparing primary keys (`Id`, `[Key]`, or `[AutoMappicKey]`). Existing entities are updated **in-place**, preserving EF Core's Change Tracker state and eliminating redundant database operations.
+
+### Smart-Match (AI-Lite Fuzzy Suggestions)
+Never manually map a typo again. The AM0015 Smart-Match analyzer detects unmapped properties with similar names and provides a direct IDE Code-Fix to automatically apply the correct `[MapProperty]` attribute.
+
+### Performance Guardrails
+AM0016 warns you if your custom collection mapping logic (like LINQ `.Select`) is preventing compiler loop vectorization, ensuring your hot paths stay truly zero-overhead.
 
 | Feature | Description |
 | :--- | :--- |
@@ -100,7 +109,7 @@ AutoMappic achieves performance parity with manual hand-written C# by shifting a
 - **Enterprise Ready**: Support for cyclic graphs, identity management, and collection syncing.
 - **Diagnostic Safety**: Rich build-time feedback (e.g., **AM0013** for patch-mode integrity).
 
-## Performance Comparison (v0.4.0)
+## Performance Comparison (v0.5.0)
 
 | Metric | AutoMapper (JIT) | AutoMappic (Native AOT) | Advantage |
 | :--- | :--- | :--- | :--- |
@@ -114,7 +123,7 @@ AutoMappic achieves performance parity with manual hand-written C# by shifting a
 *   **AutoMappic.Generator**: The Roslyn incremental source generator. Typically included as a private asset/analyzer.
 
 ```xml
-<PackageReference Include="AutoMappic" Version="0.4.0" />
+<PackageReference Include="AutoMappic" Version="0.5.0" />
 ```
 
 ## Diagnostics
@@ -128,6 +137,10 @@ AutoMappic provides a rigorous build-time validation layer, ensuring structural 
 | **AM0006** | Circular Map | Error | Infinite recursion detected in static graph. |
 | **AM0008** | ProjectTo Warning | Warning | Procedural logic found in database projection. |
 | **AM0013** | Patch Integrity | Warning | Warns when patching `required` properties from nullable sources. |
+| **AM0014** | Unmapped Key | Warning | Nested entity has a primary key but the source mapping lacks it. |
+| **AM0015** | Smart-Match | Warning | Unmapped property has a close name match at source. Includes Code-Fix. |
+| **AM0016** | Performance | Warning | Custom collection logic breaks JIT loop vectorization. |
+| **AM0017** | Ambiguous Key | Warning | Entity has multiple potential keys; explicit `[AutoMappicKey]` required. |
 
 ## Proven at Scale
 

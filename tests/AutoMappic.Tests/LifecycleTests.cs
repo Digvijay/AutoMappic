@@ -19,7 +19,7 @@ public sealed class LifecycleTests
         var source = new LifecycleSource { Value = 10 };
         var result = mapper.Map<LifecycleSource, LifecycleDest>(source);
 
-        Assert.Equal(10, result.Value); 
+        Assert.Equal(10, result.Value);
         Assert.True(result.WasBeforeCalled);
         Assert.True(result.WasAfterCalled);
     }

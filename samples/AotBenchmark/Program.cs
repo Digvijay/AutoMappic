@@ -1,7 +1,7 @@
 using System.Diagnostics;
 using AutoMappic;
 
-Console.WriteLine("🚀 AutoMappic Native AOT Benchmark");
+Console.WriteLine("AutoMappic Native AOT Benchmark");
 Console.WriteLine("----------------------------------");
 
 var mapper = new MapperConfiguration(cfg => cfg.AddProfile<BenchmarkProfile>())
@@ -11,7 +11,7 @@ var source = new User
 { 
     Id = 1, 
     Name = "Principled Engineer", 
-    Email = "builder@automappic.dev",
+    Email = "builder@automappic.digvijay.dev",
     Metadata = new UserMetadata { LastLogin = DateTime.UtcNow }
 };
 
@@ -25,8 +25,8 @@ for (int i = 0; i < 100_000; i++)
 }
 sw.Stop();
 
-Console.WriteLine($"✅ Mapped 100,000 objects in: {sw.ElapsedMilliseconds}ms");
-Console.WriteLine($"⏱️ Average: {sw.Elapsed.TotalMicroseconds / 100_000:F4}μs per map");
+Console.WriteLine($"Mapped 100,000 objects in: {sw.ElapsedMilliseconds}ms");
+Console.WriteLine($"Average: {sw.Elapsed.TotalMicroseconds / 100_000:F4}μs per map");
 Console.WriteLine("----------------------------------");
 Console.WriteLine("Done.");
 

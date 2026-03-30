@@ -13,12 +13,15 @@ hero:
       text: Get Started
       link: /getting-started
     - theme: alt
-      text: View on GitHub
+      text: Full Features Case Study
+      link: /tutorials/full-features-walkthrough
+    - theme: alt
+      text: GitHub
       link: https://github.com/Digvijay/AutoMappic
 
 features:
   - title: Rigorous Diagnostic Suite
-    details: Build-time protection with AM0001-AM0013. Catch unmapped properties, circular references, and ProjectTo incompatibilities before the JIT compiler even starts.
+    details: Build-time protection with AM0001-AM0017. Catch unmapped properties, fuzzy-match typos, persistence issues, and ProjectTo incompatibilities instantly.
   - title: 100% Native AOT Compatible
     details: AutoMappic generates highly-optimized C# code at compile-time. No runtime reflection, no dynamic IL emission.
   - title: Advanced Configuration Parity

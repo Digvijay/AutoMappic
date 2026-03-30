@@ -271,7 +271,7 @@ public class MyProfile : Profile
     public MyProfile() { CreateMap<Money, MoneyView>(); }
 }";
         var result = GeneratorTestHelper.RunGenerator(source);
-        
+
         // Should generate a map file for Money -> MoneyView
         var mapFile = result.Sources
             .FirstOrDefault(f => f.HintName.Contains("Money") && f.HintName.Contains("MoneyView"));

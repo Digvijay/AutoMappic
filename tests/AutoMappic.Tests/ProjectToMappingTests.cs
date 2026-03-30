@@ -6,8 +6,8 @@ using Assert = Prova.Assertions.Assert;
 
 namespace AutoMappic.Tests;
 
-public class ProjectToSource { public int Id { get; set; } public string Name { get; set; } }
-public class ProjectToDest { public int Id { get; set; } public string Name { get; set; } }
+public class ProjectToSource { public int Id { get; set; } public string Name { get; set; } = ""; }
+public class ProjectToDest { public int Id { get; set; } public string Name { get; set; } = ""; }
 
 public class ProjectToProfile : Profile
 {

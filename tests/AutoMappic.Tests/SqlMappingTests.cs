@@ -26,7 +26,7 @@ public class SqlMappingTests
         }
     }
 
-    public class Source { public int Id { get; set; } public string Name { get; set; } public string? Email { get; set; } }
+    public class Source { public int Id { get; set; } public string Name { get; set; } = ""; public string? Email { get; set; } }
 
     [Fact]
     [Description("Tests mapping from a real DataReader (DataTable) with Nulls and Ordinals.")]
@@ -37,20 +37,21 @@ public class SqlMappingTests
         dt.Columns.Add("Id", typeof(int));
         dt.Columns.Add("Name", typeof(string));
         dt.Columns.Add("Email", typeof(string));
-        
+
         dt.Rows.Add(1, "Alice", "alice@example.com");
         dt.Rows.Add(2, "Bob", DBNull.Value); // Test DBNull -> null
-        
+
         // 2. Setup AutoMappic
-        var config = new MapperConfiguration(cfg => {
-             cfg.AddProfile<SqlProfile>();
+        var config = new MapperConfiguration(cfg =>
+        {
+            cfg.AddProfile<SqlProfile>();
         });
-        
+
         using var reader = dt.CreateDataReader();
-        
+
         // 3. Act - Use the intercepted DataReader extension
         var results = reader.Map<UserDto>().ToList();
-        
+
         // 4. Assert
         Assert.Equal(2, (long)results.Count);
         Assert.Equal("Alice", results[0].Name);
@@ -65,9 +66,9 @@ public class SqlMappingTests
     {
         // Interceptor for ProjectTo<UserDto> should trigger here
         var source = new List<Source> { new() { Id = 1, Name = "Alice", Email = "alice@a.com" } }.AsQueryable();
-        
+
         var results = source.ProjectTo<UserDto>().ToList();
-        
+
         Assert.Equal(1, (long)results.Count);
         Assert.Equal("Alice", results[0].Name);
         Assert.Equal("alice@a.com", results[0].Email);

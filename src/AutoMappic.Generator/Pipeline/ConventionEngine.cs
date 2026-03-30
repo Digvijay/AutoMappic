@@ -93,6 +93,7 @@ internal static class ConventionEngine
                     bool isInit = false;
                     bool isReadOnly = false;
                     bool isRequired = false;
+                    bool isKey = false;
                     if (member is IPropertySymbol p)
                     {
                         isInit = p.SetMethod?.IsInitOnly ?? false;
@@ -104,7 +105,18 @@ internal static class ConventionEngine
                         isReadOnly = f.IsReadOnly;
                         isRequired = f.IsRequired;
                     }
-                    properties.Add(map with { IsInitOnly = isInit, IsReadOnly = isReadOnly, IsRequired = isRequired });
+
+                    // Key detection: Attributes or naming convention
+                    isKey = member.GetAttributes().Any(a => a.AttributeClass?.Name is "KeyAttribute" or "AutoMappicKeyAttribute" or "EntityKeyAttribute" or "Key");
+                    if (!isKey)
+                    {
+                        isKey = string.Equals(memberName, "Id", StringComparison.OrdinalIgnoreCase) ||
+                                string.Equals(memberName, destination.Name + "Id", StringComparison.OrdinalIgnoreCase) ||
+                                string.Equals(memberName, "Key", StringComparison.OrdinalIgnoreCase) ||
+                                memberName == "SSN" || memberName == "Code";
+                    }
+
+                    properties.Add(map with { IsInitOnly = isInit, IsReadOnly = isReadOnly, IsRequired = isRequired, IsKey = isKey });
                 }
                 else if (!constructorParamNames.Contains(memberName))
                 {
@@ -168,7 +180,13 @@ internal static class ConventionEngine
             conditionBody = explicitData.Condition;
             if (explicitData.Expression != null)
             {
-                return new PropertyMap(targetName, explicitData.Expression, PropertyMapKind.Explicit, IsAsync: explicitData.IsAsync, ConditionBody: conditionBody, SourceCanBeNull: false);
+                bool isColl = IsCollection(targetType, out _);
+                if (isColl && (explicitData.Expression.Contains(".Select(") || explicitData.Expression.Contains(".Resolve(")))
+                {
+                    reportDiagnostic(Diagnostic.Create(AutoMappicDiagnostics.PerformanceRegression, profileLocation ?? Location.None, source.Name, targetType.Name));
+                }
+
+                return new PropertyMap(targetName, explicitData.Expression, PropertyMapKind.Explicit, IsAsync: explicitData.IsAsync, ConditionBody: conditionBody, SourceCanBeNull: false, IsCollection: isColl);
             }
         }
 
@@ -205,7 +223,7 @@ internal static class ConventionEngine
             var typeStr = targetType.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat);
             var isNullable = targetType.IsReferenceType || (targetType.IsValueType && targetType.NullableAnnotation == NullableAnnotation.Annotated);
             if (isNullable)
-                expr = $"{sourceAccess}.IsDBNull({ordinal}) ? default({typeStr})! : {expr}";
+                expr = $"{sourceAccess}.IsDBNull({ordinal}) ? (default!) : {expr}";
 
             return new PropertyMap(targetName, expr, PropertyMapKind.Direct, DataReaderColumn: keyName, ConditionBody: conditionBody, SourceCanBeNull: CanBeNull(targetType));
         }
@@ -220,15 +238,16 @@ internal static class ConventionEngine
                 keyName = NamingUtility.ToSnakeCase(targetName);
 
             var sourceExpr = $"{sourceAccess} != null && {sourceAccess}.ContainsKey(\"{keyName}\") ? {sourceAccess}[\"{keyName}\"] : default!";
-            var (nE, nS, nD, iC, iA, iE, rE, nCond, nKey) = WrapWithNestedMapper(sourceExpr, srcValue, targetType, profileLocation, reportDiagnostic, mappingStack, targetName);
-            return new PropertyMap(targetName, nE, PropertyMapKind.Direct, NestedSourceTypeFullName: nS, NestedDestTypeFullName: nD, NestedFullDestTypeFullName: targetType.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat), IsCollection: iC, IsArray: iA, NestedExpression: iE, SourceRawExpression: rE, ConditionBody: conditionBody ?? nCond, NestedDestKeyProperty: nKey, SourceCanBeNull: CanBeNull(srcValue));
+            var (nE, nS, nD, iC, iA, iE, rE, nCond, nKey, nKeyType, nKeyVal) = WrapWithNestedMapper(sourceExpr, srcValue, targetType, profileLocation, reportDiagnostic, mappingStack, targetName);
+            return new PropertyMap(targetName, nE, PropertyMapKind.Direct, NestedSourceTypeFullName: nS, NestedDestTypeFullName: nD, NestedFullDestTypeFullName: targetType.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat), IsCollection: iC, IsArray: iA, NestedExpression: iE, SourceRawExpression: rE, ConditionBody: conditionBody ?? nCond, NestedDestKeyProperty: nKey, NestedDestKeyTypeFullName: nKeyType, IsNestedDestKeyValueType: nKeyVal, SourceCanBeNull: CanBeNull(srcValue));
         }
 
         // Discovery
         var readableMembers = GetReadableMembers(source);
         var directMatches = readableMembers.Where(m =>
             string.Equals(m.Name, targetName, StringComparison.OrdinalIgnoreCase) ||
-            string.Equals(NamingUtility.Normalize(m.Name), NamingUtility.Normalize(targetName), StringComparison.OrdinalIgnoreCase)).ToList();
+            string.Equals(NamingUtility.Normalize(m.Name), NamingUtility.Normalize(targetName), StringComparison.OrdinalIgnoreCase) ||
+            (sourceNaming?.Contains("Snake") == true && (string.Equals(m.Name, NamingUtility.ToSnakeCase(targetName), StringComparison.OrdinalIgnoreCase) || string.Equals(m.Name, "src_" + NamingUtility.ToSnakeCase(targetName), StringComparison.OrdinalIgnoreCase)))).ToList();
 
         var sourceMethods = GetAllZeroArgMethods(source);
         var methodMatches = sourceMethods.Where(m =>
@@ -252,11 +271,11 @@ internal static class ConventionEngine
             var sourceType = directMatch is not null ? GetMemberType(directMatch) : methodMatch!.ReturnType;
             var sourceExpr = directMatch is not null ? $"{sourceAccess}.{directMatch.Name}" : $"{sourceAccess}.{methodMatch!.Name}()";
 
-            var (nestedExpr, nSrc, nDest, isColl, isArr, itemExpr, rawExpr, nCond, nKey) = WrapWithNestedMapper(sourceExpr, sourceType, targetType, profileLocation, reportDiagnostic, mappingStack, targetName);
+            var (nestedExpr, nSrc, nDest, isColl, isArr, itemExpr, rawExpr, nCond, nKey, nKeyType, nKeyVal) = WrapWithNestedMapper(sourceExpr, sourceType, targetType, profileLocation, reportDiagnostic, mappingStack, targetName);
             return new PropertyMap(targetName, nestedExpr, PropertyMapKind.Direct,
                 NestedSourceTypeFullName: nSrc, NestedDestTypeFullName: nDest,
                 NestedFullDestTypeFullName: targetType.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat),
-                IsCollection: isColl, IsArray: isArr, NestedExpression: itemExpr, SourceRawExpression: rawExpr, ConditionBody: conditionBody ?? nCond, NestedDestKeyProperty: nKey, SourceCanBeNull: CanBeNull(sourceType));
+                IsCollection: isColl, IsArray: isArr, NestedExpression: itemExpr, SourceRawExpression: rawExpr, ConditionBody: conditionBody ?? nCond, NestedDestKeyProperty: nKey, NestedDestKeyTypeFullName: nKeyType, IsNestedDestKeyValueType: nKeyVal, SourceCanBeNull: CanBeNull(sourceType));
         }
 
         if (flatPath != null)
@@ -264,10 +283,41 @@ internal static class ConventionEngine
             return new PropertyMap(targetName, $"{sourceAccess}.{flatPath}", PropertyMapKind.Flattened, ConditionBody: conditionBody, SourceCanBeNull: CanBeNull(targetType));
         }
 
+        // AM0015 Smart-Match Fuzzy matching logic if no direct or flattened match found
+        ISymbol? bestMember = null;
+        double bestScore = 0;
+
+        // Performance safeguard: Limit fuzzy matching to prevent pathological build times
+        // on classes with hundreds of properties.
+        if (readableMembers.Count <= 200)
+        {
+            foreach (var m in readableMembers)
+            {
+                // Heuristic: If name lengths differ by more than 2x, Similarity is unlikely to be >= 0.3
+                if (Math.Abs(m.Name.Length - targetName.Length) > Math.Max(m.Name.Length, targetName.Length) / 2)
+                    continue;
+
+                double score = MappingFuzzer.GetSimilarity(m.Name, targetName);
+                if (score >= 0.3 && score > bestScore)
+                {
+                    bestMember = m;
+                    bestScore = score;
+                }
+            }
+        }
+
+        if (bestMember != null && IsTypeCompatible(GetMemberType(bestMember), targetType))
+        {
+            var props = global::System.Collections.Immutable.ImmutableDictionary<string, string?>.Empty
+                .Add("SuggestedName", bestMember.Name)
+                .Add("Score", bestScore.ToString(global::System.Globalization.CultureInfo.InvariantCulture));
+            reportDiagnostic(Diagnostic.Create(AutoMappicDiagnostics.SmartMatchSuggestion, profileLocation ?? Location.None, props, targetName, destTypeName, bestMember.Name));
+        }
+
         return null;
     }
 
-    private static (string Expression, string? NestedSource, string? NestedDest, bool IsCollection, bool IsArray, string? ItemExpression, string? RawExpression, string? Condition, string? NestedDestKey) WrapWithNestedMapper(
+    private static (string Expression, string? NestedSource, string? NestedDest, bool IsCollection, bool IsArray, string? ItemExpression, string? RawExpression, string? Condition, string? NestedDestKey, string? NestedDestKeyType, bool IsKeyValType) WrapWithNestedMapper(
         string expression, ITypeSymbol sourceType, ITypeSymbol destType, Location? profileLoc, Action<Diagnostic> reportDiag, HashSet<(ITypeSymbol, ITypeSymbol)> stack, string targetName)
     {
         var sBase = UnwrapNullable(sourceType);
@@ -280,18 +330,18 @@ internal static class ConventionEngine
             {
                 if (sourceType.NullableAnnotation == NullableAnnotation.Annotated && destType.NullableAnnotation == NullableAnnotation.NotAnnotated)
                 {
-                    return ($"{expression} ?? \"\"", null, null, false, false, null, expression, cond, null);
+                    return ($"{expression} ?? \"\"", null, null, false, false, null, expression, cond, null, null, false);
                 }
-                return (expression, null, null, false, false, null, expression, cond, null);
+                return (expression, null, null, false, false, null, expression, cond, null, null, false);
             }
 
             if (sourceType.IsReferenceType || IsNullableStruct(sourceType))
             {
-                return ($"{expression}?.ToString() ?? \"\"", null, null, false, false, null, expression, cond, null);
+                return ($"{expression}?.ToString() ?? \"\"", null, null, false, false, null, expression, cond, null, null, false);
             }
             else
             {
-                return ($"{expression}.ToString()", null, null, false, false, null, expression, cond, null);
+                return ($"{expression}.ToString()", null, null, false, false, null, expression, cond, null, null, false);
             }
         }
 
@@ -299,28 +349,28 @@ internal static class ConventionEngine
         {
             if (IsNullableStruct(sourceType) && !IsNullableStruct(destType))
             {
-                return ($"{expression}.GetValueOrDefault()", null, null, false, false, null, expression, cond, null);
+                return ($"{expression}.GetValueOrDefault()", null, null, false, false, null, expression, cond, null, null, false);
             }
             if (sBase.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat) != dBase.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat) && IsNumeric(sBase) && IsNumeric(dBase))
             {
-                return ($"({destType.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat)}){expression}", null, null, false, false, null, expression, cond, null);
+                return ($"({destType.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat)}){expression}", null, null, false, false, null, expression, cond, null, null, false);
             }
-            return (expression, null, null, false, false, null, expression, cond, null);
+            return (expression, null, null, false, false, null, expression, cond, null, null, false);
         }
 
         if (destType.TypeKind == TypeKind.Enum && IsNumeric(sourceType))
         {
-            return ($"({destType.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat)}){expression}", null, null, false, false, null, expression, cond, null);
+            return ($"({destType.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat)}){expression}", null, null, false, false, null, expression, cond, null, null, false);
         }
 
         if (sourceType.TypeKind == TypeKind.Enum && IsNumeric(destType))
         {
-            return ($"({destType.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat)}){expression}", null, null, false, false, null, expression, cond, null);
+            return ($"({destType.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat)}){expression}", null, null, false, false, null, expression, cond, null, null, false);
         }
 
         if (sourceType.TypeKind == TypeKind.Enum && destType.TypeKind == TypeKind.Enum)
         {
-            return ($"({destType.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat)}){expression}", null, null, false, false, null, expression, cond, null);
+            return ($"({destType.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat)}){expression}", null, null, false, false, null, expression, cond, null, null, false);
         }
 
         // Dictionary logic
@@ -328,7 +378,7 @@ internal static class ConventionEngine
         {
             var keyMap = WrapWithNestedMapper("x.Key", sKey, dKey, profileLoc, reportDiag, stack, "Key");
             var valueMap = WrapWithNestedMapper("x.Value", sValue, dValue, profileLoc, reportDiag, stack, "Value");
-            return ($"({expression} ?? new()).ToDictionary(x => {keyMap.Expression}, x => {valueMap.Expression})", null, GetDisplayString(destType), false, false, null, expression, cond, null);
+            return ($"({expression} ?? new()).ToDictionary(x => {keyMap.Expression}, x => {valueMap.Expression})", null, GetDisplayString(destType), false, false, null, expression, cond, null, null, false);
         }
 
         // Recursion / Collection logic
@@ -372,17 +422,48 @@ internal static class ConventionEngine
             }
 
             string? kPropName = null;
+            string? kPropType = null;
+            bool isKeyValType = false;
             if (dItem is INamedTypeSymbol nItem)
             {
                 var dItemProps = GetReadableMembers(dItem);
+                // Key detection: 1. Attributes ([Key] or [AutoMappicKey]) 2. Naming conventions (Id, TypeId)
                 var innerKey = dItemProps.FirstOrDefault(p =>
-                    string.Equals(p.Name, "Id", StringComparison.OrdinalIgnoreCase) ||
-                    string.Equals(p.Name, nItem.Name + "Id", StringComparison.OrdinalIgnoreCase) ||
-                    string.Equals(p.Name, "Key", StringComparison.OrdinalIgnoreCase));
-                if (innerKey != null) kPropName = innerKey.Name;
+                    p.GetAttributes().Any(a => a.AttributeClass?.Name is "KeyAttribute" or "AutoMappicKeyAttribute" or "EntityKeyAttribute" or "Key"));
+
+                if (innerKey == null)
+                {
+                    innerKey = dItemProps.FirstOrDefault(p =>
+                        string.Equals(p.Name, "Id", StringComparison.OrdinalIgnoreCase) ||
+                        string.Equals(p.Name, nItem.Name + "Id", StringComparison.OrdinalIgnoreCase));
+                }
+
+                if (innerKey != null)
+                {
+                    kPropName = innerKey.Name;
+                    var kType = GetMemberType(innerKey);
+                    kPropType = kType.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat);
+                    isKeyValType = kType.IsValueType && !IsNullableStruct(kType);
+
+                    var sItemProps = GetReadableMembers(sItem);
+                    var sKeyProp = sItemProps.FirstOrDefault(p =>
+                        string.Equals(p.Name, kPropName, StringComparison.OrdinalIgnoreCase) ||
+                        string.Equals(NamingUtility.Normalize(p.Name), NamingUtility.Normalize(kPropName), StringComparison.OrdinalIgnoreCase));
+
+                    if (sKeyProp == null && !(sItem is INamedTypeSymbol ns && ns.Name == "IDataReader"))
+                    {
+                        var sourceItemTypeName = sItem is INamedTypeSymbol nSource ? nSource.Name : sItem.Name;
+                        reportDiag(Diagnostic.Create(AutoMappicDiagnostics.UnmappedPrimaryKey, profileLoc ?? Location.None, nItem.Name, sourceItemTypeName));
+                        kPropName = null; // Prevent smart-sync mapping if key is not on source
+                    }
+                }
+                else if (dItemProps.Count > 1 && dItemProps.Any(p => p.Name.EndsWith("Id", StringComparison.OrdinalIgnoreCase)))
+                {
+                    reportDiag(Diagnostic.Create(AutoMappicDiagnostics.AmbiguousEntityKey, profileLoc ?? Location.None, nItem.Name, targetName));
+                }
             }
 
-            return (finalExpr, GetDisplayString(sItem), GetDisplayString(dItem), true, isArr, itemMap.Expression, expression, cond, kPropName);
+            return (finalExpr, GetDisplayString(sItem), GetDisplayString(dItem), true, isArr, itemMap.Expression, expression, cond, kPropName, kPropType, isKeyValType);
         }
 
         var key = (sBase, dBase);
@@ -399,10 +480,10 @@ internal static class ConventionEngine
         if (destType.NullableAnnotation == NullableAnnotation.NotAnnotated && !destType.IsValueType && sourceType.NullableAnnotation == NullableAnnotation.Annotated)
         {
             cond = $"{expression} != null";
-            return ($"{expression}.MapTo{destType.Name}(context)", null, GetDisplayString(destType), false, false, null, expression, cond, null);
+            return ($"{expression}.MapTo{SourceEmitter.Sanitise(GetDisplayString(destType), true)}(context)", null, GetDisplayString(destType), false, false, null, expression, cond, null, null, false);
         }
 
-        return ($"({expression} == null ? default! : {expression}.MapTo{destType.Name}(context))", null, GetDisplayString(destType), false, false, null, expression, cond, null);
+        return ($"({expression} == null ? default! : {expression}.MapTo{SourceEmitter.Sanitise(GetDisplayString(destType), true)}(context))", null, GetDisplayString(destType), false, false, null, expression, cond, null, null, false);
     }
 
     private static ITypeSymbol UnwrapNullable(ITypeSymbol type)
@@ -614,12 +695,8 @@ internal static class ConventionEngine
             if (string.Equals(nextNameMatch, targetName, StringComparison.OrdinalIgnoreCase))
             {
                 var t = GetMemberType(m);
-                var defaultVal = $"default({GetDisplayString(t)})!";
-                if (destType.SpecialType == SpecialType.System_String && destType.NullableAnnotation == NullableAnnotation.NotAnnotated)
-                {
-                    defaultVal = "\"\"";
-                }
-                return $"{nextPath} ?? {defaultVal}";
+                var fallback = t.SpecialType == SpecialType.System_String ? "\"\"" : "(default!)";
+                return $"{nextPath} ?? {fallback}";
             }
 
             var tMember = GetMemberType(m);

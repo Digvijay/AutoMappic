@@ -13,19 +13,19 @@ public class NumericDto { public long IntVal { get; set; } public long LongVal {
 #endregion
 
 #region Inheritance Models
-public class BaseSource { public string CreatedBy { get; set; } }
-public class DerivedSource : BaseSource { public string ModifiedBy { get; set; } }
-public class CombinedDto { public string CreatedBy { get; set; } public string ModifiedBy { get; set; } }
+public class BaseSource { public string CreatedBy { get; set; } = ""; }
+public class DerivedSource : BaseSource { public string ModifiedBy { get; set; } = ""; }
+public class CombinedDto { public string CreatedBy { get; set; } = ""; public string ModifiedBy { get; set; } = ""; }
 #endregion
 
 #region Condition & Lifecycle Models
-public class LogicSource { public int Status { get; set; } public string Note { get; set; } }
-public class LogicDto { public bool IsActive { get; set; } public string Note { get; set; } [AutoMappicIgnore] public string Audit { get; set; } }
+public class LogicSource { public int Status { get; set; } public string Note { get; set; } = ""; }
+public class LogicDto { public bool IsActive { get; set; } public string Note { get; set; } = ""; [AutoMappicIgnore] public string Audit { get; set; } = ""; }
 #endregion
 
 #region Open Generics Models
-public class GenericWrapper<T> { public T Value { get; set; } }
-public class GenericDto<T> { public T Value { get; set; } }
+public class GenericWrapper<T> { public T Value { get; set; } = default!; }
+public class GenericDto<T> { public T Value { get; set; } = default!; }
 #endregion
 
 public class ComplexScenarioProfile : Profile
@@ -62,13 +62,13 @@ public class ComplexScenarioTests
     public void Test_Numeric_Transitions()
     {
         var mapper = GetMapper();
-        var source = new NumericSource 
-        { 
-            IntVal = 42, 
-            LongVal = 100, 
-            DoubleVal = 3.14, 
-            NullInt = null, 
-            NullIntNotNull = 7 
+        var source = new NumericSource
+        {
+            IntVal = 42,
+            LongVal = 100,
+            DoubleVal = 3.14,
+            NullInt = null,
+            NullIntNotNull = 7
         };
 
         var result = mapper.Map<NumericDto>(source);
@@ -97,7 +97,7 @@ public class ComplexScenarioTests
     public void Test_Logic_And_Hooks()
     {
         var mapper = GetMapper();
-        
+
         // Scenario 1: Condition met
         var s1 = new LogicSource { Status = 1, Note = "Valid" };
         var r1 = mapper.Map<LogicDto>(s1);

@@ -1,0 +1,24 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <LangVersion>latest</LangVersion>
+    <!-- Enable AutoMappic Entity Sync for this sample -->
+    <AutoMappic_EnableEntitySync>true</AutoMappic_EnableEntitySync>
+    <EmitCompilerGeneratedFiles>true</EmitCompilerGeneratedFiles>
+    <InterceptorsNamespaces>$(InterceptorsNamespaces);AutoMappic.Generated</InterceptorsNamespaces>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <CompilerVisibleProperty Include="AutoMappic_EnableEntitySync" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\AutoMappic.Core\AutoMappic.Core.csproj" />
+    <ProjectReference Include="..\..\src\AutoMappic.Generator\AutoMappic.Generator.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
+  </ItemGroup>
+
+</Project>

@@ -7,10 +7,10 @@ namespace AutoMappic.Tests;
 
 public class ReadOnlyMappingTests
 {
-    public class S 
-    { 
-        public List<int> Vals { get; set; } = new(); 
-        public int Dummy { get; set; } 
+    public class S
+    {
+        public List<int> Vals { get; set; } = new();
+        public int Dummy { get; set; }
     }
     public class D { public List<int> Vals { get; } = new(); }
 
@@ -56,9 +56,9 @@ public class ReadOnlyMappingTests
         Assert.Equal("Constant", dest.Name);
     }
 
-    public class DNonColl 
-    { 
-        public string Name { get; } = "Constant"; 
-        public int Dummy { get; set; } 
+    public class DNonColl
+    {
+        public string Name { get; } = "Constant";
+        public int Dummy { get; set; }
     }
 }

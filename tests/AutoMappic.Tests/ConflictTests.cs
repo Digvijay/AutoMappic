@@ -1,5 +1,5 @@
-using Microsoft.Extensions.DependencyInjection;
 using AutoMappic;
+using Microsoft.Extensions.DependencyInjection;
 using Prova;
 
 namespace AutoMappic.Tests;
@@ -34,7 +34,7 @@ public class ConflictTests
         services.AddSingleton<Profile, Profile1Conflict>();
         services.AddSingleton<Profile, Profile2Conflict>();
         services.AddAutoMappic();
-        
+
         var sp = services.BuildServiceProvider();
         var mapper = sp.GetRequiredService<IMapper>();
 

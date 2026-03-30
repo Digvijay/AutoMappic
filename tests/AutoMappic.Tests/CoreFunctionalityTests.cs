@@ -15,38 +15,38 @@ public record FeatureDto(int Id, string Title);
 public class SuperComplexSource
 {
     public int Id { get; set; }
-    public string Header { get; set; }
-    public SuperSubSource Sub { get; set; }
+    public string Header { get; set; } = "";
+    public SuperSubSource Sub { get; set; } = default!;
     public List<SuperItemSource> Items { get; set; } = new();
 }
 
-public class SuperSubSource { public string Detail { get; set; } public string HiddenVal { get; set; } }
+public class SuperSubSource { public string Detail { get; set; } = ""; public string HiddenVal { get; set; } = ""; }
 public class SuperItemSource { public int Value { get; set; } }
 
 public class SuperComplexDto
 {
     public int Id { get; set; }
-    public string Header { get; set; }
-    public string SubDetail { get; set; } // Flattened
-    public List<SuperItemDto> Items { get; set; }
+    public string Header { get; set; } = "";
+    public string SubDetail { get; set; } = ""; // Flattened
+    public List<SuperItemDto> Items { get; set; } = new();
 }
 
 public class SuperItemDto { public int Value { get; set; } }
 
-public class SuperLifecycleSource { public string Input { get; set; } }
-public class SuperLifecycleDto 
-{ 
-    public string Output { get; set; } 
-    
+public class SuperLifecycleSource { public string Input { get; set; } = ""; }
+public class SuperLifecycleDto
+{
+    public string Output { get; set; } = "";
+
     [AutoMappicIgnore]
-    public bool BeforeCalled { get; set; } 
-    
+    public bool BeforeCalled { get; set; }
+
     [AutoMappicIgnore]
-    public bool AfterCalled { get; set; } 
+    public bool AfterCalled { get; set; }
 }
 
-public class SuperAmbiguitySource { public string SpecialName { get; set; } public string Other { get; set; } }
-public class SuperAmbiguityDto { public string SpecialName { get; set; } }
+public class SuperAmbiguitySource { public string SpecialName { get; set; } = ""; public string Other { get; set; } = ""; }
+public class SuperAmbiguityDto { public string SpecialName { get; set; } = ""; }
 
 #endregion
 
@@ -57,11 +57,12 @@ public class CoreFunctionalityProfile : Profile
         CreateMap<FeatureRecord, FeatureDto>();
         CreateMap<SuperComplexSource, SuperComplexDto>();
         CreateMap<SuperItemSource, SuperItemDto>();
-        
+
         CreateMap<SuperLifecycleSource, SuperLifecycleDto>()
             .ForMember(d => d.Output, opt => opt.Ignore())
             .BeforeMap((s, d) => d.BeforeCalled = true)
-            .AfterMap((s, d) => {
+            .AfterMap((s, d) =>
+            {
                 d.AfterCalled = true;
                 d.Output = (s.Input ?? "").ToUpper();
             });
@@ -132,8 +133,8 @@ public class CoreFunctionalityTests
     {
         var sourceList = new List<SuperComplexSource>
         {
-            new SuperComplexSource 
-            { 
+            new SuperComplexSource
+            {
                 Id = 1, Sub = new SuperSubSource { Detail = "D1" },
                 Items = new List<SuperItemSource> { new() { Value = 10 } }
             }

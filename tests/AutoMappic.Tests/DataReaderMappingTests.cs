@@ -8,7 +8,7 @@ namespace AutoMappic.Tests;
 
 public class DataReaderMappingTests
 {
-    public class Dest { public int Id { get; set; } public string Name { get; set; } }
+    public class Dest { public int Id { get; set; } public string Name { get; set; } = ""; }
 
     private class MockDataReader : IDataReader
     {
@@ -19,7 +19,7 @@ public class DataReaderMappingTests
         public string GetName(int i) => "";
         public object GetValue(int i) => null!;
         // ... many more ...
-        public void Close() {}
+        public void Close() { }
         public int Depth => 0;
         public DataTable? GetSchemaTable() => null;
         public bool IsClosed => true;
@@ -57,13 +57,14 @@ public class DataReaderMappingTests
     [Prova.Description("Verify that DataReader.Map works when a profile exists.")]
     public void DataReader_Map_ExecutesWithoutError()
     {
-        var config = new MapperConfiguration(cfg => {
-             cfg.AddProfile<DataReaderProfile>();
+        var config = new MapperConfiguration(cfg =>
+        {
+            cfg.AddProfile<DataReaderProfile>();
         });
-        
+
         using var reader = new MockDataReader();
         var results = reader.Map<Dest>().ToList();
-        
+
         // This test primarily checks that the interception/compilation works.
         // At runtime, it will fall back to reflection if interception failed.
         // But we want to ensure interception can actually happen.

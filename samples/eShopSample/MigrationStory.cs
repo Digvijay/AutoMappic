@@ -2,7 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 
-// 🟢 STEP 1: Just change the namespaces
+// STEP 1: Just change the namespaces
 // from: using AutoMapper;
 using AutoMappic; 
 using Microsoft.Extensions.DependencyInjection;
@@ -10,7 +10,7 @@ using Microsoft.Extensions.DependencyInjection;
 namespace eShopSample;
 
 // --- In your Program.cs / Startup.cs ---
-// builder.Services.AddAutoMappic(typeof(Program).Assembly); // 🟢 STEP 2: Swap the DI extension
+// builder.Services.AddAutoMappic(typeof(Program).Assembly); // STEP 2: Swap the DI extension
 
 // ─────────────────────────────────────────────────────────────────────────────
 // The "Microsoft eShop Win" Demonstration
@@ -44,7 +44,7 @@ public class CatalogService
             Price = 45.00m 
         };
 
-        // 🟢 STEP 2: Use the exact same Mapping call
+        // STEP 2: Use the exact same Mapping call
         return _mapper.Map<CatalogItem, CatalogItemDto>(entity);
     }
 }

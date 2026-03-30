@@ -1,6 +1,6 @@
 # Static Converters
 
-AutoMappic v0.4.0 introduces `[AutoMappicConverter]` -- a way to define zero-allocation, compile-time custom type conversions using plain static methods.
+AutoMappic v0.5.0 introduces `[AutoMappicConverter]` -- a way to define zero-allocation, compile-time custom type conversions using plain static methods.
 
 ## Why Static Converters?
 

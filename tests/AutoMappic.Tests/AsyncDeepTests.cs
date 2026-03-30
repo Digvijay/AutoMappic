@@ -1,7 +1,7 @@
+using System.Collections.Generic;
 using System.Threading.Tasks;
 using Prova;
 using Assert = Prova.Assertions.Assert;
-using System.Collections.Generic;
 
 namespace AutoMappic.Tests;
 

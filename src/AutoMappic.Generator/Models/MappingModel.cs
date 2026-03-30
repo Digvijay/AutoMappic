@@ -39,8 +39,11 @@ internal sealed record PropertyMap(
     string? NestedFullDestTypeFullName = null,
     string? DataReaderColumn = null,
     string? NestedDestKeyProperty = null,
+    string? NestedDestKeyTypeFullName = null,
+    bool IsNestedDestKeyValueType = false,
     bool SourceCanBeNull = false,
-    bool IsRequired = false);
+    bool IsRequired = false,
+    bool IsKey = false);
 
 /// <summary>Describes how a <see cref="PropertyMap" /> was resolved by the convention engine.</summary>
 internal enum PropertyMapKind
@@ -108,7 +111,9 @@ internal sealed record MappingModel(
     bool IsDestinationValueType = false,
     EquatableArray<string>? UnmappedProperties = null,
     EquatableArray<string>? TypeParameters = null,
-    bool EnableIdentityManagement = false,
+    bool EnableIdentityManagement = true,
+    bool EnableEntitySync = true,
+    double SmartMatchThreshold = 0.5,
     string? StaticConverterMethodFullName = null)
 {
     /// <summary>Returns true if any property in this mapping is resolved asynchronously.</summary>
@@ -119,7 +124,7 @@ internal sealed record MappingModel(
     ///   <c>context.AddSource()</c>, e.g. <c>Order_To_OrderDto</c>.
     /// </summary>
     public string HintName =>
-        $"{Pipeline.SourceEmitter.Sanitise(SourceTypeFullName)}_To_{Pipeline.SourceEmitter.Sanitise(DestinationTypeFullName)}";
+        $"{Pipeline.SourceEmitter.Sanitise(SourceTypeFullName, true)}_To_{Pipeline.SourceEmitter.Sanitise(DestinationTypeFullName, true)}";
 }
 
 internal enum InterceptKind

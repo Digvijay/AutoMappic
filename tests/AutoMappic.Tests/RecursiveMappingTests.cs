@@ -52,7 +52,8 @@ public class DeepProfile : Profile
         }
 
         var mapCode = mapFile.SourceText.ToString();
-        Assert.Contains("=> (x == null ? default! : x.MapToDChild(context))", mapCode);
+        Assert.Contains("x.MapToglobal_DChild_", mapCode);
+        Assert.Contains("(context)", mapCode);
         Assert.Contains(".ToList()", mapCode);
 
         var config = new MapperConfiguration(cfg => cfg.AddProfile<DeepProfile>());

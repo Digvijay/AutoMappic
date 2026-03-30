@@ -13,7 +13,9 @@
     <IncludeSymbols>true</IncludeSymbols>
     <SymbolPackageFormat>snupkg</SymbolPackageFormat>
     <IsPackable>true</IsPackable>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
   </PropertyGroup>
+
 
   <ItemGroup>
     <InternalsVisibleTo Include="AutoMappic.Cli.Tests" />

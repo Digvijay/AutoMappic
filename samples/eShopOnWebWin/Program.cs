@@ -2,7 +2,7 @@ using System;
 using Microsoft.eShopWeb.ApplicationCore.Entities;
 using Microsoft.eShopWeb.PublicApi;
 
-// 🟢 THE WIN: Just swap the namespace
+// THE WIN: Just swap the namespace
 // From: using AutoMapper;
 using AutoMappic; 
 

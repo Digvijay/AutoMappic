@@ -44,7 +44,7 @@ public sealed class BenchAutoMapperProfile : global::AutoMapper.Profile
 [Mapper]
 public partial class BenchMapperlyMapper
 {
-    [MapProperty(nameof(BenchUser.Address) + "." + nameof(BenchAddress.City), nameof(BenchUserDto.AddressCity))]
+    [Riok.Mapperly.Abstractions.MapProperty(nameof(BenchUser.Address) + "." + nameof(BenchAddress.City), nameof(BenchUserDto.AddressCity))]
     public partial BenchUserDto MapToDto(BenchUser user);
 }
 
@@ -94,7 +94,6 @@ public class MappingBenchmarks
     {
         using var loggerFactory = Microsoft.Extensions.Logging.Abstractions.NullLoggerFactory.Instance;
         var autoMapperConfig = new global::AutoMapper.MapperConfigurationExpression();
-        autoMapperConfig.LicenseKey = "FREE-NON-PRODUCTION"; // Or whatever is appropriate for benchmarks
         autoMapperConfig.AddProfile<BenchAutoMapperProfile>();
         _autoMapper = new global::AutoMapper.MapperConfiguration(autoMapperConfig, loggerFactory)
             .CreateMapper();
@@ -108,7 +107,7 @@ public class MappingBenchmarks
         {
             Id = 1,
             Username = "alice",
-            Email = "alice@automappic.dev",
+            Email = "alice@automappic.digvijay.dev",
             Address = new BenchAddress { City = "Stockholm" },
         };
     }

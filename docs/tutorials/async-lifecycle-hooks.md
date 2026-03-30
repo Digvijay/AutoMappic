@@ -1,6 +1,6 @@
 # Asynchronous Lifecycle Hooks: BeforeMap & AfterMap
 
-AutoMappic v0.4.0 introduces **Asynchronous Lifecycle Hooks**, allowing you to perform I/O-bound operations during the mapping process without blocking.
+AutoMappic v0.5.0 introduces **Asynchronous Lifecycle Hooks**, allowing you to perform I/O-bound operations during the mapping process without blocking.
 
 ## The Dual-Emission Engine
 
@@ -61,7 +61,7 @@ You can mix `BeforeMap` (sync) and `BeforeMapAsync` (async). AutoMappic ensures 
 
 ## Sustainability & Deadlock Prevention
 
-AutoMappic v0.4.0 has been built with **Sustainable Async Engineering**. Every generated `await` in the source code uses `.ConfigureAwait(false)` to ensure you never have a deadlock in WPF, WinForms, or legacy ASP.NET applications.
+AutoMappic v0.5.0 has been built with **Sustainable Async Engineering**. Every generated `await` in the source code uses `.ConfigureAwait(false)` to ensure you never have a deadlock in WPF, WinForms, or legacy ASP.NET applications.
 
 ## Summary
 | Hook Type | Native AOT | Use Case |

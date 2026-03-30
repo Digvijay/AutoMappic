@@ -55,9 +55,24 @@ public sealed class AutoMappicGenerator : IIncrementalGenerator
                 options.GlobalOptions.TryGetValue("build_property.automappic_enableidentitymanagement", out var idFlagStr);
                 bool enableIdentity = "true".Equals(idFlagStr, System.StringComparison.OrdinalIgnoreCase);
 
+                options.GlobalOptions.TryGetValue("build_property.automappic_enableentitysync", out var syncFlagStr);
+                bool enableSync = "true".Equals(syncFlagStr, System.StringComparison.OrdinalIgnoreCase);
+
+                options.GlobalOptions.TryGetValue("build_property.automappic_smartmatchthreshold", out var thresholdStr);
+                double threshold = 0.5;
+                if (!string.IsNullOrEmpty(thresholdStr) && double.TryParse(thresholdStr, global::System.Globalization.NumberStyles.Any, global::System.Globalization.CultureInfo.InvariantCulture, out var parsedThreshold))
+                {
+                    threshold = parsedThreshold;
+                }
+
                 if (result.Model != null)
                 {
                     var diags = new List<Diagnostic>(result.Diagnostics);
+                    diags.RemoveAll(d => d.Id == "AM0015" &&
+                                         d.Properties.TryGetValue("Score", out var scrStr) &&
+                                         double.TryParse(scrStr, global::System.Globalization.NumberStyles.Any, global::System.Globalization.CultureInfo.InvariantCulture, out var score) &&
+                                         score < threshold);
+
                     if (enableIdentity)
                     {
                         foreach (var prop in result.Model.Properties)
@@ -78,7 +93,12 @@ public sealed class AutoMappicGenerator : IIncrementalGenerator
                             }
                         }
                     }
-                    return (Model: result.Model with { EnableIdentityManagement = enableIdentity }, Diagnostics: diags);
+                    return (Model: result.Model with
+                    {
+                        EnableIdentityManagement = enableIdentity || result.Model.EnableIdentityManagement,
+                        EnableEntitySync = enableSync || result.Model.EnableEntitySync,
+                        SmartMatchThreshold = threshold
+                    }, Diagnostics: diags);
                 }
                 return result;
             })
@@ -93,22 +113,29 @@ public sealed class AutoMappicGenerator : IIncrementalGenerator
 
         context.RegisterSourceOutput(diagnostics, static (spc, d) => spc.ReportDiagnostic(d));
 
-        // Deduplicate mapping models by their hint name before emitting source files.
-        // This prevents build errors when the same pair is registered in multiple profiles.
+        // Deduplicate mapping models by their hint name.
         var uniqueMappingModels = mappingModels
             .Collect()
-            .SelectMany(static (models, _) => models.GroupBy(m => m.HintName).Select(g => g.First()));
+            .SelectMany<ImmutableArray<MappingModel>, MappingModel>(static (models, _) => models.GroupBy(m => m.HintName).Select(g => g.First()));
 
-        context.RegisterSourceOutput(uniqueMappingModels, static (spc, model) =>
+        // Collect all unique models for linking and diagnostics.
+        var allUniqueModels = uniqueMappingModels.Collect();
+
+        // Pipeline 1: Mapping Classes (with linked registry)
+        context.RegisterSourceOutput(uniqueMappingModels.Combine(allUniqueModels), static (spc, pair) =>
         {
-            var (hintName, source) = SourceEmitter.EmitMappingClass(model);
+            var (model, allModels) = pair;
+            var registry = allModels.ToDictionary(
+                m => m.HintName,
+                m => m,
+                System.StringComparer.Ordinal);
+
+            var (hintName, source) = SourceEmitter.EmitMappingClass(model, registry);
             spc.AddSource(hintName, source);
         });
 
         // -- Pipeline 1.5: Cycle Detection -----------------------------------------
-
-        var allModels = uniqueMappingModels.Collect();
-        context.RegisterSourceOutput(allModels, static (spc, models) =>
+        context.RegisterSourceOutput(allUniqueModels, static (spc, models) =>
         {
             if (models.IsEmpty) return;
             var cycleDiagnostics = CycleDetector.Detect(models);
@@ -198,6 +225,42 @@ public sealed class AutoMappicGenerator : IIncrementalGenerator
                 }
             }
 
+            // 2.5 Transitive Async Promotion Pass
+            // If a nested child mapping is async, the parent must also become async.
+            bool changed = true;
+            while (changed)
+            {
+                changed = false;
+                var keys = mappingsByKey.Keys.ToList();
+                foreach (var key in keys)
+                {
+                    var m = mappingsByKey[key];
+                    if (m.IsAsync) continue;
+
+                    foreach (var prop in m.Properties)
+                    {
+                        if (prop.IsCollection || (prop.NestedDestTypeFullName != null && prop.NestedSourceTypeFullName != null))
+                        {
+                            var sType = prop.NestedSourceTypeFullName ?? m.SourceTypeFullName;
+                            var childKey = $"{Pipeline.SourceEmitter.Sanitise(sType, true)}_To_{Pipeline.SourceEmitter.Sanitise(prop.NestedDestTypeFullName!, true)}";
+                            if (mappingsByKey.TryGetValue(childKey, out var child) && child.IsAsync)
+                            {
+                                var firstNonIgnored = m.Properties.FirstOrDefault(p => p.Kind != PropertyMapKind.Ignored);
+                                if (firstNonIgnored != null)
+                                {
+                                    var updatedProps = m.Properties.ToList();
+                                    int idx = updatedProps.IndexOf(firstNonIgnored);
+                                    updatedProps[idx] = firstNonIgnored with { IsAsync = true };
+                                    mappingsByKey[key] = m with { Properties = new EquatableArray<PropertyMap>(updatedProps) };
+                                    changed = true;
+                                    break;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
             // 3. Emit AM0008 for potential ProjectTo incompatibilities
             foreach (var loc in locations.Where(l => l.Kind == InterceptKind.ProjectTo))
             {
@@ -244,9 +307,10 @@ public sealed class AutoMappicGenerator : IIncrementalGenerator
 
                 if (ProfileExtractor.InheritsFromProfile(symbol))
                 {
-                    // Only register types that are accessible to the generated code.
-                    // Private nested classes in tests should be skipped for static registration.
-                    if (symbol.DeclaredAccessibility != Accessibility.Private &&
+                    // CS0616 fix: Ensure we only register types that are actual classes inheriting from Profile,
+                    // and are accessible to the generated code.
+                    if (symbol.TypeKind == TypeKind.Class && !symbol.IsAbstract &&
+                        symbol.DeclaredAccessibility != Accessibility.Private &&
                         symbol.DeclaredAccessibility != Accessibility.Protected)
                     {
                         return symbol.ToDisplayString();
@@ -259,7 +323,7 @@ public sealed class AutoMappicGenerator : IIncrementalGenerator
         // Combine profiles, compilation, and unique mappings for the registration emitter.
         var registrationData = profileClasses.Collect()
             .Combine(context.CompilationProvider)
-            .Combine(uniqueMappingModels.Collect());
+            .Combine(allUniqueModels);
 
         context.RegisterSourceOutput(registrationData, static (spc, data) =>
         {

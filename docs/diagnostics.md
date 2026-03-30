@@ -1,3 +1,8 @@
+---
+title: AutoMappic Diagnostic Suite - AM0001 to AM0017
+description: Complete reference for AutoMappic build-time diagnostics. Learn how to fix unmapped properties, circular references, and performance issues before they hit production.
+---
+
 # Diagnostic Suite
 
 AutoMappic transforms the traditional runtime "configuration validation" phase into a series of rigorous, build-time static analysis passes. This ensures that mapping inconsistencies are caught during development, effectively eliminating a broad category of runtime exceptions and ensuring Native AOT safety.
@@ -99,3 +104,32 @@ Warnings identify potential configuration issues that do not block code generati
     1.  Provide a non-nullable source property.
     2.  Use `.ForMember(d => d.Prop, opt => opt.MapFrom(src => src.Prop ?? "default"))` to guarantee a value.
     3.  Remove the `required` modifier if the property is intentionally optional during patching.
+
+### AM0014: Unmapped Primary Key (Entity Sync)
+*   **Severity**: Warning
+*   **Target**: Nested Type Pair
+*   **Description**: Emitted when `<AutoMappic_EnableEntitySync>true` is active and a nested collection mapping is discovered where the destination type has a primary key (`Id`, `[Key]`, etc.) but the source type has no matching property to resolve it.
+*   **Impact**: AutoMappic will be unable to perform an "Update-in-place" for these items and will instead skip the synchronization logic for properties it cannot correlate.
+*   **Remediation**: 
+    1.  Ensure the source DTO has a property matching the destination's primary key name.
+    2.  Use `[AutoMappicKey]` on the source property if the names differ.
+
+### AM0015: Smart-Match Suggestion
+*   **Severity**: Warning
+*   **Target**: Unmapped Property
+*   **Description**: Emitted when an unmapped destination property is found, but the source type contains a property with a very similar name (e.g. `Names` vs `Name`, `FullName` vs `Name`).
+*   **Advantage**: This diagnostic includes a built-in IDE Code-Fix that can automatically apply the correct `[MapProperty]` attribute for you.
+*   **Sensitivity**: Can be tuned via the `<AutoMappic_SmartMatchThreshold>0.5</AutoMappic_SmartMatchThreshold>` MSBuild property.
+
+### AM0016: Vectorization Guardrail (Performance)
+*   **Severity**: Warning
+*   **Target**: Collection Mapping
+*   **Description**: Identifies manual collection mapping logic (like `.Select(x => ...)`) inside a `MapFrom` call that prevents the generator from using optimized, pre-allocated `for` loops.
+*   **Impact**: Increases allocation pressure and prevents the JIT from performing SIMD loop vectorization.
+*   **Remediation**: Define a static `[AutoMappicConverter]` method for the item-level mapping instead of using inline LINQ.
+
+### AM0017: Ambiguous Entity Correlation Key
+*   **Severity**: Warning
+*   **Target**: Destination Entity
+*   **Description**: Occurs during Entity Sync when a destination type has multiple properties that look like primary keys (e.g. `Id` and `ClassNameId`) and no `[AutoMappicKey]` or `[Key]` attribute is present to break the tie.
+*   **Remediation**: Use the `[AutoMappicKey]` attribute on the intended correlation property.

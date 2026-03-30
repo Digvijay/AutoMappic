@@ -1,6 +1,6 @@
 # Conditional Mapping & AM0008
 
-AutoMappic v0.4.0 introduces **Conditional Member Mapping**, allowing you to gate property assignments with custom predicates. This is essential for complex business logic where you only want to map a value if certain criteria are met.
+AutoMappic v0.5.0 introduces **Conditional Member Mapping**, allowing you to gate property assignments with custom predicates. This is essential for complex business logic where you only want to map a value if certain criteria are met.
 
 ## Basic Usage
 

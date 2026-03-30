@@ -12,16 +12,16 @@ namespace AutoMappic.Tests;
 public class Outer<T> { public T Inner { get; set; } = default!; }
 public class InnerGeneric<T> { public T Value { get; set; } = default!; }
 
-public class BiWrapper<T1, T2> 
-{ 
-    public T1 Item1 { get; set; } = default!; 
-    public T2 Item2 { get; set; } = default!; 
+public class BiWrapper<T1, T2>
+{
+    public T1 Item1 { get; set; } = default!;
+    public T2 Item2 { get; set; } = default!;
 }
 
-public class BiDto<T1, T2> 
-{ 
-    public T1 Item1 { get; set; } = default!; 
-    public T2 Item2 { get; set; } = default!; 
+public class BiDto<T1, T2>
+{
+    public T1 Item1 { get; set; } = default!;
+    public T2 Item2 { get; set; } = default!;
 }
 
 public class BaseSource<T> { public T BaseValue { get; set; } = default!; }
@@ -97,9 +97,9 @@ public class PermutationTestSuite
     public void Test_NestedGenerics_Exhaustive()
     {
         var mapper = GetMapper();
-        var source = new Outer<InnerGeneric<int>> 
-        { 
-            Inner = new InnerGeneric<int> { Value = 42 } 
+        var source = new Outer<InnerGeneric<int>>
+        {
+            Inner = new InnerGeneric<int> { Value = 42 }
         };
         var result = mapper.Map<Outer<InnerGeneric<int>>>(source);
 
@@ -163,12 +163,12 @@ public class PermutationTestSuite
     public void Test_ComplexCollectionMapping_Exhaustive()
     {
         var mapper = GetMapper();
-        var source = new CollectionPermutationSource 
-        { 
-            Data = new Dictionary<string, List<int>> 
-            { 
-                { "A", new List<int> { 1, 2, 3 } } 
-            } 
+        var source = new CollectionPermutationSource
+        {
+            Data = new Dictionary<string, List<int>>
+            {
+                { "A", new List<int> { 1, 2, 3 } }
+            }
         };
         var result = mapper.Map<CollectionPermutationDto>(source);
 
@@ -194,15 +194,15 @@ public class PermutationTestSuite
     public void Test_DeepNesting_Exhaustive()
     {
         var mapper = GetMapper();
-        var source = new DeepNestingSource 
-        { 
-            Deep = new Outer<InnerGeneric<InnerGeneric<string>>> 
-            { 
-                Inner = new InnerGeneric<InnerGeneric<string>> 
-                { 
-                    Value = new InnerGeneric<string> { Value = "DeepValue" } 
-                } 
-            } 
+        var source = new DeepNestingSource
+        {
+            Deep = new Outer<InnerGeneric<InnerGeneric<string>>>
+            {
+                Inner = new InnerGeneric<InnerGeneric<string>>
+                {
+                    Value = new InnerGeneric<string> { Value = "DeepValue" }
+                }
+            }
         };
         var result = mapper.Map<DeepNestingDto>(source);
 

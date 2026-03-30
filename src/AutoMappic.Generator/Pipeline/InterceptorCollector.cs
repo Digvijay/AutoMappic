@@ -63,8 +63,8 @@ internal static class InterceptorCollector
         }
 
         // Verify it belongs to AutoMappic directly or implements IMapper
-        var isAutoMappic = fullContainingType.IndexOf("AutoMappic", System.StringComparison.Ordinal) >= 0 ||
-                          containingType.AllInterfaces.Any(i => i.Name == "IMapper" && i.ContainingNamespace?.ToDisplayString().IndexOf("AutoMappic", System.StringComparison.Ordinal) >= 0);
+        var isAutoMappic = fullContainingType.StartsWith("AutoMappic", System.StringComparison.Ordinal) ||
+                          containingType.AllInterfaces.Any(i => i.Name == "IMapper" && (i.ContainingNamespace?.ToDisplayString() ?? "").StartsWith("AutoMappic", System.StringComparison.Ordinal));
 
         if (!isAutoMappic)
         {

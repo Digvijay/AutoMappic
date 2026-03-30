@@ -52,7 +52,7 @@ namespace AutoMappic.Tests
         [Fact]
         public async Task Map_FromNestedTuple_ShouldWork()
         {
-             // Arrange
+            // Arrange
             var source = (a: new SourceA("ValA"), b: new SourceB("ValB"));
             var mapper = new MapperConfiguration(cfg => cfg.AddProfile<NestedTupleProfile>()).CreateMapper();
 

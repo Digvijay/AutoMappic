@@ -11,14 +11,14 @@ namespace AutoMappic.Tests;
 
 public struct ExhaustiveStruct { public int X; public int Y; }
 
-public class ExhaustiveValueTypeSource { public (int, string) Tuple { get; set; } public ExhaustiveStruct Struct { get; set; } }
-public class ExhaustiveValueTypeDto { public (int, string) Tuple { get; set; } public ExhaustiveStruct Struct { get; set; } }
+public class ExhaustiveValueTypeSource { public (int, string) Tuple { get; set; } = (0, ""); public ExhaustiveStruct Struct { get; set; } }
+public class ExhaustiveValueTypeDto { public (int, string) Tuple { get; set; } = (0, ""); public ExhaustiveStruct Struct { get; set; } }
 
-public class ExhaustiveNamingSource { public string pascal_case { get; set; } public string camelCase { get; set; } }
-public class ExhaustiveNamingDto { public string PascalCase { get; set; } public string camel_case { get; set; } }
+public class ExhaustiveNamingSource { public string pascal_case { get; set; } = ""; public string camelCase { get; set; } = ""; }
+public class ExhaustiveNamingDto { public string PascalCase { get; set; } = ""; public string camel_case { get; set; } = ""; }
 
-public class ExhaustiveFieldSource { public string FieldVal; public string PropertyVal { get; set; } }
-public class ExhaustiveFieldDto { public string FieldVal; public string PropertyVal { get; set; } }
+public class ExhaustiveFieldSource { public string FieldVal = ""; public string PropertyVal { get; set; } = ""; }
+public class ExhaustiveFieldDto { public string FieldVal = ""; public string PropertyVal { get; set; } = ""; }
 
 #endregion
 
@@ -45,10 +45,10 @@ public class ExhaustiveMappingTests
     public void Test_ValueTypes_Exhaustive()
     {
         var mapper = GetMapper();
-        var source = new ExhaustiveValueTypeSource 
-        { 
-            Tuple = (1, "A"), 
-            Struct = new ExhaustiveStruct { X = 10, Y = 20 } 
+        var source = new ExhaustiveValueTypeSource
+        {
+            Tuple = (1, "A"),
+            Struct = new ExhaustiveStruct { X = 10, Y = 20 }
         };
         var result = mapper.Map<ExhaustiveValueTypeDto>(source);
 

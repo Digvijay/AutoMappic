@@ -1,3 +1,8 @@
+---
+title: How AutoMappic Works - The Zero-Reflection Engine
+description: Deep dive into the architecture of AutoMappic, utilizing Roslyn Interceptors and source generators to deliver Native AOT object mapping for .NET.
+---
+
 # How it Works
 
 AutoMappic is fundamentally different from traditional .NET object mappers. While most libraries rely on runtime reflection and IL generation, AutoMappic shifts all the "heavy lifting" to compile-time using **Roslyn Interceptors** and **Source Generators**.
@@ -42,7 +47,7 @@ graph LR
 Because AutoMappic understands your code before it runs, it can provide immediate feedback. If you attempt to map a `Source` to a `Destination` where a property is missing or types are incompatible, you don't find out in Production--you find out in your IDE.
 
 ::: info
-**Diagnostics AM0001-AM0013** ensure that your mapping profiles are always in sync with your models. If a build passes, the mapping is guaranteed to work.
+**Diagnostics AM0001-AM0017** ensure that your mapping profiles are always in sync with your models. If a build passes, the mapping is guaranteed to work.
 :::
 
 ## 3. High-Performance Collection Mapping

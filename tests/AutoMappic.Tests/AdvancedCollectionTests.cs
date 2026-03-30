@@ -67,8 +67,8 @@ public sealed class AdvancedCollectionMappingTests
         var source = new NestedOrderWrapper
         {
             Orders = new List<Order> {
-                new Order { Customer = null },
-                new Order { Customer = new Customer { Name = "X" } }
+                new Order { Id = 1, Customer = null },
+                new Order { Id = 2, Customer = new Customer { Name = "X" } }
             }
         };
 

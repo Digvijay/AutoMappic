@@ -1,6 +1,6 @@
 # Identity Management & Patch Mode
 
-AutoMappic v0.4.0 introduces **Identity Management** -- an opt-in feature that transforms the mapper from a simple property copier into an entity-aware graph engine compatible with EF Core change trackers.
+AutoMappic v0.5.0 enhances **Identity Management** -- an opt-in feature that transforms the mapper from a simple property copier into an entity-aware graph engine compatible with EF Core change trackers.
 
 ## Enabling Identity Management
 
@@ -17,7 +17,8 @@ When active, the source generator will:
 1. **Track object instances** via a `MappingContext` to prevent cyclic recursion.
 2. **Infer primary keys** (`Id`, `ClassNameId`, `[Key]`) on destination types automatically.
 3. **Generate conditional assignments** for nullable source properties (Patch Mode).
-4. **Emit key-based collection diffing** instead of "Clear-and-Add".
+4. **Emit key-based collection Smart-Sync** instead of "Clear-and-Add" (v0.5.0).
+5. **Support explicit keys** via the `[AutoMappicKey]` attribute (v0.5.0).
 
 ## MappingContext
 
@@ -83,6 +84,14 @@ The generated in-place mapping will:
 - **Match** source and destination items by `Id`.
 - **Update** existing items in-place (preserving EF Core change tracking).
 - **Add** new items that exist in source but not in destination.
+
+### 🆕 Smart-Sync (v0.5.0)
+
+In v0.5.0, you can opt-in to advanced **Smart-Sync** by adding `<AutoMappic_EnableEntitySync>true</AutoMappic_EnableEntitySync>` to your project file. This enables:
+
+- **Key Overrides**: Use `[AutoMappicKey]` when your DTO properties don't match the entity's key name.
+- **Ambiguity Detection**: AM0017 warns you if a type has multiple potential keys (e.g., `Id` and `UserId`) and you haven't specified which one to use.
+- **Unmapped Key Alerts**: AM0014 warns you if a destination type has a key but the source mapping doesn't provide a way to resolve it.
 
 ## AM0013 Diagnostic
 

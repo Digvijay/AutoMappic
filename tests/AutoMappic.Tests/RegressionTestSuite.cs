@@ -31,7 +31,7 @@ public class ExtremeDestination
     public SubDestination InitializedNested { get; set; } = new SubDestination();
     public string Prop1 { get; set; } = "";
     public string Prop2 { get; init; } = "";
-    
+
     // Test shadow inheritance compatibility
     public int ComputedVal => NullableInt * 10;
 }
@@ -89,9 +89,9 @@ public class RegressionTestSuite
     {
         var mapper = GetMapper();
         var source = new ExtremeSource();
-        
+
         var result = mapper.Map<ExtremeDestination>(source);
-        
+
         Assert.Equal(0, result.NullableInt);
         Assert.Equal("Not Null", result.NullableString);
         Assert.NotNull(result.NullableList);
@@ -99,14 +99,14 @@ public class RegressionTestSuite
         Assert.Equal(1, result.NullableList[0]);
         Assert.NotNull(result.NullableDict);
         Assert.True(result.NullableDict.ContainsKey("Key"));
-        
+
         // Handling nested null objects safely
         Assert.NotNull(result.NestedNulls);
         Assert.Equal("", result.NestedNulls.Code);
-        
+
         Assert.Equal("123", result.InitializedNested.Code);
     }
-    
+
     [Fact]
     [Prova.Description("Verify initialized readonly and init properties properly function along with fallback interceptors")]
     public void Test_Regression_InitProperties_AreAssignedCorrectly()
@@ -114,7 +114,7 @@ public class RegressionTestSuite
         var mapper = GetMapper();
         var source = new ExtremeSource();
         var result = mapper.Map<ExtremeDestination>(source);
-        
+
         Assert.Equal("Prop1", result.Prop1);
     }
 
@@ -123,15 +123,15 @@ public class RegressionTestSuite
     public void Test_Regression_SelfReferencingNode_DoesNotCrash()
     {
         var mapper = GetMapper();
-        var source = new SelfReferencingNode 
-        { 
+        var source = new SelfReferencingNode
+        {
             Id = 1,
             Left = new SelfReferencingNode { Id = 2 },
             Right = new SelfReferencingNode { Id = 3 }
         };
-        
+
         var result = mapper.Map<SelfReferencingNodeDto>(source);
-        
+
         Assert.Equal(1, result.Id);
         Assert.NotNull(result.Left);
         Assert.Equal(2, result.Left!.Id);
@@ -148,9 +148,9 @@ public class RegressionTestSuite
         var source = new ExtremeSource();
         var dest = new ExtremeDestination();
         dest.NullableDict.Add("OldKey", "OldValue");
-        
+
         mapper.Map(source, dest);
-        
+
         Assert.True(dest.NullableDict.ContainsKey("Key"));
         Assert.False(dest.NullableDict.ContainsKey("OldKey"));
     }

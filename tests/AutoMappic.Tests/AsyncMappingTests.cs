@@ -85,7 +85,7 @@ public sealed class AsyncMappingTests
 
         var source = new AsyncSource { Name = "Digvijay" };
         var dest = new AsyncDest { Name = "Empty" };
-        
+
         await mapper.MapAsync(source, dest);
 
         Assert.Equal("DIGVIJAY", dest.Name);

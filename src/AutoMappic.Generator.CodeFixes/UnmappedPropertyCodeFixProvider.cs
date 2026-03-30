@@ -10,7 +10,7 @@ using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 using Microsoft.CodeAnalysis.Editing;
 
-namespace AutoMappic.Generator
+namespace AutoMappic.Generator.CodeFixes
 {
     /// <summary>
     ///   Provides a Roslyn CodeFix to suppress unmapped property errors by adding [AutoMappicIgnore].

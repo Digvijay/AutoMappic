@@ -1,0 +1,9 @@
+<Project>
+  <!-- 
+    The AutoMappic.targets file is automatically imported into consuming projects. 
+    It ensures that the compiler is correctly configured to use our generated interceptors.
+  -->
+  <PropertyGroup>
+    <InterceptorsPreviewNamespaces>$(InterceptorsPreviewNamespaces);AutoMappic.Generated</InterceptorsPreviewNamespaces>
+  </PropertyGroup>
+</Project>

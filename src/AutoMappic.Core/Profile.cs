@@ -28,10 +28,23 @@ public abstract class Profile
     public INamingConvention DestinationNamingConvention { get; set; } = new PascalCaseNamingConvention();
 
     /// <summary>
-    ///   When <see langword="true" />, the source generator will inject diagnostic performance markers 
+    ///   When <see langword="true" />, the source generator will inject diagnostic performance markers
     ///   into the generated mapping code to help identify high-latency property assignments.
     /// </summary>
     public bool EnablePerformanceProfiling { get; set; }
+
+    /// <summary>
+    ///   When <see langword="true" />, the source generator will enable "Smart-Sync" for collections,
+    ///   matching existing destination entities by key and updating them in-place instead of replacing the entire collection.
+    /// </summary>
+    public bool EnableEntitySync { get; set; }
+
+    /// <summary>
+    ///   When <see langword="true" />, the source generator will enable identity management (caching),
+    ///   ensuring that the same source entity instance is always mapped to the same destination instance
+    ///   within the same mapping context.
+    /// </summary>
+    public bool EnableIdentityManagement { get; set; }
 
     internal void AddMapping(IMappingExpression expression) => _mappings.Add(expression);
 

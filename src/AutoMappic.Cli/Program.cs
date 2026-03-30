@@ -1,14 +1,17 @@
 using System;
-using System.CommandLine;
 using System.Collections.Generic;
 using System.Collections.Immutable;
+using System.CommandLine;
 using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
+using AutoMappic.Generator.Pipeline;
 using Microsoft.Build.Locator;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.MSBuild;
-using AutoMappic.Generator.Pipeline;
+using AutoMappic.Generator.Models;
+using System.Globalization;
+using System.Text.Json;
 
 namespace AutoMappic.Cli;
 
@@ -24,16 +27,18 @@ internal sealed class Program
         var root = new RootCommand("AutoMappic CLI - Mapping validation and visualization tool.");
 
         var projectArg = new Argument<string>("project", "The path to the .csproj file.");
+        var validateFormatOpt = new Option<string>("--format", () => "text", "The output format (text, json).");
         var validate = new Command("validate", "Validates all mapping declarations in a project.")
         {
-            projectArg
+            projectArg,
+            validateFormatOpt
         };
 
-        validate.SetHandler(ValidateProject, projectArg);
+        validate.SetHandler(ValidateProject, projectArg, validateFormatOpt);
         root.AddCommand(validate);
 
         var vizProjectArg = new Argument<string>("project", "The path to the .csproj file.");
-        var formatOpt = new Option<string>("--format", () => "mermaid", "The output format (mermaid, dot).");
+        var formatOpt = new Option<string>("--format", () => "mermaid", "The visualization format (mermaid).");
         var visualize = new Command("visualize", "Generates a mapping graph visualization.")
         {
             vizProjectArg,
@@ -46,72 +51,120 @@ internal sealed class Program
         return await root.InvokeAsync(args);
     }
 
-    private static async Task ValidateProject(string projectPath)
+    private static readonly JsonSerializerOptions _jsonOptions = new() { WriteIndented = true };
+
+    private static async Task ValidateProject(string projectPath, string format)
     {
-        Console.WriteLine($"[INFO] Validating project: {projectPath}...");
+        bool isJson = string.Equals(format, "json", StringComparison.OrdinalIgnoreCase);
+
+        if (!isJson) Console.WriteLine($"[INFO] Validating mappings in: {projectPath}...");
+
         var compilation = await GetCompilation(projectPath);
         if (compilation == null)
         {
-            Environment.Exit(1);
+            if (isJson) Console.WriteLine("{\"error\": \"Could not load compilation\"}");
             return;
         }
 
-        var models = ProfileExtractor.ExtractFromCompilation(compilation);
-        var errors = new List<string>();
+        var mappings = ProfileExtractor.ExtractFromCompilation(compilation);
+        int errorCount = 0;
+        int warningCount = 0;
+        var issues = new List<object>();
 
-        // Check for cycles using the Detector
-        var diagnostics = CycleDetector.Detect(models);
-        foreach (var diag in diagnostics)
+        foreach (var (model, diagnostics) in mappings)
         {
-            errors.Add($"{diag.Id}: {diag.GetMessage()}");
-        }
+            if (model == null) continue;
 
-        if (errors.Count == 0 && models.Count > 0)
-        {
-            Console.WriteLine($"[SUCCESS] Validation successful! Found {models.Count} valid mapping pairs.");
-            foreach (var model in models)
+            if (!isJson) Console.WriteLine($"[ANALYZING] {model.SourceTypeFullName} -> {model.DestinationTypeFullName}");
+
+            foreach (var diag in diagnostics)
             {
-                Console.WriteLine($"  -> {model.SourceTypeFullName} to {model.DestinationTypeFullName}");
+                if (diag.Severity == DiagnosticSeverity.Error) errorCount++;
+                else if (diag.Severity == DiagnosticSeverity.Warning) warningCount++;
+
+                if (isJson)
+                {
+                    var lineSpan = diag.Location.GetLineSpan();
+                    issues.Add(new
+                    {
+                        Id = diag.Id,
+                        Severity = diag.Severity.ToString(),
+                        Message = diag.GetMessage(CultureInfo.InvariantCulture),
+                        SourceType = model.SourceTypeFullName,
+                        DestinationType = model.DestinationTypeFullName,
+                        File = lineSpan.Path,
+                        Line = lineSpan.StartLinePosition.Line + 1
+                    });
+                }
+                else
+                {
+                    var color = diag.Severity == DiagnosticSeverity.Error ? ConsoleColor.Red : ConsoleColor.Yellow;
+                    Console.ForegroundColor = color;
+                    Console.WriteLine($"  [{diag.Severity.ToString().ToUpper(CultureInfo.InvariantCulture)}] {diag.Id}: {diag.GetMessage(CultureInfo.InvariantCulture)}");
+                    Console.ResetColor();
+                }
             }
         }
-        else if (models.Count == 0)
+
+        if (isJson)
         {
-            Console.WriteLine("[WARNING] No mapping declarations found. Ensure you have Profile classes calling CreateMap.");
+            var result = new
+            {
+                ProjectPath = projectPath,
+                IsValid = errorCount == 0,
+                ErrorCount = errorCount,
+                WarningCount = warningCount,
+                Issues = issues
+            };
+            Console.WriteLine(JsonSerializer.Serialize(result, _jsonOptions));
         }
         else
         {
-            Console.WriteLine($"[ERROR] Validation failed with {errors.Count} errors:");
-            foreach (var err in errors) Console.WriteLine($"  ! {err}");
-            Environment.Exit(1);
+            if (errorCount == 0)
+            {
+                Console.ForegroundColor = ConsoleColor.Green;
+                Console.WriteLine($"\n[SUCCESS] All mapping profiles are valid.");
+                Console.ResetColor();
+            }
+            else
+            {
+                Console.ForegroundColor = ConsoleColor.Red;
+                Console.WriteLine($"\n[FAILURE] Found {errorCount} configuration errors.");
+                Console.ResetColor();
+                Environment.Exit(1);
+            }
         }
     }
 
     private static async Task VisualizeProject(string projectPath, string format)
     {
-        Console.WriteLine($"[INFO] Generating {format} visualization for: {projectPath}...");
         var compilation = await GetCompilation(projectPath);
-        if (compilation == null)
-        {
-            Environment.Exit(1);
-            return;
-        }
+        if (compilation == null) return;
 
-        var models = ProfileExtractor.ExtractFromCompilation(compilation);
+        var mappings = ProfileExtractor.ExtractFromCompilation(compilation);
+        Console.WriteLine($"\n--- AutoMappic Mapping Graph ({format}) ---");
 
         if (string.Equals(format, "mermaid", StringComparison.OrdinalIgnoreCase))
         {
-            Console.WriteLine("\n--- Mermaid Graph ---\n");
-            Console.WriteLine("graph LR");
-            foreach (var m in models)
+            Console.WriteLine("graph TD");
+            foreach (var (m, _) in mappings)
             {
-                Console.WriteLine($"    {m.SourceTypeName} --> {m.DestinationTypeName}");
+                if (m == null) continue;
+
+                Console.WriteLine($"    subgraph \"{m.SourceTypeName} to {m.DestinationTypeName}\"");
+                foreach (var p in m.Properties.Where(x => x.Kind != PropertyMapKind.Ignored))
+                {
+                    var sourcePath = p.NestedExpression ?? p.SourceExpression ?? "Explicit";
+                    Console.WriteLine($"        {m.SourceTypeName}.{sourcePath} --> {m.DestinationTypeName}.{p.DestinationProperty}");
+                }
+                Console.WriteLine("    end");
             }
-            Console.WriteLine("\n---------------------\n");
         }
         else
         {
             Console.WriteLine("[ERROR] Unsupported format. Use --format mermaid.");
         }
+        Console.WriteLine("-------------------------------------------\n");
     }
 
     private static async Task<Compilation?> GetCompilation(string projectPath)

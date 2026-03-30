@@ -25,7 +25,7 @@ public class MyProfile : Profile
     public MyProfile() { CreateMap<S, D>(); }
 }";
         var result = GeneratorTestHelper.RunGenerator(source);
-        var mapSourceFile = result.Sources.First(f => f.HintName.Contains("S_") && f.HintName.Contains("_To_") && f.HintName.Contains("_D_"));
+        var mapSourceFile = result.Sources.First(f => f.HintName.Contains("S") && f.HintName.Contains("_To_") && f.HintName.Contains("D"));
         var mapSource = mapSourceFile.SourceText.ToString();
 
         Assert.Contains("new global::D(source.Name)", mapSource);
@@ -97,7 +97,7 @@ public class MyProfile : Profile
         var fileNames = result.Sources.Select(s => s.HintName).ToList();
 
         // Use a looser check for hint name
-        var mapFileResult = result.Sources.FirstOrDefault(f => f.SourceText.ToString().Contains("MapToD"));
+        var mapFileResult = result.Sources.FirstOrDefault(f => f.SourceText.ToString().Contains("MapToglobal_D"));
         Assert.True(mapFileResult.HintName != null, $"No mapping file generated for S->D. Files: {string.Join(", ", fileNames)}");
         var generatedSource = mapFileResult.SourceText.ToString();
         Assert.True(generatedSource.Contains("S<T>"), "Generated source should contain S<T>");
