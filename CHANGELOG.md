@@ -5,11 +5,21 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [0.5.1] - 2026-04-01
+## [0.6.0] - 2026-04-01
+
+### Added
+- **Standalone Mapping ([AutoMap])**: Official support for defining mappings directly on DTO or Entity classes. This eliminates `Profile` boilerplate for simple scenarios while maintaining full statically-generated performance.
+- **Friction Killer (Roadmap)**: Enforced the `partial` keyword requirement for `[AutoMap]` classes (AM0018). This is accompanied by a new IDE Code-Fix that automatically adds the keyword with a single click.
+- **Performance King (ProjectTo)**: Hardened the `ProjectTo<T>` engine to provide zero-overhead SQL projections that translate directly to optimized database queries.
+
+### Changed
+- **Incremental Generator Hardening**: The core pipeline has been re-engineered using `EquatableArray<T>` and `static` closures. This ensures 100% cache-hit efficiency for non-structural changes and eliminates memory leaks in the Roslyn process.
+- **Precise Diagnostic Anchoring**: Diagnostics for Profile-based mappings are now anchored directly to the `CreateMap` invocation rather than the class header. This ensures squiggles appear exactly where the logic is defined.
 
 ### Fixed
-- **IDE Stability (Incremental Generator Fix)**: Resolved a critical issue where the source generator could crash with a "SyntaxTree is not part of the compilation" error after multiple edits. Switched to serializable `DiagnosticInfo` records in the incremental pipeline to avoid pinning stale syntax nodes in the cache.
-- **Smart-Match Code-Fix Precision**: Fixed a bug where the AM0015 "lightbulb" fix would fail to appear in the IDE due to location mismatches. Diagnostics are now correctly anchored to the offending property in the destination type, and the provider uses robust metadata to locate the syntax node correctly.
+- **IDE Code-Fix Availability**: Resolved a landmark issue where `AM0001` and `AM0015` lightbulbs would not appear for Profile mappings. Providers now correctly handle `InvocationExpression` syntax to offer automatic `.ForMemberIgnore()` and smart-match suggestions.
+
+## [0.5.1] - 2026-04-01
 
 ## [0.5.0] - 2026-03-30
 

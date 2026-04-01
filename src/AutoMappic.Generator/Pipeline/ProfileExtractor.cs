@@ -60,7 +60,7 @@ internal static class ProfileExtractor
     ///   semantic model in <see cref="ExtractMappingModels" />.
     /// </summary>
     public static bool IsProfileClassCandidate(SyntaxNode node, System.Threading.CancellationToken _) =>
-        node is ClassDeclarationSyntax cls && cls.BaseList is not null;
+        node is ClassDeclarationSyntax cls && (cls.BaseList is not null || cls.AttributeLists.Count > 0);
 
     public static bool IsConverterMethodCandidate(SyntaxNode node, System.Threading.CancellationToken _) =>
         node is MethodDeclarationSyntax method && method.AttributeLists.Count > 0;
@@ -80,9 +80,19 @@ internal static class ProfileExtractor
         var classSymbol = context.SemanticModel.GetDeclaredSymbol(classDecl, cancellationToken) as INamedTypeSymbol;
         if (classSymbol is null) return System.Array.Empty<(MappingModel, EquatableArray<DiagnosticInfo>)>();
 
-        if (!InheritsFromProfile(classSymbol)) return System.Array.Empty<(MappingModel, EquatableArray<DiagnosticInfo>)>();
-
         var results = new List<(MappingModel, EquatableArray<DiagnosticInfo>)>();
+
+        // Standalone [AutoMap] mappings (New in v0.6.0)
+        var autoMapAttrs = classSymbol.GetAttributes()
+            .Where(a => a.AttributeClass?.Name == "AutoMap" || a.AttributeClass?.Name == "AutoMapAttribute");
+
+        foreach (var attr in autoMapAttrs)
+        {
+            var standalone = ExtractStandaloneMapping(attr, classSymbol, classDecl, context.SemanticModel, cancellationToken);
+            results.AddRange(standalone);
+        }
+
+        if (!InheritsFromProfile(classSymbol)) return results;
 
         // Find all CreateMap calls in this class.
         var invocations = classDecl.DescendantNodes()
@@ -209,6 +219,103 @@ internal static class ProfileExtractor
             baseType = baseType.BaseType;
         }
         return false;
+    }
+
+    private static IReadOnlyList<(MappingModel Model, EquatableArray<DiagnosticInfo> Diagnostics)>
+        ExtractStandaloneMapping(
+            AttributeData attr,
+            INamedTypeSymbol destType,
+            ClassDeclarationSyntax clsDecl,
+            SemanticModel semanticModel,
+            System.Threading.CancellationToken ct)
+    {
+        if (attr.ConstructorArguments.Length == 0) return Array.Empty<(MappingModel, EquatableArray<DiagnosticInfo>)>();
+        var sourceType = attr.ConstructorArguments[0].Value as INamedTypeSymbol;
+        if (sourceType == null) return Array.Empty<(MappingModel, EquatableArray<DiagnosticInfo>)>();
+
+        var diags = new List<DiagnosticInfo>();
+        var results = new List<(MappingModel Model, EquatableArray<DiagnosticInfo> Diagnostics)>();
+        bool reverse = false;
+        bool deleteOrphans = false;
+        bool identityMgmt = true;
+        string? sourceNaming = null;
+        string? destNaming = null;
+
+        foreach (var named in attr.NamedArguments)
+        {
+            if (named.Key == "ReverseMap" && named.Value.Value is bool b) reverse = b;
+            if (named.Key == "DeleteOrphans" && named.Value.Value is bool b2) deleteOrphans = b2;
+            if (named.Key == "EnableIdentityManagement" && named.Value.Value is bool b3) identityMgmt = b3;
+            if (named.Key == "SourceNamingConvention" && named.Value.Value is INamedTypeSymbol sn) sourceNaming = sn.Name;
+            if (named.Key == "DestinationNamingConvention" && named.Value.Value is INamedTypeSymbol dn) destNaming = dn.Name;
+        }
+
+        if (!clsDecl.Modifiers.Any(m => m.IsKind(SyntaxKind.PartialKeyword)))
+        {
+            diags.Add(DiagnosticInfo.Create(AutoMappicDiagnostics.NonPartialClass, clsDecl.Identifier.GetLocation(), destType.Name));
+        }
+
+        var (props, ctorArgs) = ConventionEngine.Resolve(
+            sourceType, destType,
+            new Dictionary<string, (string?, string?, bool)>(), Array.Empty<string>(),
+            clsDecl.GetLocation(), null, diags.Add, null,
+            sourceNaming, destNaming, identityMgmt);
+
+        var location = clsDecl.Identifier.GetLocation();
+        var lineSpan = location.GetLineSpan();
+
+        var fwdModel = new MappingModel(
+            SourceTypeFullName: sourceType.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat),
+            SourceTypeName: sourceType.Name,
+            DestinationTypeFullName: destType.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat),
+            DestinationTypeName: destType.Name,
+            Properties: new EquatableArray<PropertyMap>(props.ToArray()),
+            ConstructorArguments: new EquatableArray<PropertyMap>(ctorArgs.ToArray()),
+            SourceNamespace: sourceType.ContainingNamespace?.IsGlobalNamespace == false ? sourceType.ContainingNamespace.ToDisplayString() : null,
+            DestinationNamespace: destType.ContainingNamespace?.IsGlobalNamespace == false ? destType.ContainingNamespace.ToDisplayString() : null,
+            FilePath: lineSpan.Path,
+            Line: lineSpan.StartLinePosition.Line + 1,
+            Column: lineSpan.StartLinePosition.Character + 1,
+            IsSourceValueType: sourceType.IsValueType || sourceType.IsTupleType,
+            IsDestinationValueType: destType.IsValueType || destType.IsTupleType,
+            EnableIdentityManagement: identityMgmt,
+            DeleteOrphans: deleteOrphans,
+            ProfileName: "Standalone"
+        );
+
+        results.Add((fwdModel, new EquatableArray<DiagnosticInfo>(diags.ToArray())));
+
+        if (reverse)
+        {
+            var revDiags = new List<DiagnosticInfo>();
+            var (revProps, revCtorArgs) = ConventionEngine.Resolve(
+                destType, sourceType,
+                new Dictionary<string, (string?, string?, bool)>(), Array.Empty<string>(),
+                clsDecl.GetLocation(), null, revDiags.Add, null,
+                destNaming, sourceNaming, identityMgmt);
+
+            var revModel = new MappingModel(
+                SourceTypeFullName: destType.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat),
+                SourceTypeName: destType.Name,
+                DestinationTypeFullName: sourceType.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat),
+                DestinationTypeName: sourceType.Name,
+                Properties: new EquatableArray<PropertyMap>(revProps.ToArray()),
+                ConstructorArguments: new EquatableArray<PropertyMap>(revCtorArgs.ToArray()),
+                SourceNamespace: destType.ContainingNamespace?.IsGlobalNamespace == false ? destType.ContainingNamespace.ToDisplayString() : null,
+                DestinationNamespace: sourceType.ContainingNamespace?.IsGlobalNamespace == false ? sourceType.ContainingNamespace.ToDisplayString() : null,
+                FilePath: lineSpan.Path,
+                Line: lineSpan.StartLinePosition.Line + 1,
+                Column: lineSpan.StartLinePosition.Character + 1,
+                IsSourceValueType: destType.IsValueType || destType.IsTupleType,
+                IsDestinationValueType: sourceType.IsValueType || sourceType.IsTupleType,
+                EnableIdentityManagement: identityMgmt,
+                DeleteOrphans: deleteOrphans,
+                ProfileName: "Standalone"
+            );
+            results.Add((revModel, new EquatableArray<DiagnosticInfo>(revDiags.ToArray())));
+        }
+
+        return results;
     }
 
     private static bool IsCreateMapCall(
@@ -450,12 +557,13 @@ internal static class ProfileExtractor
                 destType!,
                 forwardMaps,
                 forwardIgnored,
-                profileLocation,
+                createMapCall.GetLocation(),
                 null,
                 d => diagnostics.Add(d),
                 null,
                 sourceNaming,
-                destNaming);
+                destNaming,
+                profileIdentityManagementEnabled);
         }
 
         var callLocation = createMapCall.GetLocation();
@@ -517,11 +625,12 @@ internal static class ProfileExtractor
                 sourceType!,
                 reverseMaps,
                 reverseIgnored,
-                profileLocation, null,
+                createMapCall.GetLocation(), null,
                 d => revDiags.Add(d),
                 null,
                 destNaming, // reversed
-                sourceNaming);
+                sourceNaming,
+                profileIdentityManagementEnabled);
 
             var revModel = new MappingModel(
                 SourceTypeFullName: SourceEmitter.GetDisplayString(destType!),

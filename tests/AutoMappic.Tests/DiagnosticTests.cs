@@ -418,4 +418,60 @@ public class MyProfile : Profile
         Assert.Contains("OrderLineDto", am014!.GetMessage());
         Assert.Contains("OrderLine", am014.GetMessage());
     }
+
+    /// <summary> AM0018 (0.6.0 Roadmap): Enforce partial modifier for [AutoMap] classes </summary>
+    [Fact]
+    public void Generator_ReportAM0018_WhenAutoMapClassIsNonPartial()
+    {
+        var source = @"
+using AutoMappic;
+
+public class S { public int Id { get; set; } }
+
+[AutoMap(typeof(S))]
+public class NonPartialD { public int Id { get; set; } }
+";
+        var result = GeneratorTestHelper.RunGenerator(source);
+        var am018 = result.Diagnostics.FirstOrDefault(d => d.Id == "AM0018");
+        
+        Assert.NotNull(am018);
+        Assert.Contains("must be partial", am018!.GetMessage());
+    }
+
+    /// <summary> 0.6.0 Hardening: Verify that diagnostics in Profiles are anchored to the CreateMap call with a real span. </summary>
+    [Fact]
+    public void Generator_AnchorsProfileDiagnosticsToCreateMapCall()
+    {
+        var source = @"
+using AutoMappic;
+
+public class S { public int Id { get; set; } }
+public class D { public int Id { get; set; } public string? Name { get; set; } }
+
+public class MyProfile : Profile
+{
+    public MyProfile()
+    {
+        CreateMap<S, D>();
+    }
+}
+";
+        var result = GeneratorTestHelper.RunGenerator(source);
+        var am001 = result.Diagnostics.FirstOrDefault(d => d.Id == "AM0001");
+        
+        Assert.NotNull(am001);
+        
+        // Verify span length is non-zero
+        var span = am001!.Location.SourceSpan;
+        Assert.True(span.Length > 0, "Diagnostic span should be non-zero length.");
+        
+        // Verify it's on the CreateMap line (Line 11 in this source)
+        var lineSpan = am001.Location.GetLineSpan();
+        Assert.Equal(10, lineSpan.StartLinePosition.Line); // 0-indexed
+        
+        // Extra: Verify the text at that location starts with 'CreateMap'
+        var tree = am001.Location.SourceTree!;
+        var text = tree.GetText().ToString(span);
+        Assert.Contains("CreateMap", text);
+    }
 }

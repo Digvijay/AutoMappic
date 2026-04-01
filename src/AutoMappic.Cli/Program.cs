@@ -2,16 +2,16 @@ using System;
 using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.CommandLine;
+using System.Globalization;
 using System.IO;
 using System.Linq;
+using System.Text.Json;
 using System.Threading.Tasks;
+using AutoMappic.Generator.Models;
 using AutoMappic.Generator.Pipeline;
 using Microsoft.Build.Locator;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.MSBuild;
-using AutoMappic.Generator.Models;
-using System.Globalization;
-using System.Text.Json;
 
 namespace AutoMappic.Cli;
 

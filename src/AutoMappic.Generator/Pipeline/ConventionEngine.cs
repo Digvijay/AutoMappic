@@ -20,7 +20,8 @@ internal static class ConventionEngine
         Action<DiagnosticInfo> reportDiagnostic,
         HashSet<(ITypeSymbol, ITypeSymbol)>? mappingStack = null,
         string? sourceNaming = null,
-        string? destNaming = null)
+        string? destNaming = null,
+        bool identityManagementEnabled = false)
     {
         var properties = new List<PropertyMap>();
         var constructorArgs = new List<PropertyMap>();
@@ -29,7 +30,7 @@ internal static class ConventionEngine
         var key = (UnwrapNullable(source), UnwrapNullable(destination));
         if (mappingStack.Contains(key))
         {
-            reportDiagnostic(DiagnosticInfo.Create(AutoMappicDiagnostics.CircularReference, profileLocation ?? Location.None, source.Name, destination.Name));
+            reportDiagnostic(DiagnosticInfo.Create(AutoMappicDiagnostics.CircularReference, destMemberLocation ?? profileLocation ?? Location.None, source.Name, destination.Name));
             return (properties, constructorArgs);
         }
 
@@ -88,7 +89,7 @@ internal static class ConventionEngine
                     continue;
                 }
 
-                var map = ResolveSourceForMember(source, memberName, GetMemberType(member), explicitMaps, ignoredMembers, profileLocation, member.Locations.FirstOrDefault(), reportDiagnostic, mappingStack, sourceNaming, destNaming, "source", destination.Name);
+                var map = ResolveSourceForMember(source, memberName, GetMemberType(member), explicitMaps, ignoredMembers, profileLocation, member.Locations.FirstOrDefault(), reportDiagnostic, mappingStack, sourceNaming, destNaming, "source", destination.Name, identityManagementEnabled);
                 if (map is not null)
                 {
                     bool isInit = false;
@@ -107,6 +108,12 @@ internal static class ConventionEngine
                         isRequired = f.IsRequired;
                     }
 
+                    // AM0013: Patch Mode check for required properties
+                    if (identityManagementEnabled && isRequired && map.SourceCanBeNull)
+                    {
+                        reportDiagnostic(DiagnosticInfo.Create(AutoMappicDiagnostics.PatchIntoRequired, member.Locations.FirstOrDefault() ?? Location.None, memberName, destination.Name, map.SourceRawExpression ?? "source"));
+                    }
+
                     // Key detection: Attributes or naming convention
                     isKey = member.GetAttributes().Any(a => a.AttributeClass?.Name is "KeyAttribute" or "AutoMappicKeyAttribute" or "EntityKeyAttribute" or "Key");
                     if (!isKey)
@@ -123,7 +130,9 @@ internal static class ConventionEngine
                 {
                     if (source.Name != "IDataReader" && source.Name != "DataRow" && source.Name != "SqlDataReader")
                     {
-                        reportDiagnostic(DiagnosticInfo.Create(AutoMappicDiagnostics.UnmappedProperty, member.Locations.FirstOrDefault() ?? Location.None, memberName, destination.Name, source.Name));
+                        var props = global::System.Collections.Immutable.ImmutableDictionary<string, string?>.Empty
+                            .Add("TargetProperty", memberName);
+                        reportDiagnostic(DiagnosticInfo.Create(AutoMappicDiagnostics.UnmappedProperty, member.Locations.FirstOrDefault() ?? Location.None, props, memberName, destination.Name, source.Name));
                     }
                 }
             }
@@ -154,7 +163,8 @@ internal static class ConventionEngine
         string? sourceNaming = null,
         string? destNaming = null,
         string sourceAccess = "source",
-        string destTypeName = "Unknown")
+        string destTypeName = "Unknown",
+        bool identityManagementEnabled = false)
     {
         if (ignoredMembers.Contains(targetName))
         {
@@ -240,7 +250,7 @@ internal static class ConventionEngine
                 keyName = NamingUtility.ToSnakeCase(targetName);
 
             var sourceExpr = $"{sourceAccess} != null && {sourceAccess}.ContainsKey(\"{keyName}\") ? {sourceAccess}[\"{keyName}\"] : default!";
-            var (nE, nS, nD, iC, iA, iE, rE, nCond, nKey, nKeyType, nKeyVal) = WrapWithNestedMapper(sourceExpr, srcValue, targetType, profileLocation, destMemberLocation, reportDiagnostic, mappingStack, targetName);
+            var (nE, nS, nD, iC, iA, iE, rE, nCond, nKey, nKeyType, nKeyVal) = WrapWithNestedMapper(sourceExpr, srcValue, targetType, profileLocation, destMemberLocation, reportDiagnostic, mappingStack, targetName, identityManagementEnabled, 0);
             return new PropertyMap(targetName, nE, PropertyMapKind.Direct, NestedSourceTypeFullName: nS, NestedDestTypeFullName: nD, NestedFullDestTypeFullName: targetType.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat), IsCollection: iC, IsArray: iA, NestedExpression: iE, SourceRawExpression: rE, ConditionBody: conditionBody ?? nCond, NestedDestKeyProperty: nKey, NestedDestKeyTypeFullName: nKeyType, IsNestedDestKeyValueType: nKeyVal, SourceCanBeNull: CanBeNull(srcValue));
         }
 
@@ -262,7 +272,7 @@ internal static class ConventionEngine
         // Ambiguity Detection: Check if direct/method matches and a flattened path both exist
         if ((directMatches.Count + methodMatches.Count > 0) && flatPath != null)
         {
-            reportDiagnostic(DiagnosticInfo.Create(AutoMappicDiagnostics.AmbiguousMapping, profileLocation ?? Location.None, targetName, destTypeName, source.Name));
+            reportDiagnostic(DiagnosticInfo.Create(AutoMappicDiagnostics.AmbiguousMapping, destMemberLocation ?? profileLocation ?? Location.None, targetName, destTypeName, source.Name));
         }
 
         // Return direct/method match if found
@@ -273,7 +283,7 @@ internal static class ConventionEngine
             var sourceType = directMatch is not null ? GetMemberType(directMatch) : methodMatch!.ReturnType;
             var sourceExpr = directMatch is not null ? $"{sourceAccess}.{directMatch.Name}" : $"{sourceAccess}.{methodMatch!.Name}()";
 
-            var (nestedExpr, nSrc, nDest, isColl, isArr, itemExpr, rawExpr, nCond, nKey, nKeyType, nKeyVal) = WrapWithNestedMapper(sourceExpr, sourceType, targetType, profileLocation, destMemberLocation, reportDiagnostic, mappingStack, targetName);
+            var (nestedExpr, nSrc, nDest, isColl, isArr, itemExpr, rawExpr, nCond, nKey, nKeyType, nKeyVal) = WrapWithNestedMapper(sourceExpr, sourceType, targetType, profileLocation, destMemberLocation, reportDiagnostic, mappingStack, targetName, identityManagementEnabled, 0);
             return new PropertyMap(targetName, nestedExpr, PropertyMapKind.Direct,
                 NestedSourceTypeFullName: nSrc, NestedDestTypeFullName: nDest,
                 NestedFullDestTypeFullName: targetType.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat),
@@ -321,7 +331,7 @@ internal static class ConventionEngine
     }
 
     private static (string Expression, string? NestedSource, string? NestedDest, bool IsCollection, bool IsArray, string? ItemExpression, string? RawExpression, string? Condition, string? NestedDestKey, string? NestedDestKeyType, bool IsKeyValType) WrapWithNestedMapper(
-        string expression, ITypeSymbol sourceType, ITypeSymbol destType, Location? profileLoc, Location? destMemberLocation, Action<DiagnosticInfo> reportDiag, HashSet<(ITypeSymbol, ITypeSymbol)> stack, string targetName)
+        string expression, ITypeSymbol sourceType, ITypeSymbol destType, Location? profileLoc, Location? destMemberLocation, Action<DiagnosticInfo> reportDiag, HashSet<(ITypeSymbol, ITypeSymbol)> stack, string targetName, bool identityManagementEnabled = false, int nestedLevel = 0)
     {
         var sBase = UnwrapNullable(sourceType);
         var dBase = UnwrapNullable(destType);
@@ -376,19 +386,32 @@ internal static class ConventionEngine
             return ($"({destType.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat)}){expression}", null, null, false, false, null, expression, cond, null, null, false);
         }
 
+        var sBaseForCirc = UnwrapNullable(sourceType);
+        var dBaseForCirc = UnwrapNullable(destType);
+        var keyForCirc = (sBaseForCirc, dBaseForCirc);
+        if (stack.Contains(keyForCirc))
+        {
+            reportDiag(DiagnosticInfo.Create(AutoMappicDiagnostics.CircularReference, destMemberLocation ?? profileLoc ?? Location.None, sBaseForCirc.Name, dBaseForCirc.Name));
+        }
+
         // Dictionary logic
         if (IsDictionary(sourceType, out var sKey, out var sValue) && IsDictionary(destType, out var dKey, out var dValue))
         {
-            var keyMap = WrapWithNestedMapper("x.Key", sKey, dKey, profileLoc, destMemberLocation, reportDiag, stack, "Key");
-            var valueMap = WrapWithNestedMapper("x.Value", sValue, dValue, profileLoc, destMemberLocation, reportDiag, stack, "Value");
+            var keyMap = WrapWithNestedMapper("x.Key", sKey, dKey, profileLoc, destMemberLocation, reportDiag, stack, "Key", identityManagementEnabled, nestedLevel + 1);
+            var valueMap = WrapWithNestedMapper("x.Value", sValue, dValue, profileLoc, destMemberLocation, reportDiag, stack, "Value", identityManagementEnabled, nestedLevel + 1);
             return ($"({expression} ?? new()).ToDictionary(x => {keyMap.Expression}, x => {valueMap.Expression})", null, GetDisplayString(destType), false, false, null, expression, cond, null, null, false);
         }
 
         // Recursion / Collection logic
         if (IsCollection(sourceType, out var sItem) && IsCollection(destType, out var dItem))
         {
+            if (nestedLevel > 0)
+            {
+                reportDiag(DiagnosticInfo.Create(AutoMappicDiagnostics.PerformanceHotpath, destMemberLocation ?? profileLoc ?? Location.None, sBase.Name, dBase.Name));
+            }
+
             var isArr = destType.TypeKind == TypeKind.Array || destType.ToDisplayString().Contains("[]");
-            var itemMap = WrapWithNestedMapper("x", sItem, dItem, profileLoc, destMemberLocation, reportDiag, stack, targetName + "Item");
+            var itemMap = WrapWithNestedMapper("x", sItem, dItem, profileLoc, destMemberLocation, reportDiag, stack, targetName + "Item", identityManagementEnabled, nestedLevel + 1);
 
             string linq;
             string sItemName = GetDisplayString(sItem);

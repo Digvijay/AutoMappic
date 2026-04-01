@@ -9,5 +9,10 @@ namespace AutoMappic
     [AttributeUsage(AttributeTargets.Property | AttributeTargets.Field)]
     public sealed class AutoMappicKeyAttribute : Attribute
     {
+        /// <summary>
+        ///   When true, enabling Smart-Sync for this collection will also remove items from the target
+        ///   that are not present in the source. Defaults to false.
+        /// </summary>
+        public bool DeleteOrphans { get; set; }
     }
 }

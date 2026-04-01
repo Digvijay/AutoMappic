@@ -7,11 +7,12 @@ namespace AutoMappic.Generator.Pipeline;
 
 internal static class CycleDetector
 {
-    public static IEnumerable<Diagnostic> Detect(IEnumerable<MappingModel> models)
+    public static IEnumerable<Diagnostic> Detect(IEnumerable<MappingModel> models, System.Threading.CancellationToken ct)
     {
         var modelMap = new Dictionary<string, MappingModel>(System.StringComparer.Ordinal);
         foreach (var m in models)
         {
+            ct.ThrowIfCancellationRequested();
             var key = GetKey(m.SourceTypeFullName, m.DestinationTypeFullName);
             if (!modelMap.ContainsKey(key)) modelMap[key] = m;
         }
@@ -22,9 +23,10 @@ internal static class CycleDetector
 
         foreach (var key in modelMap.Keys)
         {
+            ct.ThrowIfCancellationRequested();
             if (!visited.Contains(key))
             {
-                DFS(key, modelMap, visited, stack, diagnostics);
+                DFS(key, modelMap, visited, stack, diagnostics, ct);
             }
         }
 
@@ -36,8 +38,10 @@ internal static class CycleDetector
         Dictionary<string, MappingModel> modelMap,
         HashSet<string> visited,
         HashSet<string> stack,
-        List<Diagnostic> diagnostics)
+        List<Diagnostic> diagnostics,
+        System.Threading.CancellationToken ct)
     {
+        ct.ThrowIfCancellationRequested();
         visited.Add(currentKey);
         stack.Add(currentKey);
 
@@ -71,7 +75,7 @@ internal static class CycleDetector
 
                     if (!visited.Contains(childKey))
                     {
-                        DFS(childKey, modelMap, visited, stack, diagnostics);
+                        DFS(childKey, modelMap, visited, stack, diagnostics, ct);
                     }
                 }
             }

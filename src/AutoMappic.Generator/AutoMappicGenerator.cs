@@ -84,7 +84,7 @@ public sealed class AutoMappicGenerator : IIncrementalGenerator
                                 diags.Add(new DiagnosticInfo(
                                     "AM0013",
                                     location,
-                                    global::System.Collections.Immutable.ImmutableArray.Create(prop.DestinationProperty, result.Model.DestinationTypeName, prop.SourceRawExpression ?? prop.SourceExpression ?? "unknown"),
+                                    new EquatableArray<string>(new[] { prop.DestinationProperty, result.Model.DestinationTypeName, prop.SourceRawExpression ?? prop.SourceExpression ?? "unknown" }),
                                     global::System.Collections.Immutable.ImmutableDictionary<string, string?>.Empty));
                             }
                         }
@@ -107,12 +107,12 @@ public sealed class AutoMappicGenerator : IIncrementalGenerator
         var diagnostics = mappingResults
             .SelectMany(static (pair, _) => pair.Diagnostics);
 
-        context.RegisterSourceOutput(diagnostics, static (spc, d) => spc.ReportDiagnostic(ToRoslynDiagnostic(d)));
+        context.RegisterSourceOutput(diagnostics, static (spc, d) => spc.ReportDiagnostic(AutoMappicGenerator.ToRoslynDiagnostic(d)));
 
         // Deduplicate mapping models by their hint name.
         var uniqueMappingModels = mappingModels
             .Collect()
-            .SelectMany<ImmutableArray<MappingModel>, MappingModel>(static (models, _) => models.GroupBy(m => m.HintName).Select(g => g.First()));
+            .SelectMany<ImmutableArray<MappingModel>, MappingModel>(static (models, _) => models.GroupBy(static m => m.HintName).Select(static g => g.First()));
 
         // Collect all unique models for linking and diagnostics.
         var allUniqueModels = uniqueMappingModels.Collect();
@@ -122,8 +122,8 @@ public sealed class AutoMappicGenerator : IIncrementalGenerator
         {
             var (model, allModels) = pair;
             var registry = allModels.ToDictionary(
-                m => m.HintName,
-                m => m,
+                static m => m.HintName,
+                static m => m,
                 System.StringComparer.Ordinal);
 
             var (hintName, source) = SourceEmitter.EmitMappingClass(model, registry);
@@ -134,7 +134,7 @@ public sealed class AutoMappicGenerator : IIncrementalGenerator
         context.RegisterSourceOutput(allUniqueModels, static (spc, models) =>
         {
             if (models.IsEmpty) return;
-            var cycleDiagnostics = CycleDetector.Detect(models);
+            var cycleDiagnostics = CycleDetector.Detect(models, spc.CancellationToken);
             foreach (var d in cycleDiagnostics)
             {
                 spc.ReportDiagnostic(d);
@@ -149,7 +149,7 @@ public sealed class AutoMappicGenerator : IIncrementalGenerator
             .Where(static loc => loc is not null)
             .Select(static (loc, _) => loc!);
 
-        var allMappings = mappingModels.Collect();
+        var allMappings = uniqueMappingModels.Collect();
         var allLocations = interceptLocations.Collect();
 
         var combined = allMappings.Combine(allLocations).Combine(context.CompilationProvider);
@@ -332,7 +332,7 @@ public sealed class AutoMappicGenerator : IIncrementalGenerator
             foreach (var reference in compilation.SourceModule.ReferencedAssemblySymbols)
             {
                 var attributes = reference.GetAttributes();
-                if (attributes.Any(a => a.AttributeClass?.Name == "HasAutoMappicProfilesAttribute"))
+                if (attributes.Any(static a => a.AttributeClass?.Name == "HasAutoMappicProfilesAttribute"))
                 {
                     referencedRegistrations.Add(reference.Name);
                 }
@@ -387,7 +387,7 @@ public sealed class AutoMappicGenerator : IIncrementalGenerator
         var linePos = new global::Microsoft.CodeAnalysis.Text.LinePosition(info.Location.StartLine, info.Location.StartColumn);
         var endPos = new global::Microsoft.CodeAnalysis.Text.LinePosition(info.Location.EndLine, info.Location.EndColumn);
         var location = global::Microsoft.CodeAnalysis.Location.Create(info.Location.FilePath,
-             new global::Microsoft.CodeAnalysis.Text.TextSpan(0, 0),
+             new global::Microsoft.CodeAnalysis.Text.TextSpan(info.Location.SourceStart, info.Location.SourceLength),
              new global::Microsoft.CodeAnalysis.Text.LinePositionSpan(linePos, endPos));
 
         return Diagnostic.Create(descriptor, location, info.Properties, info.MessageArgs.ToArray());

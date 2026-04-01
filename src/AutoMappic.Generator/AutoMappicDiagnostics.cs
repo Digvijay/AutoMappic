@@ -39,4 +39,6 @@ internal static class AutoMappicDiagnostics
     public static readonly DiagnosticDescriptor PerformanceRegression = new DiagnosticDescriptor("AM0016", "Performance regression warning", "Mapping collection '{0}' -> '{1}' uses a custom resolver for items, preventing compiler loop vectorization optimizations", Category, DiagnosticSeverity.Warning, true, "Heavy custom logic inside loops impacts performance. Consider static mapping or Global Type Converters.");
 
     public static readonly DiagnosticDescriptor AmbiguousEntityKey = new DiagnosticDescriptor("AM0017", "Ambiguous entity key detected", "Potential Entity '{0}' mapped in collection '{1}' has no identifiable primary key. Syncing will fallback to 'Clear and Add'.", Category, DiagnosticSeverity.Warning, true, "To enable robust Entity sync, ensure the Destination has a [Key] attribute or an 'Id' property.");
+
+    public static readonly DiagnosticDescriptor NonPartialClass = new DiagnosticDescriptor("AM0018", "Class must be partial to support source generation", "Class '{0}' decorated with [AutoMap] must be partial", Category, DiagnosticSeverity.Error, true, "Standalone mappings require the class to be partial so the generator can inject additional members into the type.");
 }

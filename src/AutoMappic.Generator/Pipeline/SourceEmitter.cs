@@ -155,6 +155,30 @@ internal static class SourceEmitter
             EmitCollectionHelper(sb, helper);
         }
 
+        // 6. SQL Projection Expression (v0.6.0 Pillar)
+        var hasProjRuntimeFeatures = model.Properties.Any(p => !string.IsNullOrEmpty(p.ConditionBody) || p.IsReadOnly) ||
+                                 !string.IsNullOrEmpty(model.BeforeMapBody) ||
+                                 !string.IsNullOrEmpty(model.AfterMapBody) ||
+                                 !string.IsNullOrEmpty(model.ConstructionBody) ||
+                                 model.IsAsync;
+
+        if (!hasProjRuntimeFeatures && model.TypeConverterFullName == null && model.StaticConverterMethodFullName == null && string.IsNullOrEmpty(typeParamsStr) && model.ConstructorArguments.Count == 0)
+        {
+            sb.AppendLine();
+            sb.AppendLine($"    /// <summary>SQL-translatable projection expression for {model.SourceTypeName} -> {model.DestinationTypeName}.</summary>");
+            sb.AppendLine($"    public static readonly global::System.Linq.Expressions.Expression<global::System.Func<{sourceTypeNameFixed}, {destTypeNameFixed}>> Projection = source => new {destTypeNameFixed}");
+            sb.AppendLine("    {");
+            foreach (var prop in model.Properties.Where(p => p.Kind != PropertyMapKind.Ignored))
+            {
+                var expr = prop.SourceExpression?.Replace("?.", "!.").Replace(", context)", ")").Replace("(context)", "()");
+                if (!string.IsNullOrEmpty(expr))
+                {
+                    sb.AppendLine($"        {prop.DestinationProperty} = {expr!},");
+                }
+            }
+            sb.AppendLine("    };");
+        }
+
         sb.AppendLine("}");
         return ($"{model.HintName}_Map.g.cs", sb.ToString());
     }
@@ -399,13 +423,19 @@ internal static class SourceEmitter
                 sb.AppendLine("                        }");
                 sb.AppendLine("                    }");
                 sb.AppendLine("                }");
-                sb.AppendLine("                // Cleanup: remove items from destination that were not in source");
-                sb.AppendLine($"                var __staleItems = new global::System.Collections.Generic.List<{dName}>();");
-                sb.AppendLine($"                foreach (var tItem in mutableTarget)");
-                sb.AppendLine("                {");
-                sb.AppendLine($"                    if (tItem != null && !__seenKeys.Contains(tItem.{prop.NestedDestKeyProperty})) __staleItems.Add(tItem);");
-                sb.AppendLine("                }");
-                sb.AppendLine("                foreach (var tItem in __staleItems) mutableTarget.Remove(tItem);");
+
+                // v0.6.0 Orphan Deletion logic: only run if explicitly enabled on mapping or property
+                bool deleteOrphans = model.DeleteOrphans || prop.DeleteOrphans;
+                if (deleteOrphans)
+                {
+                    sb.AppendLine("                // Cleanup: remove items from destination that were not in source");
+                    sb.AppendLine($"                var __staleItems = new global::System.Collections.Generic.List<{dName}>();");
+                    sb.AppendLine($"                foreach (var tItem in mutableTarget)");
+                    sb.AppendLine("                {");
+                    sb.AppendLine($"                    if (tItem != null && !__seenKeys.Contains(tItem.{prop.NestedDestKeyProperty})) __staleItems.Add(tItem);");
+                    sb.AppendLine("                }");
+                    sb.AppendLine("                foreach (var tItem in __staleItems) mutableTarget.Remove(tItem);");
+                }
                 sb.AppendLine("            }");
                 sb.AppendLine("        }");
                 if (!prop.IsReadOnly)
@@ -719,7 +749,7 @@ internal static class SourceEmitter
             }
             else if (item.Kind == InterceptKind.ProjectTo)
             {
-                var hasRuntimeFeatures = model != null && (model.Properties.Any(p => !string.IsNullOrEmpty(p.ConditionBody) || p.IsReadOnly) ||
+                var hasProjRuntimeFeatures = model != null && (model.Properties.Any(p => !string.IsNullOrEmpty(p.ConditionBody) || p.IsReadOnly) ||
                                          !string.IsNullOrEmpty(model.BeforeMapBody) ||
                                          !string.IsNullOrEmpty(model.AfterMapBody) ||
                                          !string.IsNullOrEmpty(model.ConstructionBody) ||
@@ -727,7 +757,7 @@ internal static class SourceEmitter
                                          !string.IsNullOrEmpty(model.AfterMapAsyncBody) ||
                                          model.IsAsync);
 
-                if (hasRuntimeFeatures)
+                if (hasProjRuntimeFeatures || model?.TypeConverterFullName != null || model?.StaticConverterMethodFullName != null)
                 {
                     shimSb.AppendLine($"        public static global::System.Linq.IQueryable<{item.DestinationTypeFullName}> {shimName}(this global::System.Linq.IQueryable<{item.SourceTypeFullName}> source)");
                     shimSb.AppendLine("        {");
@@ -743,20 +773,27 @@ internal static class SourceEmitter
 
                     shimSb.AppendLine($"        public static global::System.Linq.IQueryable<{item.DestinationTypeFullName}> {shimName}{tArgs}(this {sType} source{extraParams})");
                     shimSb.AppendLine("        {");
-                    shimSb.AppendLine($"             return (({fullSource})source).Select(source => new {item.DestinationTypeFullName}");
-                    shimSb.AppendLine("             {");
-                    foreach (var prop in model!.Properties.Where(p => p.Kind != PropertyMapKind.Ignored))
+                    if (string.IsNullOrEmpty(tArgs))
                     {
-                        var expr = prop.SourceExpression?.Replace("?.", ".");
-                        if (!string.IsNullOrEmpty(expr))
-                        {
-                            expr = expr!.TrimEnd('!') + "!";
-                            // ProjectTo runs as IQueryable expression trees (SQL) — MappingContext doesn't exist there
-                            expr = expr.Replace(", context)", ")").Replace("(context)", "()");
-                            shimSb.AppendLine($"                 {prop.DestinationProperty} = {expr},");
-                        }
+                        shimSb.AppendLine($"             return global::System.Linq.Queryable.Select(({fullSource})source, {model!.HintName}_Map.Projection);");
                     }
-                    shimSb.AppendLine("             });");
+                    else
+                    {
+                        // Fallback for generics: Projection field is not emitted for open generics in v0.6.0
+                        shimSb.AppendLine($"             return (({fullSource})source).Select(source => new {item.DestinationTypeFullName}");
+                        shimSb.AppendLine("             {");
+                        foreach (var prop in model!.Properties.Where(p => p.Kind != PropertyMapKind.Ignored))
+                        {
+                            var expr = prop.SourceExpression?.Replace("?.", ".");
+                            if (!string.IsNullOrEmpty(expr))
+                            {
+                                expr = expr!.TrimEnd('!') + "!";
+                                expr = expr.Replace(", context)", ")").Replace("(context)", "()");
+                                shimSb.AppendLine($"                 {prop.DestinationProperty} = {expr},");
+                            }
+                        }
+                        shimSb.AppendLine("             });");
+                    }
                     shimSb.AppendLine("        }");
                 }
             }

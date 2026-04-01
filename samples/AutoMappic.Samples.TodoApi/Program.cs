@@ -34,6 +34,14 @@ app.MapGet("/todo-lists", async (TodoDb db, IMapper mapper) =>
     return lists.Select(l => mapper.Map<TodoListDto>(l));
 });
 
+app.MapGet("/todo-lists/projected", (TodoDb db) =>
+{
+    // AutoMappic v0.6.0 landmark: ProjectTo<T> translates the mapping 
+    // directly to SQL, omitting unused columns from the database wire.
+    // Extremely fast, zero allocation beyond the result objects.
+    return db.Lists.ProjectTo<TodoListDto>();
+});
+
 app.MapPost("/todo-lists", async (UpdateTodoListDto input, TodoDb db, IMapper mapper) =>
 {
     var list = mapper.Map<TodoList>(input);

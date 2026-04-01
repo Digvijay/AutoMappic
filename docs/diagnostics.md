@@ -39,6 +39,12 @@ A diagnostic with **Error** severity will cause the build to fail. This is inten
 *   **Description**: AutoMappic's static generator does not support recursive object graphs (e.g., Parent -> Child -> Parent) by default, as they would cause StackOverflowException in the generated static code.
 *   **Remediation**: Use .ForMemberIgnore() on the property causing the circular path.
 
+### AM0018: Non-Partial Class for AutoMap
+*   **Severity**: Error
+*   **Target**: [AutoMap] Class
+*   **Description**: Standalone mappings using the `[AutoMap]` attribute require the destination class to be marked as `partial`. This is because the source generator needs to inject the mapping logic directly into your type declaration.
+*   **Remediation**: Add the `partial` keyword to your class. A built-in IDE Code-Fix is available to perform this automatically.
+
 ## Operational Awareness (Warnings)
 
 Warnings identify potential configuration issues that do not block code generation but may result in unexpected behavior or fallback to less efficient engines.

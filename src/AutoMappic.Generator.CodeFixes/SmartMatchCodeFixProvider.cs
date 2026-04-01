@@ -34,44 +34,58 @@ namespace AutoMappic.Generator.CodeFixes
             if (!diagnostic.Properties.TryGetValue("SuggestedName", out var suggestedName) || string.IsNullOrEmpty(suggestedName))
                 return;
 
-            // Find the property declaration identified by the diagnostic.
-            var propertyToken = root.FindToken(diagnosticSpan.Start);
-            var propertyDeclaration = propertyToken.Parent?.AncestorsAndSelf().OfType<PropertyDeclarationSyntax>().FirstOrDefault();
+            // Find the identifying node.
+            var token = root.FindToken(diagnosticSpan.Start);
+            var node = token.Parent;
 
-            // Fallback: If we are not directly at a property (e.g., location was at the class), 
-            // search the class members for the property name stored in the diagnostic properties.
-            if (propertyDeclaration == null)
+            // 1. Standalone Property - Add [MapProperty]
+            var propertyDecl = node?.AncestorsAndSelf().OfType<PropertyDeclarationSyntax>().FirstOrDefault();
+            if (propertyDecl != null)
             {
-                var classDeclaration = propertyToken.Parent?.AncestorsAndSelf().OfType<ClassDeclarationSyntax>().FirstOrDefault();
-                if (classDeclaration != null && diagnostic.Properties.TryGetValue("TargetProperty", out var targetProp))
-                {
-                    propertyDeclaration = classDeclaration.Members.OfType<PropertyDeclarationSyntax>()
-                        .FirstOrDefault(p => p.Identifier.Text == targetProp);
-                }
+                context.RegisterCodeFix(
+                    CodeAction.Create(
+                        title: $"Map from '{suggestedName}'",
+                        createChangedDocument: c => AddMapPropertyAttributeAsync(context.Document, propertyDecl, suggestedName!, c),
+                        equivalenceKey: nameof(SmartMatchCodeFixProvider)),
+                    diagnostic);
+                return;
             }
 
-            if (propertyDeclaration == null) return;
-
-            // Register a code action that will add the [MapProperty] attribute.
-            context.RegisterCodeFix(
-                CodeAction.Create(
-                    title: $"Map from '{suggestedName}'",
-                    createChangedDocument: c => AddMapPropertyAttributeAsync(context.Document, propertyDeclaration, suggestedName!, c),
-                    equivalenceKey: nameof(SmartMatchCodeFixProvider)),
-                diagnostic);
+            // 2. Profile CreateMap Call - Chain .ForMember()
+            var invocation = node?.AncestorsAndSelf().OfType<InvocationExpressionSyntax>().FirstOrDefault();
+            if (invocation != null && diagnostic.Properties.TryGetValue("TargetProperty", out var targetProp))
+            {
+                context.RegisterCodeFix(
+                    CodeAction.Create(
+                        title: $"Map from '{suggestedName}' in Profile",
+                        createChangedDocument: c => AddForMemberMapAsync(context.Document, invocation, targetProp!, suggestedName!, c),
+                        equivalenceKey: "MapInProfile"),
+                    diagnostic);
+            }
         }
 
         private async Task<Document> AddMapPropertyAttributeAsync(Document document, PropertyDeclarationSyntax property, string suggestedName, CancellationToken cancellationToken)
         {
             var editor = await DocumentEditor.CreateAsync(document, cancellationToken).ConfigureAwait(false);
-
-            // Define the [MapProperty("SuggestedName")] attribute.
             var attribute = editor.Generator.Attribute("MapProperty", editor.Generator.LiteralExpression(suggestedName));
-
-            // Add the attribute to the property declaration.
             editor.AddAttribute(property, attribute);
-
             return editor.GetChangedDocument();
         }
+
+        private async Task<Document> AddForMemberMapAsync(Document document, InvocationExpressionSyntax invocation, string targetProp, string suggestedName, CancellationToken cancellationToken)
+        {
+            var editor = await DocumentEditor.CreateAsync(document, cancellationToken).ConfigureAwait(false);
+
+            var updated = SyntaxFactory.InvocationExpression(
+               SyntaxFactory.MemberAccessExpression(SyntaxKind.SimpleMemberAccessExpression, invocation, SyntaxFactory.IdentifierName("ForMember")),
+               SyntaxFactory.ArgumentList(SyntaxFactory.SeparatedList(new[] {
+                    SyntaxFactory.Argument(SyntaxFactory.ParseExpression($"dest => dest.{targetProp}")),
+                    SyntaxFactory.Argument(SyntaxFactory.ParseExpression($"opt => opt.MapFrom(src => src.{suggestedName})"))
+               })));
+
+            editor.ReplaceNode(invocation, updated);
+            return editor.GetChangedDocument();
+        }
+
     }
 }

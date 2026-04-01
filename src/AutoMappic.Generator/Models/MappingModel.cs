@@ -7,8 +7,8 @@ namespace AutoMappic.Generator.Models;
 internal sealed record DiagnosticInfo(
     string DescriptorId,
     LocationInfo Location,
-    ImmutableArray<string> MessageArgs,
-    ImmutableDictionary<string, string?> Properties,
+    EquatableArray<string> MessageArgs,
+    global::System.Collections.Immutable.ImmutableDictionary<string, string?> Properties,
     Microsoft.CodeAnalysis.DiagnosticSeverity Severity = Microsoft.CodeAnalysis.DiagnosticSeverity.Warning)
 {
     public string Id => DescriptorId;
@@ -18,7 +18,7 @@ internal sealed record DiagnosticInfo(
         return new DiagnosticInfo(
             descriptor.Id,
             LocationInfo.Create(loc),
-            ImmutableArray.CreateRange(messageArgs.Select(a => a?.ToString() ?? "")),
+            new EquatableArray<string>(messageArgs.Select(static a => a?.ToString() ?? "")),
             props,
             descriptor.DefaultSeverity);
     }
@@ -49,6 +49,7 @@ internal sealed record DiagnosticInfo(
             "AM0015" => AutoMappicDiagnostics.SmartMatchSuggestion.MessageFormat.ToString(culture),
             "AM0016" => AutoMappicDiagnostics.PerformanceRegression.MessageFormat.ToString(culture),
             "AM0017" => AutoMappicDiagnostics.AmbiguousEntityKey.MessageFormat.ToString(culture),
+            "AM0018" => AutoMappicDiagnostics.NonPartialClass.MessageFormat.ToString(culture),
             _ => "Diagnostic " + DescriptorId
         };
         try
@@ -65,7 +66,9 @@ internal sealed record LocationInfo(
     int StartLine,
     int StartColumn,
     int EndLine,
-    int EndColumn)
+    int EndColumn,
+    int SourceStart = 0,
+    int SourceLength = 0)
 {
     public static LocationInfo Create(Microsoft.CodeAnalysis.Location loc)
     {
@@ -75,7 +78,9 @@ internal sealed record LocationInfo(
             span.StartLinePosition.Line,
             span.StartLinePosition.Character,
             span.EndLinePosition.Line,
-            span.EndLinePosition.Character);
+            span.EndLinePosition.Character,
+            loc.SourceSpan.Start,
+            loc.SourceSpan.Length);
     }
 }
 
@@ -119,7 +124,8 @@ internal sealed record PropertyMap(
     bool IsNestedDestKeyValueType = false,
     bool SourceCanBeNull = false,
     bool IsRequired = false,
-    bool IsKey = false);
+    bool IsKey = false,
+    bool DeleteOrphans = false);
 
 /// <summary>Describes how a <see cref="PropertyMap" /> was resolved by the convention engine.</summary>
 internal enum PropertyMapKind
@@ -190,7 +196,8 @@ internal sealed record MappingModel(
     bool EnableIdentityManagement = true,
     bool EnableEntitySync = true,
     double SmartMatchThreshold = 0.5,
-    string? StaticConverterMethodFullName = null)
+    string? StaticConverterMethodFullName = null,
+    bool DeleteOrphans = false)
 {
     /// <summary>Returns true if any property in this mapping is resolved asynchronously.</summary>
     public bool IsAsync => Properties.Any(p => p.IsAsync) || ConstructorArguments.Any(p => p.IsAsync) || !string.IsNullOrEmpty(BeforeMapAsyncBody) || !string.IsNullOrEmpty(AfterMapAsyncBody);

@@ -38,6 +38,11 @@ public class MyProfile : Profile
         var am006 = diagnostics.FirstOrDefault(d => d.Id == "AM0006");
         Assert.NotNull(am006);
         Assert.Contains("Circular reference detected", am006!.GetMessage());
+
+        // V0.6.0 ANCHOR CHECK: Verify it's on property 'Manager' in 'EmployeeDto'
+        // In the 'source' string below, 'Manager' is on the 12th line (0-indexed).
+        var line = am006.Location.GetLineSpan().StartLinePosition.Line;
+        Assert.True(line >= 11 && line <= 13, $"Expected line near 12, but got {line}");
     }
 
     /// <summary> Verify that AM0006 is reported for indirect circular references (A -> B -> A) </summary>
@@ -67,5 +72,9 @@ public class MyProfile : Profile
         var am006 = diagnostics.FirstOrDefault(d => d.Id == "AM0006");
         Assert.NotNull(am006);
         Assert.Contains("Circular reference detected", am006!.GetMessage());
+
+        // V0.6.0 ANCHOR CHECK: Verify it's on property B in ADto (Line 6 or 7 relative)
+        var line = am006.Location.GetLineSpan().StartLinePosition.Line;
+        Assert.True(line >= 5 && line <= 8, $"Expected line near 6, but got {line}");
     }
 }

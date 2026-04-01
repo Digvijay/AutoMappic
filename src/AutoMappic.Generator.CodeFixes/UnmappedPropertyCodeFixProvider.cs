@@ -30,32 +30,55 @@ namespace AutoMappic.Generator.CodeFixes
             var diagnostic = context.Diagnostics.First();
             var diagnosticSpan = diagnostic.Location.SourceSpan;
 
-            // Find the property declaration identified by the diagnostic.
-            var propertyToken = root.FindToken(diagnosticSpan.Start);
-            var propertyDeclaration = propertyToken.Parent?.AncestorsAndSelf().OfType<PropertyDeclarationSyntax>().FirstOrDefault();
+            // Find the identifying node.
+            var token = root.FindToken(diagnosticSpan.Start);
+            var node = token.Parent;
 
-            if (propertyDeclaration == null) return;
+            // 1. Standalone Property - Add [AutoMappicIgnore]
+            var propertyDecl = node?.AncestorsAndSelf().OfType<PropertyDeclarationSyntax>().FirstOrDefault();
+            if (propertyDecl != null)
+            {
+                context.RegisterCodeFix(
+                    CodeAction.Create(
+                        title: "Ignore property in AutoMappic",
+                        createChangedDocument: c => AddIgnoreAttributeAsync(context.Document, propertyDecl, c),
+                        equivalenceKey: nameof(UnmappedPropertyCodeFixProvider)),
+                    diagnostic);
+                return;
+            }
 
-            // Register a code action that will add the [AutoMappicIgnore] attribute.
-            context.RegisterCodeFix(
-                CodeAction.Create(
-                    title: "Ignore property in AutoMappic",
-                    createChangedDocument: c => AddIgnoreAttributeAsync(context.Document, propertyDeclaration, c),
-                    equivalenceKey: nameof(UnmappedPropertyCodeFixProvider)),
-                diagnostic);
+            // 2. Profile CreateMap Call - Chain .ForMemberIgnore()
+            var invocation = node?.AncestorsAndSelf().OfType<InvocationExpressionSyntax>().FirstOrDefault();
+            if (invocation != null && diagnostic.Properties.TryGetValue("TargetProperty", out var targetProp))
+            {
+                context.RegisterCodeFix(
+                    CodeAction.Create(
+                        title: $"Ignore '{targetProp}' in Profile",
+                        createChangedDocument: c => AddForMemberIgnoreAsync(context.Document, invocation, targetProp!, c),
+                        equivalenceKey: "IgnoreInProfile"),
+                    diagnostic);
+            }
         }
 
         private async Task<Document> AddIgnoreAttributeAsync(Document document, PropertyDeclarationSyntax property, CancellationToken cancellationToken)
         {
             var editor = await DocumentEditor.CreateAsync(document, cancellationToken).ConfigureAwait(false);
-
-            // Define the [AutoMappicIgnore] attribute.
-            var attribute = editor.Generator.Attribute("AutoMappicIgnore");
-
-            // Add the attribute to the property declaration.
-            editor.AddAttribute(property, attribute);
-
+            editor.AddAttribute(property, editor.Generator.Attribute("AutoMappicIgnore"));
             return editor.GetChangedDocument();
         }
+
+        private async Task<Document> AddForMemberIgnoreAsync(Document document, InvocationExpressionSyntax invocation, string targetProp, CancellationToken cancellationToken)
+        {
+            var editor = await DocumentEditor.CreateAsync(document, cancellationToken).ConfigureAwait(false);
+
+            var updated = SyntaxFactory.InvocationExpression(
+                SyntaxFactory.MemberAccessExpression(SyntaxKind.SimpleMemberAccessExpression, invocation, SyntaxFactory.IdentifierName("ForMemberIgnore")),
+                SyntaxFactory.ArgumentList(SyntaxFactory.SingletonSeparatedList(
+                    SyntaxFactory.Argument(SyntaxFactory.ParseExpression($"dest => dest.{targetProp}")))));
+
+            editor.ReplaceNode(invocation, updated);
+            return editor.GetChangedDocument();
+        }
+
     }
 }
