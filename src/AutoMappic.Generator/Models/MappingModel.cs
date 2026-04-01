@@ -1,7 +1,83 @@
-using System.Collections.Generic;
+using System.Collections.Immutable;
 using System.Linq;
 
 namespace AutoMappic.Generator.Models;
+
+/// <summary>Serializable diagnostic information that doesn't pin live SyntaxTree references.</summary>
+internal sealed record DiagnosticInfo(
+    string DescriptorId,
+    LocationInfo Location,
+    ImmutableArray<string> MessageArgs,
+    ImmutableDictionary<string, string?> Properties,
+    Microsoft.CodeAnalysis.DiagnosticSeverity Severity = Microsoft.CodeAnalysis.DiagnosticSeverity.Warning)
+{
+    public string Id => DescriptorId;
+
+    public static DiagnosticInfo Create(Microsoft.CodeAnalysis.DiagnosticDescriptor descriptor, Microsoft.CodeAnalysis.Location loc, global::System.Collections.Immutable.ImmutableDictionary<string, string?> props, params object[] messageArgs)
+    {
+        return new DiagnosticInfo(
+            descriptor.Id,
+            LocationInfo.Create(loc),
+            ImmutableArray.CreateRange(messageArgs.Select(a => a?.ToString() ?? "")),
+            props,
+            descriptor.DefaultSeverity);
+    }
+
+    public static DiagnosticInfo Create(Microsoft.CodeAnalysis.DiagnosticDescriptor descriptor, Microsoft.CodeAnalysis.Location loc, params object[] messageArgs)
+    {
+        return Create(descriptor, loc, global::System.Collections.Immutable.ImmutableDictionary<string, string?>.Empty, messageArgs);
+    }
+
+    public string GetMessage(global::System.Globalization.CultureInfo? culture = null)
+    {
+        string? format = DescriptorId switch
+        {
+            "AM0001" => AutoMappicDiagnostics.UnmappedProperty.MessageFormat.ToString(culture),
+            "AM0002" => AutoMappicDiagnostics.AmbiguousMapping.MessageFormat.ToString(culture),
+            "AM0003" => AutoMappicDiagnostics.CreateMapOutsideProfile.MessageFormat.ToString(culture),
+            "AM0004" => AutoMappicDiagnostics.UnresolvedInterceptorMapping.MessageFormat.ToString(culture),
+            "AM0005" => AutoMappicDiagnostics.MissingConstructor.MessageFormat.ToString(culture),
+            "AM0006" => AutoMappicDiagnostics.CircularReference.MessageFormat.ToString(culture),
+            "AM0007" => AutoMappicDiagnostics.UnresolvedCreateMapSymbol.MessageFormat.ToString(culture),
+            "AM0008" => AutoMappicDiagnostics.UnsupportedProjectToFeature.MessageFormat.ToString(culture),
+            "AM0009" => AutoMappicDiagnostics.DuplicateMapping.MessageFormat.ToString(culture),
+            "AM0010" => AutoMappicDiagnostics.PerformanceHotpath.MessageFormat.ToString(culture),
+            "AM0011" => AutoMappicDiagnostics.UnsupportedMultiSourceProjectTo.MessageFormat.ToString(culture),
+            "AM0012" => AutoMappicDiagnostics.AsymmetricMapping.MessageFormat.ToString(culture),
+            "AM0013" => AutoMappicDiagnostics.PatchIntoRequired.MessageFormat.ToString(culture),
+            "AM0014" => AutoMappicDiagnostics.UnmappedPrimaryKey.MessageFormat.ToString(culture),
+            "AM0015" => AutoMappicDiagnostics.SmartMatchSuggestion.MessageFormat.ToString(culture),
+            "AM0016" => AutoMappicDiagnostics.PerformanceRegression.MessageFormat.ToString(culture),
+            "AM0017" => AutoMappicDiagnostics.AmbiguousEntityKey.MessageFormat.ToString(culture),
+            _ => "Diagnostic " + DescriptorId
+        };
+        try
+        {
+            return string.Format(culture ?? global::System.Globalization.CultureInfo.InvariantCulture, format, MessageArgs.ToArray());
+        }
+        catch { return format; }
+    }
+}
+
+/// <summary>Serializable location information.</summary>
+internal sealed record LocationInfo(
+    string FilePath,
+    int StartLine,
+    int StartColumn,
+    int EndLine,
+    int EndColumn)
+{
+    public static LocationInfo Create(Microsoft.CodeAnalysis.Location loc)
+    {
+        var span = loc.GetLineSpan();
+        return new LocationInfo(
+            span.Path ?? "",
+            span.StartLinePosition.Line,
+            span.StartLinePosition.Character,
+            span.EndLinePosition.Line,
+            span.EndLinePosition.Character);
+    }
+}
 
 /// <summary>
 ///   Immutable, fully equality-comparable model representing a single property assignment

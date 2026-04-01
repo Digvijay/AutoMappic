@@ -1,9 +1,9 @@
 ---
 title: AutoMappic Performance Benchmarks vs AutoMapper
-description: Detailed performance analysis of AutoMappic v0.5.0, demonstrating 6.5x faster runtime execution and zero-allocation mapping compared to legacy .NET mappers.
+description: Detailed performance analysis of AutoMappic v0.5.1, demonstrating 6.5x faster runtime execution and zero-allocation mapping compared to legacy .NET mappers.
 ---
 
-# Benchmarks: Performance Analysis of AutoMappic v0.5.0
+# Benchmarks: Performance Analysis of AutoMappic v0.5.1
 
 ## Abstract
 AutoMappic achieves high-performance object mapping by shifting resolution and execution paths from runtime reflection to compile-time static analysis. This document details the comparative performance of AutoMappic against legacy mappers, explicit source generators, and manual assignment.
@@ -27,11 +27,11 @@ Mapping a complex `User` object graph to a flattened `UserDto`.
 | Mapperly_Explicit | Source Generation | 28.50 ns | 0.15 | 48 B |
 
 ### Analysis
-AutoMappic maintains **parity with hand-written manual mapping** (~29ns vs ~28ns) and is **6.5x faster** than AutoMapper. The v0.5.0 additions (Smart-Sync, Fuzzy Match, Performance Guardrails) introduce **zero measurable overhead** as the generated mapping path remains straight-line assignment code.
+AutoMappic maintains **parity with hand-written manual mapping** (~29ns vs ~28ns) and is **6.5x faster** than AutoMapper. The v0.5.1 additions (Smart-Sync, Fuzzy Match, Performance Guardrails) introduce **zero measurable overhead** as the generated mapping path remains straight-line assignment code.
 
 ## 3. Results: Collection Mapping (IMapper Interception)
 
-v0.5.0-refined introduces full interception for `IMapper.Map<List<T1>, List<T2>>()`. This closes the gap where collection wrappers previously fell back to the reflection engine.
+v0.5.1-refined introduces full interception for `IMapper.Map<List<T1>, List<T2>>()`. This closes the gap where collection wrappers previously fell back to the reflection engine.
 
 ### Comparison: mapping `List<PointSource>` to `List<PointDto>` (1,000 items)
 
@@ -45,7 +45,7 @@ v0.5.0-refined introduces full interception for `IMapper.Map<List<T1>, List<T2>>
 By intercepting the high-level `IMapper.Map<List<T>>` calls, AutoMappic now outperforms AutoMapper by **45%** in collection mapping throughput and matches manual loop performance exactly. Memory allocation is reduced by **21%** by bypassing the "LINQ tax" and pre-initializing list capacity based on source count.
 
 ## 4. Zero-Allocation Optimization: MappingContext
-In v0.5.0, `MappingContext` remains a `readonly struct` for maximum performance on nested graphs. 
+In v0.5.1, `MappingContext` remains a `readonly struct` for maximum performance on nested graphs. 
 - **Hot Path**: When identity management is not enabled (default), the `default(MappingContext)` occupies zero heap space.
 - **Result**: Even if the generator passes a context parameter to every method, there is **zero allocation overhead** for the context itself.
 

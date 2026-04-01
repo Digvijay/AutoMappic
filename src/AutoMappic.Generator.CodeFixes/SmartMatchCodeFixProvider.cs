@@ -38,6 +38,18 @@ namespace AutoMappic.Generator.CodeFixes
             var propertyToken = root.FindToken(diagnosticSpan.Start);
             var propertyDeclaration = propertyToken.Parent?.AncestorsAndSelf().OfType<PropertyDeclarationSyntax>().FirstOrDefault();
 
+            // Fallback: If we are not directly at a property (e.g., location was at the class), 
+            // search the class members for the property name stored in the diagnostic properties.
+            if (propertyDeclaration == null)
+            {
+                var classDeclaration = propertyToken.Parent?.AncestorsAndSelf().OfType<ClassDeclarationSyntax>().FirstOrDefault();
+                if (classDeclaration != null && diagnostic.Properties.TryGetValue("TargetProperty", out var targetProp))
+                {
+                    propertyDeclaration = classDeclaration.Members.OfType<PropertyDeclarationSyntax>()
+                        .FirstOrDefault(p => p.Identifier.Text == targetProp);
+                }
+            }
+
             if (propertyDeclaration == null) return;
 
             // Register a code action that will add the [MapProperty] attribute.

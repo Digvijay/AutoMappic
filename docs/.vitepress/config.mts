@@ -25,7 +25,7 @@ export default withMermaid(defineConfig({
         "operatingSystem": "Windows, macOS, Linux",
         "applicationCategory": "DeveloperApplication",
         "screenshot": "https://automappic.digvijay.dev/og-image.png",
-        "softwareVersion": "0.5.0",
+        "softwareVersion": "0.5.1",
         "author": {
           "@type": "Organization",
           "name": "AutoMappic OSS",

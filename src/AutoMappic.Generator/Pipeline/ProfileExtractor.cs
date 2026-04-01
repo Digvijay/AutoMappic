@@ -2,11 +2,11 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
+using System.Text.RegularExpressions;
 using AutoMappic.Generator.Models;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
-using System.Text.RegularExpressions;
 
 namespace AutoMappic.Generator.Pipeline;
 
@@ -25,9 +25,9 @@ internal static class ProfileExtractor
     /// <summary>
     ///   High-level extraction for CLI/Test use: Extracts all mapping models from a full compilation.
     /// </summary>
-    public static IReadOnlyList<(MappingModel Model, IReadOnlyList<Diagnostic> Diagnostics)> ExtractFromCompilation(Compilation compilation)
+    public static IReadOnlyList<(MappingModel Model, EquatableArray<DiagnosticInfo> Diagnostics)> ExtractFromCompilation(Compilation compilation)
     {
-        var results = new List<(MappingModel Model, IReadOnlyList<Diagnostic> Diagnostics)>();
+        var results = new List<(MappingModel Model, EquatableArray<DiagnosticInfo> Diagnostics)>();
         foreach (var tree in compilation.SyntaxTrees)
         {
             var model = compilation.GetSemanticModel(tree);
@@ -71,18 +71,18 @@ internal static class ProfileExtractor
     ///   each <c>CreateMap</c> call found in the constructor, or returns
     ///   <see langword="null" /> if this is not a Profile subclass.
     /// </summary>
-    public static IReadOnlyList<(MappingModel Model, IReadOnlyList<Diagnostic> Diagnostics)>
+    public static IReadOnlyList<(MappingModel Model, EquatableArray<DiagnosticInfo> Diagnostics)>
         ExtractMappingModels(
             GeneratorSyntaxContext context,
             System.Threading.CancellationToken cancellationToken)
     {
         var classDecl = (ClassDeclarationSyntax)context.Node;
         var classSymbol = context.SemanticModel.GetDeclaredSymbol(classDecl, cancellationToken) as INamedTypeSymbol;
-        if (classSymbol is null) return System.Array.Empty<(MappingModel, IReadOnlyList<Diagnostic>)>();
+        if (classSymbol is null) return System.Array.Empty<(MappingModel, EquatableArray<DiagnosticInfo>)>();
 
-        if (!InheritsFromProfile(classSymbol)) return System.Array.Empty<(MappingModel, IReadOnlyList<Diagnostic>)>();
+        if (!InheritsFromProfile(classSymbol)) return System.Array.Empty<(MappingModel, EquatableArray<DiagnosticInfo>)>();
 
-        var results = new List<(MappingModel, IReadOnlyList<Diagnostic>)>();
+        var results = new List<(MappingModel, EquatableArray<DiagnosticInfo>)>();
 
         // Find all CreateMap calls in this class.
         var invocations = classDecl.DescendantNodes()
@@ -108,13 +108,13 @@ internal static class ProfileExtractor
                 var sName = methodSymbol?.TypeArguments.ElementAtOrDefault(0)?.Name ?? "TSource";
                 var dName = methodSymbol?.TypeArguments.ElementAtOrDefault(1)?.Name ?? "TDestination";
 
-                results.Add((null!, new[]
+                results.Add((null!, new EquatableArray<DiagnosticInfo>(new[]
                 {
-                    Diagnostic.Create(
+                    DiagnosticInfo.Create(
                         AutoMappicDiagnostics.CreateMapOutsideProfile,
                         inv.GetLocation(),
                         sName, dName)
-                }));
+                })));
                 // Proceed anyway - the diagnostic is enough, and this helps the unit tests/harness
                 // where Roslyn might struggle with the ancestor check in isolated compilations.
             }
@@ -137,14 +137,14 @@ internal static class ProfileExtractor
         return results;
     }
 
-    public static IReadOnlyList<(MappingModel Model, IReadOnlyList<Diagnostic> Diagnostics)>
+    public static IReadOnlyList<(MappingModel Model, EquatableArray<DiagnosticInfo> Diagnostics)>
         ExtractConverterModels(
             GeneratorSyntaxContext context,
             System.Threading.CancellationToken cancellationToken)
     {
         var methodDecl = (MethodDeclarationSyntax)context.Node;
         var methodSymbol = context.SemanticModel.GetDeclaredSymbol(methodDecl, cancellationToken) as IMethodSymbol;
-        if (methodSymbol == null) return Array.Empty<(MappingModel, IReadOnlyList<Diagnostic>)>();
+        if (methodSymbol == null) return Array.Empty<(MappingModel, EquatableArray<DiagnosticInfo>)>();
 
         bool hasAttribute = false;
         foreach (var attr in methodSymbol.GetAttributes())
@@ -156,11 +156,11 @@ internal static class ProfileExtractor
             }
         }
 
-        if (!hasAttribute) return Array.Empty<(MappingModel, IReadOnlyList<Diagnostic>)>();
+        if (!hasAttribute) return Array.Empty<(MappingModel, EquatableArray<DiagnosticInfo>)>();
 
         // Must be static, have 1 parameter, and return something.
         if (!methodSymbol.IsStatic || methodSymbol.Parameters.Length != 1 || methodSymbol.ReturnsVoid)
-            return Array.Empty<(MappingModel, IReadOnlyList<Diagnostic>)>();
+            return Array.Empty<(MappingModel, EquatableArray<DiagnosticInfo>)>();
 
         var sourceType = methodSymbol.Parameters[0].Type;
         var destType = methodSymbol.ReturnType;
@@ -185,7 +185,7 @@ internal static class ProfileExtractor
             IsDestinationValueType: destType.IsValueType || destType.IsTupleType
         );
 
-        return new[] { (model, (IReadOnlyList<Diagnostic>)Array.Empty<Diagnostic>()) };
+        return new[] { (model, EquatableArray<DiagnosticInfo>.Empty) };
     }
 
     // --- Private helpers ----------------------------------------------------------
@@ -237,7 +237,7 @@ internal static class ProfileExtractor
         return false;
     }
 
-    private static List<(MappingModel Model, IReadOnlyList<Diagnostic> Diagnostics)>
+    private static List<(MappingModel Model, EquatableArray<DiagnosticInfo> Diagnostics)>
         TryExtractModels(
             InvocationExpressionSyntax createMapCall,
             INamedTypeSymbol profileClass,
@@ -250,16 +250,16 @@ internal static class ProfileExtractor
             bool profileEntitySyncEnabled = false,
             bool profileIdentityManagementEnabled = false)
     {
-        var results = new List<(MappingModel, IReadOnlyList<Diagnostic>)>();
+        var results = new List<(MappingModel, EquatableArray<DiagnosticInfo>)>();
         var methodSymbol = semanticModel.GetSymbolInfo(createMapCall, ct).Symbol as IMethodSymbol;
         if (methodSymbol is null)
         {
-            results.Add((null!, new[]
+            results.Add((null!, new EquatableArray<DiagnosticInfo>(new[]
             {
-                Diagnostic.Create(
+                DiagnosticInfo.Create(
                     AutoMappicDiagnostics.UnresolvedCreateMapSymbol,
                     createMapCall.GetLocation())
-            }));
+            })));
             return results;
         }
 
@@ -284,12 +284,12 @@ internal static class ProfileExtractor
 
         if (sourceType is null || destType is null)
         {
-            results.Add((null!, new[]
+            results.Add((null!, new EquatableArray<DiagnosticInfo>(new[]
             {
-                Diagnostic.Create(
+                DiagnosticInfo.Create(
                     AutoMappicDiagnostics.UnresolvedCreateMapSymbol,
                     createMapCall.GetLocation())
-            }));
+            })));
             return results;
         }
 
@@ -434,7 +434,7 @@ internal static class ProfileExtractor
             current = invocation.Parent;
         }
 
-        var diagnostics = new List<Diagnostic>();
+        var diagnostics = new List<DiagnosticInfo>();
         var profileLocation = profileClass.Locations.Length > 0 ? profileClass.Locations[0] : Location.None;
 
         IReadOnlyList<PropertyMap> properties = new List<PropertyMap>();
@@ -451,6 +451,7 @@ internal static class ProfileExtractor
                 forwardMaps,
                 forwardIgnored,
                 profileLocation,
+                null,
                 d => diagnostics.Add(d),
                 null,
                 sourceNaming,
@@ -504,19 +505,19 @@ internal static class ProfileExtractor
             EnableIdentityManagement: identityManagementEnabled,
             TypeParameters: eqTypeParams);
 
-        results.Add((model, diagnostics));
+        results.Add((model, new EquatableArray<DiagnosticInfo>(diagnostics)));
 
         if (hasReverseMap)
         {
             // The base convention resolving logic (ConventionEngine.Resolve) handles
             // asymmetrical property mapping if not overridden.
-            var revDiags = new List<Diagnostic>();
+            var revDiags = new List<DiagnosticInfo>();
             var (revProps, revConstructorArgs) = ConventionEngine.Resolve(
                 destType!,
                 sourceType!,
                 reverseMaps,
                 reverseIgnored,
-                profileLocation,
+                profileLocation, null,
                 d => revDiags.Add(d),
                 null,
                 destNaming, // reversed
@@ -547,7 +548,7 @@ internal static class ProfileExtractor
                 EnableEntitySync: entitySyncEnabled,
                 TypeParameters: eqTypeParams);
 
-            results.Add((revModel, revDiags));
+            results.Add((revModel, new EquatableArray<DiagnosticInfo>(revDiags)));
         }
 
         return results;
@@ -852,4 +853,5 @@ internal static class ProfileExtractor
             return base.VisitIdentifierName(node);
         }
     }
+
 }

@@ -5,7 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [0.5.0] - 2026-03-30
+## [0.5.1] - 2026-04-01
+
+### Fixed
+- **IDE Stability (Incremental Generator Fix)**: Resolved a critical issue where the source generator could crash with a "SyntaxTree is not part of the compilation" error after multiple edits. Switched to serializable `DiagnosticInfo` records in the incremental pipeline to avoid pinning stale syntax nodes in the cache.
+- **Smart-Match Code-Fix Precision**: Fixed a bug where the AM0015 "lightbulb" fix would fail to appear in the IDE due to location mismatches. Diagnostics are now correctly anchored to the offending property in the destination type, and the provider uses robust metadata to locate the syntax node correctly.
+
+## [0.5.1] - 2026-03-30
 
 ### Added
 - **Smart-Sync (EF Core Identity Mapping)**: Enhanced collection mapping logic using a keyed-lookup approach to identify and update existing entity instances. This preserves EF Core's change tracking state by performing in-place updates instead of full collection replacements.

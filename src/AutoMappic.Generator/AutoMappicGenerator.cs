@@ -67,8 +67,8 @@ public sealed class AutoMappicGenerator : IIncrementalGenerator
 
                 if (result.Model != null)
                 {
-                    var diags = new List<Diagnostic>(result.Diagnostics);
-                    diags.RemoveAll(d => d.Id == "AM0015" &&
+                    var diags = new List<DiagnosticInfo>(result.Diagnostics);
+                    diags.RemoveAll(d => d.DescriptorId == "AM0015" &&
                                          d.Properties.TryGetValue("Score", out var scrStr) &&
                                          double.TryParse(scrStr, global::System.Globalization.NumberStyles.Any, global::System.Globalization.CultureInfo.InvariantCulture, out var score) &&
                                          score < threshold);
@@ -79,17 +79,13 @@ public sealed class AutoMappicGenerator : IIncrementalGenerator
                         {
                             if (prop.IsRequired && prop.SourceCanBeNull && prop.ConditionBody == null)
                             {
-                                var linePos = new global::Microsoft.CodeAnalysis.Text.LinePosition(result.Model.Line > 0 ? result.Model.Line - 1 : 0, result.Model.Column > 0 ? result.Model.Column - 1 : 0);
-                                var location = string.IsNullOrEmpty(result.Model.FilePath) ? global::Microsoft.CodeAnalysis.Location.None : global::Microsoft.CodeAnalysis.Location.Create(result.Model.FilePath!,
-                                    new global::Microsoft.CodeAnalysis.Text.TextSpan(0, 0),
-                                    new global::Microsoft.CodeAnalysis.Text.LinePositionSpan(linePos, linePos));
+                                var location = new LocationInfo(result.Model.FilePath!, result.Model.Line > 0 ? result.Model.Line - 1 : 0, result.Model.Column > 0 ? result.Model.Column - 1 : 0, result.Model.Line > 0 ? result.Model.Line - 1 : 0, result.Model.Column > 0 ? result.Model.Column - 1 : 0);
 
-                                diags.Add(Diagnostic.Create(
-                                    AutoMappicDiagnostics.PatchIntoRequired,
+                                diags.Add(new DiagnosticInfo(
+                                    "AM0013",
                                     location,
-                                    prop.DestinationProperty,
-                                    result.Model.DestinationTypeName,
-                                    prop.SourceRawExpression ?? prop.SourceExpression ?? "unknown"));
+                                    global::System.Collections.Immutable.ImmutableArray.Create(prop.DestinationProperty, result.Model.DestinationTypeName, prop.SourceRawExpression ?? prop.SourceExpression ?? "unknown"),
+                                    global::System.Collections.Immutable.ImmutableDictionary<string, string?>.Empty));
                             }
                         }
                     }
@@ -98,7 +94,7 @@ public sealed class AutoMappicGenerator : IIncrementalGenerator
                         EnableIdentityManagement = enableIdentity || result.Model.EnableIdentityManagement,
                         EnableEntitySync = enableSync || result.Model.EnableEntitySync,
                         SmartMatchThreshold = threshold
-                    }, Diagnostics: diags);
+                    }, Diagnostics: new EquatableArray<DiagnosticInfo>(diags));
                 }
                 return result;
             })
@@ -111,7 +107,7 @@ public sealed class AutoMappicGenerator : IIncrementalGenerator
         var diagnostics = mappingResults
             .SelectMany(static (pair, _) => pair.Diagnostics);
 
-        context.RegisterSourceOutput(diagnostics, static (spc, d) => spc.ReportDiagnostic(d));
+        context.RegisterSourceOutput(diagnostics, static (spc, d) => spc.ReportDiagnostic(ToRoslynDiagnostic(d)));
 
         // Deduplicate mapping models by their hint name.
         var uniqueMappingModels = mappingModels
@@ -359,17 +355,63 @@ public sealed class AutoMappicGenerator : IIncrementalGenerator
 
 
     private sealed class MappingResultComparer
-        : IEqualityComparer<(MappingModel Model, IReadOnlyList<Diagnostic> Diagnostics)>
+        : IEqualityComparer<(MappingModel Model, EquatableArray<DiagnosticInfo> Diagnostics)>
     {
         public static readonly MappingResultComparer Instance = new();
 
         public bool Equals(
-            (MappingModel Model, IReadOnlyList<Diagnostic> Diagnostics) x,
-            (MappingModel Model, IReadOnlyList<Diagnostic> Diagnostics) y)
-            => x.Model.Equals(y.Model);
+            (MappingModel Model, EquatableArray<DiagnosticInfo> Diagnostics) x,
+            (MappingModel Model, EquatableArray<DiagnosticInfo> Diagnostics) y)
+        {
+            if (x.Model is null && y.Model is null) return x.Diagnostics.Equals(y.Diagnostics);
+            if (x.Model is null || y.Model is null) return false;
+            return x.Model.Equals(y.Model) && x.Diagnostics.Equals(y.Diagnostics);
+        }
 
         public int GetHashCode(
-            (MappingModel Model, IReadOnlyList<Diagnostic> Diagnostics) obj)
-            => obj.Model.GetHashCode();
+            (MappingModel Model, EquatableArray<DiagnosticInfo> Diagnostics) obj)
+        {
+            unchecked
+            {
+                int hash = 17;
+                hash = hash * 31 + (obj.Model?.GetHashCode() ?? 0);
+                hash = hash * 31 + obj.Diagnostics.GetHashCode();
+                return hash;
+            }
+        }
     }
+
+    private static Diagnostic ToRoslynDiagnostic(DiagnosticInfo info)
+    {
+        var descriptor = GetDescriptor(info.DescriptorId);
+        var linePos = new global::Microsoft.CodeAnalysis.Text.LinePosition(info.Location.StartLine, info.Location.StartColumn);
+        var endPos = new global::Microsoft.CodeAnalysis.Text.LinePosition(info.Location.EndLine, info.Location.EndColumn);
+        var location = global::Microsoft.CodeAnalysis.Location.Create(info.Location.FilePath,
+             new global::Microsoft.CodeAnalysis.Text.TextSpan(0, 0),
+             new global::Microsoft.CodeAnalysis.Text.LinePositionSpan(linePos, endPos));
+
+        return Diagnostic.Create(descriptor, location, info.Properties, info.MessageArgs.ToArray());
+    }
+
+    private static DiagnosticDescriptor GetDescriptor(string id) => id switch
+    {
+        "AM0001" => AutoMappicDiagnostics.UnmappedProperty,
+        "AM0002" => AutoMappicDiagnostics.AmbiguousMapping,
+        "AM0003" => AutoMappicDiagnostics.CreateMapOutsideProfile,
+        "AM0004" => AutoMappicDiagnostics.UnresolvedInterceptorMapping,
+        "AM0005" => AutoMappicDiagnostics.MissingConstructor,
+        "AM0006" => AutoMappicDiagnostics.CircularReference,
+        "AM0007" => AutoMappicDiagnostics.UnresolvedCreateMapSymbol,
+        "AM0008" => AutoMappicDiagnostics.UnsupportedProjectToFeature,
+        "AM0009" => AutoMappicDiagnostics.DuplicateMapping,
+        "AM0010" => AutoMappicDiagnostics.PerformanceHotpath,
+        "AM0011" => AutoMappicDiagnostics.UnsupportedMultiSourceProjectTo,
+        "AM0012" => AutoMappicDiagnostics.AsymmetricMapping,
+        "AM0013" => AutoMappicDiagnostics.PatchIntoRequired,
+        "AM0014" => AutoMappicDiagnostics.UnmappedPrimaryKey,
+        "AM0015" => AutoMappicDiagnostics.SmartMatchSuggestion,
+        "AM0016" => AutoMappicDiagnostics.PerformanceRegression,
+        "AM0017" => AutoMappicDiagnostics.AmbiguousEntityKey,
+        _ => AutoMappicDiagnostics.UnmappedProperty // Fallback
+    };
 }

@@ -83,9 +83,9 @@ using var reader = cmd.ExecuteReader();
 var users = reader.Map<UserDto>();
 ```
 
-## 6. Advanced v0.5.0 Features
+## 6. Advanced v0.5.1 Features
 
-AutoMappic v0.5.0 introduces state-aware mapping for complex scenarios like EF Core entity synchronization and cyclic graphs.
+AutoMappic v0.5.1 introduces state-aware mapping for complex scenarios like EF Core entity synchronization and cyclic graphs.
 
 ### Identity Management
 Ensures that the same source object instance is always mapped to the same destination instance within a single mapping tree, preventing infinite recursion in cyclic models.

@@ -84,7 +84,6 @@ internal sealed class Program
 
                 if (isJson)
                 {
-                    var lineSpan = diag.Location.GetLineSpan();
                     issues.Add(new
                     {
                         Id = diag.Id,
@@ -92,8 +91,8 @@ internal sealed class Program
                         Message = diag.GetMessage(CultureInfo.InvariantCulture),
                         SourceType = model.SourceTypeFullName,
                         DestinationType = model.DestinationTypeFullName,
-                        File = lineSpan.Path,
-                        Line = lineSpan.StartLinePosition.Line + 1
+                        File = diag.Location.FilePath,
+                        Line = diag.Location.StartLine + 1
                     });
                 }
                 else
