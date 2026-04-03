@@ -39,5 +39,7 @@
     <!-- Security Overrides for Transitive Dependencies -->
     <PackageVersion Include="System.Formats.Asn1" Version="9.0.2" />
     <PackageVersion Include="System.Text.Json" Version="9.0.2" />
+    <PackageVersion Include="System.Composition.AttributedModel" Version="9.0.0" />
+    <PackageVersion Include="System.Composition.TypedParts" Version="9.0.0" />
   </ItemGroup>
 </Project>

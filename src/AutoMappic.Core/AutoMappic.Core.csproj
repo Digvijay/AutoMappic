@@ -44,6 +44,10 @@
           Pack="true" 
           PackagePath="analyzers/dotnet/cs" 
           Visible="false" />
+    <None Include="$(MSBuildProjectDirectory)\..\AutoMappic.Generator.CodeFixes\bin\$(Configuration)\netstandard2.0\System.Composition.*.dll"
+          Pack="true"
+          PackagePath="analyzers/dotnet/cs"
+          Visible="false" />
     <None Include="AutoMappic.targets" 
           Pack="true" 
           PackagePath="build" />

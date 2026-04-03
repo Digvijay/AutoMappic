@@ -302,18 +302,18 @@ internal static class ConventionEngine
         ISymbol? bestMember = null;
         double bestScore = 0;
 
-        // Performance safeguard: Limit fuzzy matching to prevent pathological build times
-        // on classes with hundreds of properties.
+        // performance safeguard for pathological build times
         if (readableMembers.Count <= 200)
         {
+            var targetNormalized = NamingUtility.Normalize(targetName);
             foreach (var m in readableMembers)
             {
-                // Heuristic: If name lengths differ by more than 2x, Similarity is unlikely to be >= 0.3
-                if (Math.Abs(m.Name.Length - targetName.Length) > Math.Max(m.Name.Length, targetName.Length) / 2)
+                var sourceNormalized = NamingUtility.Normalize(m.Name);
+                if (Math.Abs(sourceNormalized.Length - targetNormalized.Length) > Math.Max(sourceNormalized.Length, targetNormalized.Length) / 2)
                     continue;
 
-                double score = MappingFuzzer.GetSimilarity(m.Name, targetName);
-                if (score >= 0.3 && score > bestScore)
+                double score = MappingFuzzer.GetSimilarity(sourceNormalized, targetNormalized);
+                if (score >= 0.4 && score > bestScore)
                 {
                     bestMember = m;
                     bestScore = score;
@@ -321,7 +321,7 @@ internal static class ConventionEngine
             }
         }
 
-        if (bestMember != null && IsTypeCompatible(GetMemberType(bestMember), targetType))
+        if (bestMember != null)
         {
             var props = global::System.Collections.Immutable.ImmutableDictionary<string, string?>.Empty
                 .Add("SuggestedName", bestMember.Name)

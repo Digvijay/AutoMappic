@@ -24,7 +24,7 @@ var orderService = new OrderService(mapper);
 var userDto = service.GetUser(1);
 var orderDto = orderService.GetOrder(42);
 
-Console.WriteLine("=== AutoMappic v0.6.1 Sample ===");
+Console.WriteLine("=== AutoMappic v0.6.2 Sample ===");
 Console.WriteLine();
 Console.WriteLine("User mapping (direct + flattened + method):");
 Console.WriteLine($"  Id:          {userDto.Id}");

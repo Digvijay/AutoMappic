@@ -59,7 +59,7 @@ public sealed class AutoMappicGenerator : IIncrementalGenerator
                 bool enableSync = "true".Equals(syncFlagStr, System.StringComparison.OrdinalIgnoreCase);
 
                 options.GlobalOptions.TryGetValue("build_property.automappic_smartmatchthreshold", out var thresholdStr);
-                double threshold = 0.5;
+                double threshold = 0.4;
                 if (!string.IsNullOrEmpty(thresholdStr) && double.TryParse(thresholdStr, global::System.Globalization.NumberStyles.Any, global::System.Globalization.CultureInfo.InvariantCulture, out var parsedThreshold))
                 {
                     threshold = parsedThreshold;
