@@ -72,8 +72,11 @@ AutoMappic automatically handles `List<T>`, `T[]`, and `IEnumerable<T>` using sp
 ### ProjectTo (EF Core)
 Converts an `IQueryable<T>` into an `IQueryable<U>` at compile-time.
 ```csharp
-// Standard usage
-var dtos = dbContext.Users.ProjectTo<UserDto>(_mapper.ConfigurationProvider);
+// Recommended: Simplified extension method
+var dtos = dbContext.Users.ProjectTo<UserDto>().ToList();
+
+// Or legacy compatibility signature
+var dtos = dbContext.Users.ProjectTo<UserDto>(_mapper.ConfigurationProvider).ToList();
 ```
 
 ### DataReader.Map
@@ -83,7 +86,26 @@ using var reader = cmd.ExecuteReader();
 var users = reader.Map<UserDto>();
 ```
 
-## 6. Advanced v0.6.0 Features
+## 6. Standalone Mappings ([AutoMap])
+
+AutoMappic v0.6.0 allows you to define mappings directly on your DTO classes, eliminating the need for a separate `Profile` class for simple scenarios.
+
+```csharp
+using AutoMappic;
+
+[AutoMap(typeof(UserSource), ReverseMap = true)]
+public partial class UserDto 
+{
+    public int Id { get; set; }
+    public string Name { get; set; }
+}
+```
+
+::: tip
+Standalone mapping classes **must** be marked as `partial` so the generator can inject optimized mapping interfaces.
+:::
+
+## 7. Advanced v0.6.0 Features
 
 AutoMappic v0.6.0 introduces state-aware mapping and hardened projection support for complex scenarios.
 

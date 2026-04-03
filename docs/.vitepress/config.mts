@@ -25,7 +25,7 @@ export default withMermaid(defineConfig({
         "operatingSystem": "Windows, macOS, Linux",
         "applicationCategory": "DeveloperApplication",
         "screenshot": "https://automappic.digvijay.dev/og-image.png",
-        "softwareVersion": "0.5.1",
+        "softwareVersion": "0.6.0",
         "author": {
           "@type": "Organization",
           "name": "AutoMappic OSS",
@@ -53,6 +53,8 @@ export default withMermaid(defineConfig({
         text: 'Guide',
         items: [
           { text: 'Getting Started', link: '/getting-started' },
+          { text: 'Standalone Mapping', link: '/standalone-mapping' },
+          { text: 'LINQ Projections', link: '/project-to' },
           { text: 'Asynchronous Mapping', link: '/asynchronous-mapping' },
           { text: 'How it Works', link: '/how-it-works' },
           { text: 'Sustainability & ESG', link: '/sustainability' }

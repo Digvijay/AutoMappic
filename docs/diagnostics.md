@@ -1,5 +1,5 @@
 ---
-title: AutoMappic Diagnostic Suite - AM0001 to AM0017
+title: AutoMappic Diagnostic Suite - AM0001 to AM0018
 description: Complete reference for AutoMappic build-time diagnostics. Learn how to fix unmapped properties, circular references, and performance issues before they hit production.
 ---
 
