@@ -54,4 +54,5 @@ You can display the AutoMappic badge on your project to show your commitment to 
 
 ---
 
+[Next: Reference Apps ->](./reference-apps.md)
 [Back: How it Works <-](./how-it-works.md)

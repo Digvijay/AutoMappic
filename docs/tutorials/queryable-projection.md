@@ -1,4 +1,4 @@
-# Queryable and DataReader Projection
+# Tutorial: Mastering Queryable Projections
 
 AutoMappic provides high-performance projection for data access layers, specifically designed for **Native AOT compatibility** and enterprise-grade performance.
 

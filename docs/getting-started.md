@@ -119,3 +119,8 @@ var projected = query.ProjectTo<UserDto>(_mapper.ConfigurationProvider);
 
 ## 7. Performance and Native AOT
 AutoMappic generates source code that you can see and debug. Because it is static C#, it is 100% compatible with Native AOT and Linker trimming. No more `UnreferencedCode` warnings in your mapping logic.
+
+---
+
+[Next: LINQ Projections ->](./project-to.md)
+[Back: Home <-](./index.md)

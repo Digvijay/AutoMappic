@@ -55,3 +55,8 @@ var dto = _mapper.Map<UserDto>(user);
 | **Partial Required** | No | **Yes** |
 
 **Recommendation**: Use `[AutoMap]` for 90% of your simple DTOs to reduce boilerplate. Use `Profile` subclasses when you need complex transformations, specific `.ForMember()` logic, or asynchronous lifestyle hooks.
+
+---
+
+[Next: Asynchronous Mapping ->](./asynchronous-mapping.md)
+[Back: LINQ Projections <-](./project-to.md)
