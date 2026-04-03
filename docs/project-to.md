@@ -31,7 +31,9 @@ var dtos = dbContext.Users.ProjectTo<UserDto>().ToList();
 
 AutoMappic's projection engine supports:
 - **Direct Assignments**: Simple property matches.
-- **Flattening**: Accessing child entity properties (e.g., `User.Address.City` -> `UserDto.City`).
+- **Flattening**: Deep property access (e.g., `User.Address.City`).
+- **Recursive Nested Objects**: Mapping a child entity to a child DTO (e.g., `User` -> `UserDto` containing `AddressDto`).
+- **Collections and Lists**: Deeply projected nested collections (e.g., `List<TodoItem>` -> `List<TodoItemDto>`).
 - **Convention-Based Naming**: Automatic mapping for similarly named properties.
 
 ## 4. Unsupported Scenarios

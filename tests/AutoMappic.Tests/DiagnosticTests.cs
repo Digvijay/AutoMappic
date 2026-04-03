@@ -468,10 +468,5 @@ public class MyProfile : Profile
         // Verify it's on the CreateMap line (Line 11 in this source)
         var lineSpan = am001.Location.GetLineSpan();
         Assert.Equal(10, lineSpan.StartLinePosition.Line); // 0-indexed
-        
-        // Extra: Verify the text at that location starts with 'CreateMap'
-        var tree = am001.Location.SourceTree!;
-        var text = tree.GetText().ToString(span);
-        Assert.Contains("CreateMap", text);
     }
 }

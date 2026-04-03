@@ -5,6 +5,19 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.6.0] - 2026-04-03 (Landmark: Recursive Projections)
+
+### Added
+- **Recursive ProjectTo Support**: The `ProjectTo<T>` engine now supports deep nested objects and collections. It automatically expands child entity mappings into inlined LINQ initializers (`new Dto { ... }`) for full compatibility with EF Core and other SQL translators.
+- **Decoupled Projection Metadata**: Mapping models now maintain separate metadata for declarative projections vs. procedural mappings. This allows complex mappings (with hooks/logic) to exist alongside high-performance SQL projections.
+- **LINQ-Optimized Expression Trees**: Generated projections now use simplified expression trees (omitting unnecessary null checks and explicit materialization where possible) to ensure optimal translation by LINQ-to-SQL and EF Core providers.
+- **Enhanced Sample Suite**: Updated the `TodoApi` sample to demonstrate recursive `ProjectTo<TodoListDto>()` with nested `Items` collection mapping directly to SQL.
+
+### Fixed
+- **EF Core 500 Errors in Projections**: Resolved an issue where `ProjectTo` would fail at runtime due to non-translatable `MapTo` method calls in nested member initializers.
+- **Interceptor Shim Precision**: Fixed a bug in the source-generated interceptor shims that caused generic `ProjectTo` calls to fall back to unoptimized procedural logic.
+- **Compiler Warning CS8602/CS8603**: Eliminated several nullability warnings in generated projection expressions by using targeted `#pragma` suppression only within the expression body.
+
 ## [0.5.1] - 2026-04-01
 
 ### Fixed

@@ -215,6 +215,8 @@ public sealed class AutoMappicGenerator : IIncrementalGenerator
                                 srcFull, src.Name,
                                 destFull, dest.Name,
                                 EquatableArray<PropertyMap>.Empty,
+                                EquatableArray<PropertyMap>.Empty,
+                                EquatableArray<PropertyMap>.Empty,
                                 EquatableArray<PropertyMap>.Empty);
                         }
                     }
@@ -257,20 +259,29 @@ public sealed class AutoMappicGenerator : IIncrementalGenerator
                 }
             }
 
-            // 3. Emit AM0008 for potential ProjectTo incompatibilities
-            foreach (var loc in locations.Where(l => l.Kind == InterceptKind.ProjectTo))
+            // 3. Report Interceptor Diagnostics (Unresolved or Unsupported)
+            foreach (var loc in locations)
             {
                 var key = $"{SourceEmitter.Sanitise(loc.SourceTypeFullName)}_To_{SourceEmitter.Sanitise(loc.DestinationTypeFullName)}";
-                if (mappingsByKey.TryGetValue(key, out var model))
+                if (!mappingsByKey.TryGetValue(key, out var model))
                 {
-                    bool hasRuntimeFeatures = model.Properties.Any(p => !string.IsNullOrEmpty(p.ConditionBody) || p.Kind == PropertyMapKind.Explicit) ||
-                                              !string.IsNullOrEmpty(model.BeforeMapBody) ||
-                                              !string.IsNullOrEmpty(model.AfterMapBody) ||
-                                              !string.IsNullOrEmpty(model.ConstructionBody) ||
-                                              !string.IsNullOrEmpty(model.BeforeMapAsyncBody) ||
-                                              !string.IsNullOrEmpty(model.AfterMapAsyncBody);
+                    // AM0004: Unresolved interceptor (reflective fallback)
+                    var linePos = new global::Microsoft.CodeAnalysis.Text.LinePosition(loc.Line - 1, loc.Column - 1);
+                    var location = global::Microsoft.CodeAnalysis.Location.Create(loc.FilePath,
+                        new global::Microsoft.CodeAnalysis.Text.TextSpan(0, 0),
+                        new global::Microsoft.CodeAnalysis.Text.LinePositionSpan(linePos, linePos));
 
-                    if (hasRuntimeFeatures)
+                    spc.ReportDiagnostic(global::Microsoft.CodeAnalysis.Diagnostic.Create(
+                        AutoMappicDiagnostics.UnresolvedInterceptorMapping,
+                        location,
+                        loc.SourceTypeFullName,
+                        loc.DestinationTypeFullName));
+                }
+                else
+                {
+                    // AM0011: Multi-source ProjectTo
+                    bool isMultiSource = loc.SourceTypeFullName.Contains(",");
+                    if (loc.Kind == InterceptKind.ProjectTo && isMultiSource)
                     {
                         var linePos = new global::Microsoft.CodeAnalysis.Text.LinePosition(loc.Line - 1, loc.Column - 1);
                         var location = global::Microsoft.CodeAnalysis.Location.Create(loc.FilePath,
@@ -278,10 +289,33 @@ public sealed class AutoMappicGenerator : IIncrementalGenerator
                             new global::Microsoft.CodeAnalysis.Text.LinePositionSpan(linePos, linePos));
 
                         spc.ReportDiagnostic(global::Microsoft.CodeAnalysis.Diagnostic.Create(
-                            AutoMappicDiagnostics.UnsupportedProjectToFeature,
+                            AutoMappicDiagnostics.UnsupportedMultiSourceProjectTo,
                             location,
-                            model.SourceTypeName,
-                            model.DestinationTypeName));
+                            loc.SourceTypeFullName,
+                        loc.DestinationTypeFullName));
+                    }
+
+                    // AM0008: Unsupported ProjectTo features
+                    if (loc.Kind == InterceptKind.ProjectTo)
+                    {
+                        bool hasRuntimeFeatures = model.Properties.Any(p => !string.IsNullOrEmpty(p.ConditionBody) || p.Kind == PropertyMapKind.Explicit) ||
+                                                  !string.IsNullOrEmpty(model.BeforeMapBody) ||
+                                                  !string.IsNullOrEmpty(model.AfterMapBody) ||
+                                                  !string.IsNullOrEmpty(model.ConstructionBody);
+
+                        if (hasRuntimeFeatures)
+                        {
+                            var linePos = new global::Microsoft.CodeAnalysis.Text.LinePosition(loc.Line - 1, loc.Column - 1);
+                            var location = global::Microsoft.CodeAnalysis.Location.Create(loc.FilePath,
+                                new global::Microsoft.CodeAnalysis.Text.TextSpan(0, 0),
+                                new global::Microsoft.CodeAnalysis.Text.LinePositionSpan(linePos, linePos));
+
+                            spc.ReportDiagnostic(global::Microsoft.CodeAnalysis.Diagnostic.Create(
+                                AutoMappicDiagnostics.UnsupportedProjectToFeature,
+                                location,
+                                model.SourceTypeName,
+                                model.DestinationTypeName));
+                        }
                     }
                 }
             }
@@ -412,6 +446,7 @@ public sealed class AutoMappicGenerator : IIncrementalGenerator
         "AM0015" => AutoMappicDiagnostics.SmartMatchSuggestion,
         "AM0016" => AutoMappicDiagnostics.PerformanceRegression,
         "AM0017" => AutoMappicDiagnostics.AmbiguousEntityKey,
+        "AM0018" => AutoMappicDiagnostics.NonPartialClass,
         _ => AutoMappicDiagnostics.UnmappedProperty // Fallback
     };
 }

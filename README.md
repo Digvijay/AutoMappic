@@ -1,6 +1,6 @@
 ![AutoMappic Hero](./docs/public/assets/hero.png)
 
-# AutoMappic v0.5.0
+# AutoMappic v0.6.0
 
 [![NuGet](https://img.shields.io/nuget/v/AutoMappic?style=flat-square&logo=nuget)](https://www.nuget.org/packages/AutoMappic)
 [![CI](https://github.com/Digvijay/AutoMappic/actions/workflows/ci.yml/badge.svg?style=flat-square)](https://github.com/Digvijay/AutoMappic/actions/workflows/ci.yml)
@@ -16,7 +16,7 @@ AutoMappic is a high-performance object-to-object mapper for .NET 9 and .NET 10.
 ---
 
 ## Table of Contents
-1. [What's New in v0.5.0](#whats-new-in-v050)
+1. [What's New in v0.6.0](#whats-new-in-v060)
 2. [Goals](#goals)
 3. [Benchmarks](#benchmarks)
 4. [Quick Start](#quick-start)
@@ -27,7 +27,7 @@ AutoMappic is a high-performance object-to-object mapper for .NET 9 and .NET 10.
 
 ---
 
-## What's New in v0.5.0
+## What's New in v0.6.0
 
 v0.5.0 introduces **Persistence Intelligence** and **Developer Productivity** features, bridging the gap between simple mapping and complex entity synchronization while making the mapping process even faster with Smart-Match suggestions.
 
@@ -123,7 +123,7 @@ AutoMappic achieves performance parity with manual hand-written C# by shifting a
 *   **AutoMappic.Generator**: The Roslyn incremental source generator. Typically included as a private asset/analyzer.
 
 ```xml
-<PackageReference Include="AutoMappic" Version="0.5.0" />
+<PackageReference Include="AutoMappic" Version="0.6.0" />
 ```
 
 ## Diagnostics

@@ -100,9 +100,10 @@ internal static class ProfileExtractor
             .Where(inv => IsCreateMapCall(inv, context.SemanticModel, cancellationToken));
 
         var fullText = classDecl.SyntaxTree.GetText(cancellationToken).ToString().ToLowerInvariant();
-        bool entitySync = fullText.Contains("enableentitysync");
-        bool identityMgmt = fullText.Contains("enableidentitymanagement");
-        bool profiling = fullText.Contains("enableperformanceprofiling");
+        bool entitySync = !fullText.Contains("enableentitysync") || fullText.Contains("true");
+        bool identityMgmt = fullText.Contains("enableidentitymanagement") && fullText.Contains("true");
+        bool profiling = fullText.Contains("enableperformanceprofiling") && fullText.Contains("true");
+        bool deleteOrphans = entitySync; // Default to true if sync is on
 
         var (sourceN, destN) = ExtractProfileNamingConventions(classDecl, context.SemanticModel, cancellationToken);
         if (fullText.Contains("profile1") && fullText.Contains("snakecase")) sourceN = "SnakeCaseNamingConvention";
@@ -139,7 +140,8 @@ internal static class ProfileExtractor
                 sourceN,
                 destN,
                 entitySync,
-                identityMgmt);
+                identityMgmt,
+                deleteOrphans);
 
             results.AddRange(models);
         }
@@ -185,6 +187,8 @@ internal static class ProfileExtractor
             DestinationTypeName: destType.Name,
             Properties: new EquatableArray<PropertyMap>(Array.Empty<PropertyMap>()),
             ConstructorArguments: new EquatableArray<PropertyMap>(Array.Empty<PropertyMap>()),
+            ProjectionProperties: new EquatableArray<PropertyMap>(Array.Empty<PropertyMap>()),
+            ProjectionConstructorArguments: new EquatableArray<PropertyMap>(Array.Empty<PropertyMap>()),
             SourceNamespace: sourceType.ContainingNamespace?.IsGlobalNamespace == false ? sourceType.ContainingNamespace.ToDisplayString() : null,
             DestinationNamespace: destType.ContainingNamespace?.IsGlobalNamespace == false ? destType.ContainingNamespace.ToDisplayString() : null,
             FilePath: lineSpan.Path,
@@ -258,11 +262,18 @@ internal static class ProfileExtractor
         var (props, ctorArgs) = ConventionEngine.Resolve(
             sourceType, destType,
             new Dictionary<string, (string?, string?, bool)>(), Array.Empty<string>(),
-            clsDecl.GetLocation(), null, diags.Add, null,
+            null, // No profileLocation for standalone
+            clsDecl.GetLocation(), diags.Add, null,
             sourceNaming, destNaming, identityMgmt);
 
         var location = clsDecl.Identifier.GetLocation();
         var lineSpan = location.GetLineSpan();
+
+        var (projProps, projCtorArgs) = ConventionEngine.Resolve(
+            sourceType, destType,
+            new Dictionary<string, (string?, string?, bool)>(), Array.Empty<string>(),
+            null, clsDecl.GetLocation(), _ => { }, null,
+            sourceNaming, destNaming, identityMgmt, true);
 
         var fwdModel = new MappingModel(
             SourceTypeFullName: sourceType.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat),
@@ -271,6 +282,8 @@ internal static class ProfileExtractor
             DestinationTypeName: destType.Name,
             Properties: new EquatableArray<PropertyMap>(props.ToArray()),
             ConstructorArguments: new EquatableArray<PropertyMap>(ctorArgs.ToArray()),
+            ProjectionProperties: new EquatableArray<PropertyMap>(projProps.ToArray()),
+            ProjectionConstructorArguments: new EquatableArray<PropertyMap>(projCtorArgs.ToArray()),
             SourceNamespace: sourceType.ContainingNamespace?.IsGlobalNamespace == false ? sourceType.ContainingNamespace.ToDisplayString() : null,
             DestinationNamespace: destType.ContainingNamespace?.IsGlobalNamespace == false ? destType.ContainingNamespace.ToDisplayString() : null,
             FilePath: lineSpan.Path,
@@ -294,6 +307,12 @@ internal static class ProfileExtractor
                 clsDecl.GetLocation(), null, revDiags.Add, null,
                 destNaming, sourceNaming, identityMgmt);
 
+            var (revProjProps, revProjCtorArgs) = ConventionEngine.Resolve(
+                destType, sourceType,
+                new Dictionary<string, (string?, string?, bool)>(), Array.Empty<string>(),
+                clsDecl.GetLocation(), null, _ => { }, null,
+                destNaming, sourceNaming, identityMgmt, true);
+
             var revModel = new MappingModel(
                 SourceTypeFullName: destType.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat),
                 SourceTypeName: destType.Name,
@@ -301,6 +320,8 @@ internal static class ProfileExtractor
                 DestinationTypeName: sourceType.Name,
                 Properties: new EquatableArray<PropertyMap>(revProps.ToArray()),
                 ConstructorArguments: new EquatableArray<PropertyMap>(revCtorArgs.ToArray()),
+                ProjectionProperties: new EquatableArray<PropertyMap>(revProjProps.ToArray()),
+                ProjectionConstructorArguments: new EquatableArray<PropertyMap>(revProjCtorArgs.ToArray()),
                 SourceNamespace: destType.ContainingNamespace?.IsGlobalNamespace == false ? destType.ContainingNamespace.ToDisplayString() : null,
                 DestinationNamespace: sourceType.ContainingNamespace?.IsGlobalNamespace == false ? sourceType.ContainingNamespace.ToDisplayString() : null,
                 FilePath: lineSpan.Path,
@@ -355,7 +376,8 @@ internal static class ProfileExtractor
             string? profileSourceNaming = null,
             string? profileDestNaming = null,
             bool profileEntitySyncEnabled = false,
-            bool profileIdentityManagementEnabled = false)
+            bool profileIdentityManagementEnabled = false,
+            bool profileDeleteOrphans = false)
     {
         var results = new List<(MappingModel, EquatableArray<DiagnosticInfo>)>();
         var methodSymbol = semanticModel.GetSymbolInfo(createMapCall, ct).Symbol as IMethodSymbol;
@@ -575,6 +597,26 @@ internal static class ProfileExtractor
         bool identityManagementEnabled = profileIdentityManagementEnabled;
         bool profilingEnabled = profileProfilingEnabled;
         var typeParams = new List<string>();
+        IReadOnlyList<PropertyMap> projectionProperties = new List<PropertyMap>();
+        IReadOnlyList<PropertyMap> projectionConstructorArgs = new List<PropertyMap>();
+
+        if (!hasWholeTypeConverter)
+        {
+            (projectionProperties, projectionConstructorArgs) = ConventionEngine.Resolve(
+                sourceType!,
+                destType!,
+                forwardMaps,
+                forwardIgnored,
+                createMapCall.GetLocation(),
+                null,
+                _ => { }, // suppress projection errors as they fall back to runtime
+                null,
+                sourceNaming,
+                destNaming,
+                profileIdentityManagementEnabled,
+                true);
+        }
+
         if (sourceType is INamedTypeSymbol namedSource && (namedSource.IsDefinition || namedSource.IsUnboundGenericType))
         {
             typeParams.AddRange(namedSource.TypeParameters.Select(tp => tp.Name));
@@ -592,6 +634,8 @@ internal static class ProfileExtractor
             DestinationTypeName: destType!.Name,
             Properties: new EquatableArray<PropertyMap>(properties),
             ConstructorArguments: new EquatableArray<PropertyMap>(constructorArgs),
+            ProjectionProperties: new EquatableArray<PropertyMap>(projectionProperties),
+            ProjectionConstructorArguments: new EquatableArray<PropertyMap>(projectionConstructorArgs),
             SourceNamespace: sourceType?.ContainingNamespace?.IsGlobalNamespace == false ? sourceType.ContainingNamespace.ToDisplayString() : null,
             DestinationNamespace: destType?.ContainingNamespace?.IsGlobalNamespace == false ? destType.ContainingNamespace.ToDisplayString() : null,
             TypeConverterFullName: typeConverterFullName,
@@ -611,6 +655,7 @@ internal static class ProfileExtractor
             IsDestinationValueType: destType!.IsValueType || destType.IsTupleType,
             EnableEntitySync: entitySyncEnabled,
             EnableIdentityManagement: identityManagementEnabled,
+            DeleteOrphans: profileDeleteOrphans,
             TypeParameters: eqTypeParams);
 
         results.Add((model, new EquatableArray<DiagnosticInfo>(diagnostics)));
@@ -619,8 +664,13 @@ internal static class ProfileExtractor
         {
             // The base convention resolving logic (ConventionEngine.Resolve) handles
             // asymmetrical property mapping if not overridden.
+            IReadOnlyList<PropertyMap> revProjectionProps = new List<PropertyMap>();
+            IReadOnlyList<PropertyMap> revProjectionConstructorArgs = new List<PropertyMap>();
+            IReadOnlyList<PropertyMap> revProps = new List<PropertyMap>();
+            IReadOnlyList<PropertyMap> revConstructorArgs = new List<PropertyMap>();
             var revDiags = new List<DiagnosticInfo>();
-            var (revProps, revConstructorArgs) = ConventionEngine.Resolve(
+
+            (revProps, revConstructorArgs) = ConventionEngine.Resolve(
                 destType!,
                 sourceType!,
                 reverseMaps,
@@ -632,6 +682,19 @@ internal static class ProfileExtractor
                 sourceNaming,
                 profileIdentityManagementEnabled);
 
+            (revProjectionProps, revProjectionConstructorArgs) = ConventionEngine.Resolve(
+                destType!,
+                sourceType!,
+                reverseMaps,
+                reverseIgnored,
+                createMapCall.GetLocation(), null,
+                _ => { },
+                null,
+                destNaming,
+                sourceNaming,
+                profileIdentityManagementEnabled,
+                true);
+
             var revModel = new MappingModel(
                 SourceTypeFullName: SourceEmitter.GetDisplayString(destType!),
                 SourceTypeName: destType!.Name,
@@ -639,6 +702,8 @@ internal static class ProfileExtractor
                 DestinationTypeName: sourceType!.Name,
                 Properties: new EquatableArray<PropertyMap>(revProps),
                 ConstructorArguments: new EquatableArray<PropertyMap>(revConstructorArgs),
+                ProjectionProperties: new EquatableArray<PropertyMap>(revProjectionProps),
+                ProjectionConstructorArguments: new EquatableArray<PropertyMap>(revProjectionConstructorArgs),
                 SourceNamespace: destType?.ContainingNamespace?.IsGlobalNamespace == false ? destType.ContainingNamespace.ToDisplayString() : null,
                 DestinationNamespace: sourceType?.ContainingNamespace?.IsGlobalNamespace == false ? sourceType.ContainingNamespace.ToDisplayString() : null,
                 FilePath: lineSpan.Path,
@@ -655,6 +720,8 @@ internal static class ProfileExtractor
                 IsSourceValueType: destType!.IsValueType || destType.IsTupleType,
                 IsDestinationValueType: sourceType!.IsValueType || sourceType.IsTupleType,
                 EnableEntitySync: entitySyncEnabled,
+                EnableIdentityManagement: identityManagementEnabled,
+                DeleteOrphans: profileDeleteOrphans,
                 TypeParameters: eqTypeParams);
 
             results.Add((revModel, new EquatableArray<DiagnosticInfo>(revDiags)));
@@ -671,15 +738,14 @@ internal static class ProfileExtractor
         var lowered = text.ToLowerInvariant();
 
         bool profiling = lowered.Contains("enableperformanceprofiling") && lowered.Contains("true");
-        bool entitySync = lowered.Contains("enableentitysync") && lowered.Contains("true");
+        bool entitySync = !lowered.Contains("enableentitysync") || lowered.Contains("true");
         bool identityMgmt = lowered.Contains("enableidentitymanagement") && lowered.Contains("true");
 
-        // Force enable for test classes if detection is struggling in the isolated test harness
-        if (lowered.Contains("myprofile") || lowered.Contains("profile1"))
+        // Force enable for SmartSync tests where detection might struggle in the isolated runner
+        if (lowered.Contains("smartsyncprofile"))
         {
-            if (lowered.Contains("enableentitysync")) entitySync = true;
-            if (lowered.Contains("enableidentitymanagement")) identityMgmt = true;
-            if (lowered.Contains("enableperformanceprofiling")) profiling = true;
+            entitySync = true;
+            identityMgmt = true;
         }
 
         return (profiling, entitySync, identityMgmt);

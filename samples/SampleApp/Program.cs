@@ -13,18 +13,18 @@ using Microsoft.Extensions.DependencyInjection;
 
 // ── Setup (Zero-Reflection / AOT-Friendly Registration) ──
 var services = new Microsoft.Extensions.DependencyInjection.ServiceCollection();
-services.AddAutoMappic(); // Discovers UserMappingProfile and OrderMappingProfile at compile-time
+services.AddAutoMappic(); // Discovers Profiles AND [AutoMap] candidates
 var serviceProvider = services.BuildServiceProvider();
 IMapper mapper = serviceProvider.GetRequiredService<IMapper>();
 
-// ── Simulate a service using the mapper (identical to AutoMapper usage) ──────
+// ── Simulate services ─────────────────────────────────────────────────────────
 var service = new UserService(mapper);
 var orderService = new OrderService(mapper);
 
 var userDto = service.GetUser(1);
 var orderDto = orderService.GetOrder(42);
 
-Console.WriteLine("=== AutoMappic Sample ===");
+Console.WriteLine("=== AutoMappic v0.6.0 Sample ===");
 Console.WriteLine();
 Console.WriteLine("User mapping (direct + flattened + method):");
 Console.WriteLine($"  Id:          {userDto.Id}");
@@ -33,13 +33,32 @@ Console.WriteLine($"  Email:       {userDto.Email}");
 Console.WriteLine($"  City:        {userDto.AddressCity}   ← flattened from Address.City");
 Console.WriteLine($"  DisplayName: {userDto.DisplayName}  ← mapped from GetDisplayName()");
 Console.WriteLine();
-Console.WriteLine("Order mapping (two-level flattening):");
-Console.WriteLine($"  Id:            {orderDto.Id}");
-Console.WriteLine($"  CustomerName:  {orderDto.CustomerName}   ← flattened from Customer.Name");
-Console.WriteLine($"  CustomerEmail: {orderDto.CustomerEmail}  ← flattened from Customer.Email");
-Console.WriteLine($"  TotalAmount:   {orderDto.TotalAmount:C}");
+
+// ── New in v0.6.0: High-Performance LINQ Projections ─────────────────────────
+Console.WriteLine("LINQ Projections (ProjectTo):");
+var mockDb = MockDatabase.Users.AsQueryable();
+
+// ProjectTo<T> translates the mapping directly to the LINQ provider (IQueryable).
+// This is ultra-performant as it avoids mapping entire source objects into memory.
+var projectedUsers = mockDb.ProjectTo<UserDto>().ToList();
+Console.WriteLine($"  Projected {projectedUsers.Count} users efficiently from IQueryable");
+
+foreach (var u in projectedUsers)
+{
+    Console.WriteLine($"  - {u.Username} ({u.AddressCity})");
+}
 Console.WriteLine();
-Console.WriteLine("AutoMappic: Convention-Based · Source-Generated · Zero Reflection · Native AOT");
+
+// ── New in v0.6.0: Attribute-Based 'Zero-Touch' Mapping ───────────────────────
+Console.WriteLine("Attribute-Based Mapping ([AutoMap]):");
+var profile = new ProfileItem { Name = "Full Access", CreatedAt = DateTime.Now };
+
+// ProfileDto is mapped via [AutoMap] attribute below — no Profile class needed!
+var profileDto = mapper.Map<ProfileDto>(profile);
+Console.WriteLine($"  Profile: {profileDto.Name} (Created: {profileDto.CreatedAt})");
+Console.WriteLine();
+
+Console.WriteLine("AutoMappic: High-Performance · Zero Reflection · ProjectTo support · Native AOT");
 
 // ─── Domain model ─────────────────────────────────────────────────────────────
 
@@ -71,6 +90,12 @@ public sealed class Customer
     public string Email { get; set; } = string.Empty;
 }
 
+public sealed class ProfileItem
+{
+    public string Name { get; set; } = string.Empty;
+    public DateTime CreatedAt { get; set; }
+}
+
 // ─── DTOs ─────────────────────────────────────────────────────────────────────
 
 public sealed class UserDto
@@ -88,6 +113,27 @@ public sealed class OrderDto
     public string CustomerName { get; set; } = string.Empty;
     public string CustomerEmail { get; set; } = string.Empty;
     public decimal TotalAmount { get; set; }
+}
+
+// v0.6.0 Attribute Mapping: This partial class is automatically discovered.
+// AutoMappic generates the mapping code directly inside this partial class.
+[AutoMap(typeof(ProfileItem))]
+public partial class ProfileDto
+{
+    public string Name { get; set; } = string.Empty;
+    public DateTime CreatedAt { get; set; }
+}
+
+// ─── Mock Database ───────────────────────────────────────────────────────────
+
+public static class MockDatabase
+{
+    public static List<User> Users = new()
+    {
+        new User { Id = 1, Username = "alice", Address = new Address { City = "Stockholm" } },
+        new User { Id = 2, Username = "bob", Address = new Address { City = "Oslo" } },
+        new User { Id = 3, Username = "charlie", Address = new Address { City = "Copenhagen" } }
+    };
 }
 
 // ─── Profiles ─────────────────────────────────────────────────────────────────
@@ -108,18 +154,12 @@ public sealed class OrderMappingProfile : Profile
     }
 }
 
-// ─── Services (identical to how they'd look with AutoMapper) ──────────────────
+// ─── Services ─────────────────────────────────────────────────────────────────
 
 public sealed class UserService(IMapper mapper)
 {
     public UserDto GetUser(int id) =>
-        mapper.Map<User, UserDto>(new User
-        {
-            Id = id,
-            Username = "alice",
-            Email = "alice@automappic.digvijay.dev",
-            Address = new Address { City = "Stockholm", Street = "Kungsgatan 1" },
-        });
+        mapper.Map<User, UserDto>(MockDatabase.Users.First(u => u.Id == id));
 }
 
 public sealed class OrderService(IMapper mapper)

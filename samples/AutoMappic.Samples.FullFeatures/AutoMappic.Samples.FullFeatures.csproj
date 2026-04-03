@@ -10,6 +10,8 @@
     <InterceptorsNamespaces>$(InterceptorsNamespaces);AutoMappic.Generated</InterceptorsNamespaces>
     <AutoMappic_EnableIdentityManagement>true</AutoMappic_EnableIdentityManagement>
     <AutoMappic_EnableEntitySync>true</AutoMappic_EnableEntitySync>
+    <EmitCompilerGeneratedFiles>true</EmitCompilerGeneratedFiles>
+    <CompilerGeneratedFilesOutputPath>obj/$(Configuration)/$(TargetFramework)/generated</CompilerGeneratedFilesOutputPath>
   </PropertyGroup>
 
   <ItemGroup>

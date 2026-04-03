@@ -174,6 +174,8 @@ internal sealed record MappingModel(
     string DestinationTypeName,
     EquatableArray<PropertyMap> Properties,
     EquatableArray<PropertyMap> ConstructorArguments,
+    EquatableArray<PropertyMap> ProjectionProperties,
+    EquatableArray<PropertyMap> ProjectionConstructorArguments,
     string? SourceNamespace = null,
     string? DestinationNamespace = null,
     string? TypeConverterFullName = null,
@@ -197,7 +199,7 @@ internal sealed record MappingModel(
     bool EnableEntitySync = true,
     double SmartMatchThreshold = 0.5,
     string? StaticConverterMethodFullName = null,
-    bool DeleteOrphans = false)
+    bool DeleteOrphans = true)
 {
     /// <summary>Returns true if any property in this mapping is resolved asynchronously.</summary>
     public bool IsAsync => Properties.Any(p => p.IsAsync) || ConstructorArguments.Any(p => p.IsAsync) || !string.IsNullOrEmpty(BeforeMapAsyncBody) || !string.IsNullOrEmpty(AfterMapAsyncBody);

@@ -39,7 +39,7 @@ app.MapGet("/todo-lists/projected", (TodoDb db) =>
     // AutoMappic v0.6.0 landmark: ProjectTo<T> translates the mapping 
     // directly to SQL, omitting unused columns from the database wire.
     // Extremely fast, zero allocation beyond the result objects.
-    return db.Lists.ProjectTo<TodoListDto>();
+    return db.Lists.ProjectTo<TodoListDto>().ToListAsync();
 });
 
 app.MapPost("/todo-lists", async (UpdateTodoListDto input, TodoDb db, IMapper mapper) =>
@@ -92,14 +92,18 @@ public class TodoDb : DbContext
 
 // === DTOs === //
 
-public class TodoListDto
+// Use [AutoMap] on the DTO to tell AutoMappic to generate the mapping logic.
+// This partial class is processed at compile-time—no reflection used.
+[AutoMap(typeof(TodoList))]
+public partial class TodoListDto
 {
     public int Id { get; set; }
     public string Title { get; set; } = string.Empty;
     public List<TodoItemDto> Items { get; set; } = new();
 }
 
-public class TodoItemDto
+[AutoMap(typeof(TodoItem), ReverseMap = true)]
+public partial class TodoItemDto
 {
     public int Id { get; set; }
     public string Description { get; set; } = string.Empty;
@@ -118,15 +122,16 @@ public class TodoProfile : Profile
 {
     public TodoProfile()
     {
-        // Enable Smart-Sync so nested EF Core collections map cleanly.
+        // Global setting: Enable Smart-Sync so nested EF Core collections map cleanly.
+        // This ensures the same entity instances are updated rather than replaced.
         EnableEntitySync = true;
 
-        CreateMap<TodoList, TodoListDto>();
-        CreateMap<TodoItem, TodoItemDto>();
-
-        // Map from complex incoming DTOs straight to tracked Entities
+        // Since we used [AutoMap] on TodoListDto and TodoItemDto, read-mappings are automatic.
+        // We only use the Profile for complex mappings that need specialized overrides:
+        
         CreateMap<UpdateTodoListDto, TodoList>()
-            .ForMemberIgnore(d => d.Id);
-        CreateMap<TodoItemDto, TodoItem>();
+            .ForMemberIgnore(d => d.Id); // ID is NOT on the incoming DTO
+        
+        CreateMap<TodoItemDto, TodoItem>(); // Mapper can also map from DTO back to Entity
     }
 }

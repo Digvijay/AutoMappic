@@ -21,7 +21,8 @@ internal static class ConventionEngine
         HashSet<(ITypeSymbol, ITypeSymbol)>? mappingStack = null,
         string? sourceNaming = null,
         string? destNaming = null,
-        bool identityManagementEnabled = false)
+        bool identityManagementEnabled = false,
+        bool isProjection = false)
     {
         var properties = new List<PropertyMap>();
         var constructorArgs = new List<PropertyMap>();
@@ -51,7 +52,7 @@ internal static class ConventionEngine
                     bool allSatisfied = true;
                     foreach (var param in ctor.Parameters)
                     {
-                        var paramMap = ResolveSourceForMember(source, param.Name, param.Type, explicitMaps, ignoredMembers, profileLocation, param.Locations.FirstOrDefault(), reportDiagnostic, mappingStack, sourceNaming, destNaming, "source", destination.Name);
+                        var paramMap = ResolveSourceForMember(source, param.Name, param.Type, explicitMaps, ignoredMembers, profileLocation, param.Locations.FirstOrDefault(), reportDiagnostic, mappingStack, sourceNaming, destNaming, "source", destination.Name, identityManagementEnabled, isProjection);
                         if (paramMap is null || paramMap.Kind == PropertyMapKind.Ignored)
                         {
                             allSatisfied = false;
@@ -89,7 +90,7 @@ internal static class ConventionEngine
                     continue;
                 }
 
-                var map = ResolveSourceForMember(source, memberName, GetMemberType(member), explicitMaps, ignoredMembers, profileLocation, member.Locations.FirstOrDefault(), reportDiagnostic, mappingStack, sourceNaming, destNaming, "source", destination.Name, identityManagementEnabled);
+                var map = ResolveSourceForMember(source, memberName, GetMemberType(member), explicitMaps, ignoredMembers, profileLocation, member.Locations.FirstOrDefault(), reportDiagnostic, mappingStack, sourceNaming, destNaming, "source", destination.Name, identityManagementEnabled, isProjection);
                 if (map is not null)
                 {
                     bool isInit = false;
@@ -132,7 +133,8 @@ internal static class ConventionEngine
                     {
                         var props = global::System.Collections.Immutable.ImmutableDictionary<string, string?>.Empty
                             .Add("TargetProperty", memberName);
-                        reportDiagnostic(DiagnosticInfo.Create(AutoMappicDiagnostics.UnmappedProperty, member.Locations.FirstOrDefault() ?? Location.None, props, memberName, destination.Name, source.Name));
+                        var diagnosticLocation = profileLocation ?? (member.Locations.Length > 0 ? member.Locations[0] : Location.None);
+                        reportDiagnostic(DiagnosticInfo.Create(AutoMappicDiagnostics.UnmappedProperty, diagnosticLocation, props, memberName, destination.Name, source.Name));
                     }
                 }
             }
@@ -164,7 +166,8 @@ internal static class ConventionEngine
         string? destNaming = null,
         string sourceAccess = "source",
         string destTypeName = "Unknown",
-        bool identityManagementEnabled = false)
+        bool identityManagementEnabled = false,
+        bool isProjection = false)
     {
         if (ignoredMembers.Contains(targetName))
         {
@@ -177,7 +180,7 @@ internal static class ConventionEngine
             for (int i = 0; i < tupleSource.TupleElements.Length; i++)
             {
                 var element = tupleSource.TupleElements[i];
-                var subMap = ResolveSourceForMember(element.Type, targetName, targetType, explicitMaps, Array.Empty<string>(), profileLocation, destMemberLocation, reportDiagnostic, mappingStack, sourceNaming, destNaming, $"{sourceAccess}.Item{i + 1}", destTypeName);
+                var subMap = ResolveSourceForMember(element.Type, targetName, targetType, explicitMaps, Array.Empty<string>(), profileLocation, destMemberLocation, reportDiagnostic, mappingStack, sourceNaming, destNaming, $"{sourceAccess}.Item{i + 1}", destTypeName, identityManagementEnabled, isProjection);
                 if (subMap is not null && subMap.Kind != PropertyMapKind.Ignored)
                 {
                     return subMap;
@@ -250,7 +253,7 @@ internal static class ConventionEngine
                 keyName = NamingUtility.ToSnakeCase(targetName);
 
             var sourceExpr = $"{sourceAccess} != null && {sourceAccess}.ContainsKey(\"{keyName}\") ? {sourceAccess}[\"{keyName}\"] : default!";
-            var (nE, nS, nD, iC, iA, iE, rE, nCond, nKey, nKeyType, nKeyVal) = WrapWithNestedMapper(sourceExpr, srcValue, targetType, profileLocation, destMemberLocation, reportDiagnostic, mappingStack, targetName, identityManagementEnabled, 0);
+            var (nE, nS, nD, iC, iA, iE, rE, nCond, nKey, nKeyType, nKeyVal) = WrapWithNestedMapper(sourceExpr, srcValue, targetType, profileLocation, destMemberLocation, reportDiagnostic, mappingStack, targetName, identityManagementEnabled, 0, isProjection);
             return new PropertyMap(targetName, nE, PropertyMapKind.Direct, NestedSourceTypeFullName: nS, NestedDestTypeFullName: nD, NestedFullDestTypeFullName: targetType.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat), IsCollection: iC, IsArray: iA, NestedExpression: iE, SourceRawExpression: rE, ConditionBody: conditionBody ?? nCond, NestedDestKeyProperty: nKey, NestedDestKeyTypeFullName: nKeyType, IsNestedDestKeyValueType: nKeyVal, SourceCanBeNull: CanBeNull(srcValue));
         }
 
@@ -283,7 +286,7 @@ internal static class ConventionEngine
             var sourceType = directMatch is not null ? GetMemberType(directMatch) : methodMatch!.ReturnType;
             var sourceExpr = directMatch is not null ? $"{sourceAccess}.{directMatch.Name}" : $"{sourceAccess}.{methodMatch!.Name}()";
 
-            var (nestedExpr, nSrc, nDest, isColl, isArr, itemExpr, rawExpr, nCond, nKey, nKeyType, nKeyVal) = WrapWithNestedMapper(sourceExpr, sourceType, targetType, profileLocation, destMemberLocation, reportDiagnostic, mappingStack, targetName, identityManagementEnabled, 0);
+            var (nestedExpr, nSrc, nDest, isColl, isArr, itemExpr, rawExpr, nCond, nKey, nKeyType, nKeyVal) = WrapWithNestedMapper(sourceExpr, sourceType, targetType, profileLocation, destMemberLocation, reportDiagnostic, mappingStack, targetName, identityManagementEnabled, 0, isProjection);
             return new PropertyMap(targetName, nestedExpr, PropertyMapKind.Direct,
                 NestedSourceTypeFullName: nSrc, NestedDestTypeFullName: nDest,
                 NestedFullDestTypeFullName: targetType.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat),
@@ -324,14 +327,14 @@ internal static class ConventionEngine
                 .Add("SuggestedName", bestMember.Name)
                 .Add("TargetProperty", targetName)
                 .Add("Score", bestScore.ToString(global::System.Globalization.CultureInfo.InvariantCulture));
-            reportDiagnostic(DiagnosticInfo.Create(AutoMappicDiagnostics.SmartMatchSuggestion, destMemberLocation ?? profileLocation ?? Location.None, props, targetName, destTypeName, bestMember.Name));
+            reportDiagnostic(DiagnosticInfo.Create(AutoMappicDiagnostics.SmartMatchSuggestion, profileLocation ?? destMemberLocation ?? Location.None, props, targetName, destTypeName, bestMember.Name));
         }
 
         return null;
     }
 
     private static (string Expression, string? NestedSource, string? NestedDest, bool IsCollection, bool IsArray, string? ItemExpression, string? RawExpression, string? Condition, string? NestedDestKey, string? NestedDestKeyType, bool IsKeyValType) WrapWithNestedMapper(
-        string expression, ITypeSymbol sourceType, ITypeSymbol destType, Location? profileLoc, Location? destMemberLocation, Action<DiagnosticInfo> reportDiag, HashSet<(ITypeSymbol, ITypeSymbol)> stack, string targetName, bool identityManagementEnabled = false, int nestedLevel = 0)
+        string expression, ITypeSymbol sourceType, ITypeSymbol destType, Location? profileLoc, Location? destMemberLocation, Action<DiagnosticInfo> reportDiag, HashSet<(ITypeSymbol, ITypeSymbol)> stack, string targetName, bool identityManagementEnabled = false, int nestedLevel = 0, bool isProjection = false)
     {
         var sBase = UnwrapNullable(sourceType);
         var dBase = UnwrapNullable(destType);
@@ -397,8 +400,8 @@ internal static class ConventionEngine
         // Dictionary logic
         if (IsDictionary(sourceType, out var sKey, out var sValue) && IsDictionary(destType, out var dKey, out var dValue))
         {
-            var keyMap = WrapWithNestedMapper("x.Key", sKey, dKey, profileLoc, destMemberLocation, reportDiag, stack, "Key", identityManagementEnabled, nestedLevel + 1);
-            var valueMap = WrapWithNestedMapper("x.Value", sValue, dValue, profileLoc, destMemberLocation, reportDiag, stack, "Value", identityManagementEnabled, nestedLevel + 1);
+            var keyMap = WrapWithNestedMapper("x.Key", sKey, dKey, profileLoc, destMemberLocation, reportDiag, stack, "Key", identityManagementEnabled, nestedLevel + 1, isProjection);
+            var valueMap = WrapWithNestedMapper("x.Value", sValue, dValue, profileLoc, destMemberLocation, reportDiag, stack, "Value", identityManagementEnabled, nestedLevel + 1, isProjection);
             return ($"({expression} ?? new()).ToDictionary(x => {keyMap.Expression}, x => {valueMap.Expression})", null, GetDisplayString(destType), false, false, null, expression, cond, null, null, false);
         }
 
@@ -411,18 +414,20 @@ internal static class ConventionEngine
             }
 
             var isArr = destType.TypeKind == TypeKind.Array || destType.ToDisplayString().Contains("[]");
-            var itemMap = WrapWithNestedMapper("x", sItem, dItem, profileLoc, destMemberLocation, reportDiag, stack, targetName + "Item", identityManagementEnabled, nestedLevel + 1);
+            var itemMap = WrapWithNestedMapper("x", sItem, dItem, profileLoc, destMemberLocation, reportDiag, stack, targetName + "Item", identityManagementEnabled, nestedLevel + 1, isProjection);
 
             string linq;
             string sItemName = GetDisplayString(sItem);
             string cast = $"(global::System.Collections.Generic.IEnumerable<{sItemName}>?)";
             if (itemMap.Expression == "x")
             {
-                linq = $"({cast}{expression} ?? global::System.Array.Empty<{sItemName}>())";
+                var fallback = $"global::System.Array.Empty<{sItemName}>()";
+                linq = $"({cast}{expression} ?? {fallback})";
             }
             else
             {
-                linq = $"({cast}{expression} ?? global::System.Array.Empty<{sItemName}>()).Select(x => {itemMap.Expression})";
+                var fallback = $"global::System.Array.Empty<{sItemName}>()";
+                linq = $"({cast}{expression} ?? {fallback}).Select(x => {itemMap.Expression})";
             }
 
             string toContainer = "";
@@ -434,6 +439,12 @@ internal static class ConventionEngine
                 finalExpr = $"new global::System.Collections.Generic.Queue<{GetDisplayString(dItem)}>({linq})";
             else if (destType.Name == "HashSet" || destType.Name == "ISet")
                 finalExpr = $"new global::System.Collections.Generic.HashSet<{GetDisplayString(dItem)}>({linq})";
+            else if (isProjection)
+            {
+                if (isArr) finalExpr = $"{linq}.ToArray()";
+                else if (destType.Name.Contains("List") || destType.Name.Contains("Collection")) finalExpr = $"{linq}.ToList()";
+                else finalExpr = linq;
+            }
             else if (destType.Name == "ReadOnlyCollection")
                 finalExpr = $"{linq}.ToList().AsReadOnly()";
             else if (isArr)
@@ -501,6 +512,39 @@ internal static class ConventionEngine
         {
             // run dry validation to detect deeper indirect cycles
             Resolve(sBase, dBase, new Dictionary<string, (string? Expression, string? Condition, bool IsAsync)>(), Array.Empty<string>(), profileLoc, destMemberLocation, reportDiag, stack, null, null);
+        }
+
+        if (isProjection)
+        {
+            var (props, ctorArgs) = Resolve(sBase, dBase, new Dictionary<string, (string? Expression, string? Condition, bool IsAsync)>(), Array.Empty<string>(), profileLoc, destMemberLocation, reportDiag, stack, null, null, identityManagementEnabled, true);
+            var initSb = new System.Text.StringBuilder();
+            if (ctorArgs.Count > 0)
+            {
+                initSb.Append($"new {GetDisplayString(dBase)}(");
+                initSb.Append(string.Join(", ", ctorArgs.Select(c => c.SourceExpression)));
+                initSb.Append(')');
+            }
+            else
+            {
+                initSb.Append($"new {GetDisplayString(dBase)}()");
+            }
+
+            if (props.Any(p => p.Kind != PropertyMapKind.Ignored))
+            {
+                initSb.Append(" { ");
+                initSb.Append(string.Join(", ", props.Where(p => p.Kind != PropertyMapKind.Ignored).Select(p => $"{p.DestinationProperty} = {p.SourceExpression}")));
+                initSb.Append(" }");
+            }
+
+            var result = initSb.ToString();
+            result = result!.Replace("source.", expression + ".");
+
+            if (CanBeNull(sourceType) && !isProjection)
+            {
+                result = $"({expression} == null ? default! : {result})";
+            }
+
+            return (result, null, GetDisplayString(destType), false, false, null, expression, cond, null, null, false);
         }
 
         if (destType.NullableAnnotation == NullableAnnotation.NotAnnotated && !destType.IsValueType && sourceType.NullableAnnotation == NullableAnnotation.Annotated)
