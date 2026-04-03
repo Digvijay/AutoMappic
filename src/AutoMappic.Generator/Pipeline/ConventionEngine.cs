@@ -418,16 +418,28 @@ internal static class ConventionEngine
 
             string linq;
             string sItemName = GetDisplayString(sItem);
-            string cast = $"(global::System.Collections.Generic.IEnumerable<{sItemName}>?)";
+            bool sourceItemCanBeNull = CanBeNull(sItem);
+            bool sourceExprCanBeNull = CanBeNull(sourceType);
+
+            string cast = $"(global::System.Collections.Generic.IEnumerable<{sItemName}>{(sourceExprCanBeNull ? "?" : "")})";
             if (itemMap.Expression == "x")
             {
-                var fallback = $"global::System.Array.Empty<{sItemName}>()";
-                linq = $"({cast}{expression} ?? {fallback})";
+                if (sourceExprCanBeNull)
+                {
+                    var fallback = $"global::System.Array.Empty<{sItemName}>()";
+                    linq = $"({cast}{expression} ?? {fallback})";
+                }
+                else
+                {
+                    linq = expression;
+                }
             }
             else
             {
                 var fallback = $"global::System.Array.Empty<{sItemName}>()";
-                linq = $"({cast}{expression} ?? {fallback}).Select(x => {itemMap.Expression})";
+                string baseLinq = sourceExprCanBeNull ? $"({cast}{expression} ?? {fallback})" : expression;
+                string filter = (sourceItemCanBeNull && !CanBeNull(dItem)) ? ".Where(x => x != null)" : "";
+                linq = $"{baseLinq}{filter}.Select(x => {itemMap.Expression})";
             }
 
             string toContainer = "";
@@ -547,13 +559,21 @@ internal static class ConventionEngine
             return (result, null, GetDisplayString(destType), false, false, null, expression, cond, null, null, false);
         }
 
+        bool canBeNull = CanBeNull(sourceType);
         if (destType.NullableAnnotation == NullableAnnotation.NotAnnotated && !destType.IsValueType && sourceType.NullableAnnotation == NullableAnnotation.Annotated)
         {
             cond = $"{expression} != null";
             return ($"{expression}.MapTo{SourceEmitter.Sanitise(GetDisplayString(destType), true)}(context)", null, GetDisplayString(destType), false, false, null, expression, cond, null, null, false);
         }
 
-        return ($"({expression} == null ? default! : {expression}.MapTo{SourceEmitter.Sanitise(GetDisplayString(destType), true)}(context))", null, GetDisplayString(destType), false, false, null, expression, cond, null, null, false);
+        if (canBeNull)
+        {
+            return ($"({expression} == null ? default! : {expression}.MapTo{SourceEmitter.Sanitise(GetDisplayString(destType), true)}(context))", null, GetDisplayString(destType), false, false, null, expression, cond, null, null, false);
+        }
+        else
+        {
+            return ($"{expression}.MapTo{SourceEmitter.Sanitise(GetDisplayString(destType), true)}(context)", null, GetDisplayString(destType), false, false, null, expression, cond, null, null, false);
+        }
     }
 
     private static ITypeSymbol UnwrapNullable(ITypeSymbol type)
@@ -567,7 +587,12 @@ internal static class ConventionEngine
 
     private static bool CanBeNull(ITypeSymbol type)
     {
-        return !type.IsValueType || type.OriginalDefinition.SpecialType == SpecialType.System_Nullable_T || type.NullableAnnotation == NullableAnnotation.Annotated;
+        return type.NullableAnnotation switch
+        {
+            NullableAnnotation.Annotated => true,
+            NullableAnnotation.NotAnnotated => false,
+            _ => type.IsReferenceType || (type.IsValueType && type.OriginalDefinition.SpecialType == SpecialType.System_Nullable_T)
+        };
     }
 
     private static bool IsNullableStruct(ITypeSymbol type)

@@ -1,6 +1,6 @@
 # Case Study: The Full-Features Demo
 
-This walkthrough covers the ultimate "Full-Features" sample application that demonstrates every major mechanism of AutoMappic v0.5.0 in action.
+This walkthrough covers the ultimate "Full-Features" sample application that demonstrates every major mechanism of AutoMappic v0.6.0 in action.
 
 ## Scenario: Complex Entity Synchronization
 
@@ -42,7 +42,7 @@ We set up a simple console app that walks through basic mapping, cyclic awarenes
 ```csharp
 public static void Main()
 {
-    Console.WriteLine("--- AutoMappic v0.5.0: The Full Features Demo ---\n");
+    Console.WriteLine("--- AutoMappic v0.6.0: The Full Features Demo ---\n");
 
     // 1. Setup DI (Zero startup cost)
     var services = new ServiceCollection();
@@ -124,7 +124,7 @@ Interceptors replace standard `Map<TSource, TDestination>` calls. If you need to
 
 ## The Technology Behind the Scenes
 
-By migrating these features to **Roslyn Interceptors**, AutoMappic v0.5.0 achieves:
+By migrating these features to **Roslyn Interceptors**, AutoMappic v0.6.0 achieves:
 - **Zero Startup Lag**: No reflection-based profile scanning.
 - **Extreme Performance**: 1.45x faster throughout than traditional JIT mappers.
 - **Native AOT Ready**: 100% compatible with trimming and single-file publication.
