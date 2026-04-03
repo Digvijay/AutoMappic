@@ -5,6 +5,11 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.6.1] - 2026-04-03
+
+### Fixed
+- **Packaging Critical Fix**: Resolved a landmark issue in 0.6.0 where the Source Generator and Diagnostic Analyzer DLLs were accidentally excluded from the NuGet package due to a multi-targeting build conflict. This version restores full source generation and IDE support.
+
 ## [0.6.0] - 2026-04-01
 
 ### Added

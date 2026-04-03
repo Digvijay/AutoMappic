@@ -24,7 +24,7 @@ var orderService = new OrderService(mapper);
 var userDto = service.GetUser(1);
 var orderDto = orderService.GetOrder(42);
 
-Console.WriteLine("=== AutoMappic v0.6.0 Sample ===");
+Console.WriteLine("=== AutoMappic v0.6.1 Sample ===");
 Console.WriteLine();
 Console.WriteLine("User mapping (direct + flattened + method):");
 Console.WriteLine($"  Id:          {userDto.Id}");
@@ -34,7 +34,7 @@ Console.WriteLine($"  City:        {userDto.AddressCity}   ← flattened from Ad
 Console.WriteLine($"  DisplayName: {userDto.DisplayName}  ← mapped from GetDisplayName()");
 Console.WriteLine();
 
-// ── New in v0.6.0: High-Performance LINQ Projections ─────────────────────────
+// ── New in v0.6: High-Performance LINQ Projections ─────────────────────────
 Console.WriteLine("LINQ Projections (ProjectTo):");
 var mockDb = MockDatabase.Users.AsQueryable();
 
@@ -49,7 +49,7 @@ foreach (var u in projectedUsers)
 }
 Console.WriteLine();
 
-// ── New in v0.6.0: Attribute-Based 'Zero-Touch' Mapping ───────────────────────
+// ── New in v0.6: Attribute-Based 'Zero-Touch' Mapping ───────────────────────
 Console.WriteLine("Attribute-Based Mapping ([AutoMap]):");
 var profile = new ProfileItem { Name = "Full Access", CreatedAt = DateTime.Now };
 
@@ -115,7 +115,7 @@ public sealed class OrderDto
     public decimal TotalAmount { get; set; }
 }
 
-// v0.6.0 Attribute Mapping: This partial class is automatically discovered.
+// v0.6 Attribute Mapping: This partial class is automatically discovered.
 // AutoMappic generates the mapping code directly inside this partial class.
 [AutoMap(typeof(ProfileItem))]
 public partial class ProfileDto
