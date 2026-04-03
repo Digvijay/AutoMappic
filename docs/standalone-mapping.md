@@ -58,5 +58,8 @@ var dto = _mapper.Map<UserDto>(user);
 
 ---
 
+> [!TIP]
+> **Need a deep dive?** Check out our [Standalone Mapping Tutorial](./tutorials/standalone-mapping.md) for a full walkthrough, performance considerations, and IDE tips.
+
 [Next: Asynchronous Mapping ->](./asynchronous-mapping.md)
 [Back: LINQ Projections <-](./project-to.md)

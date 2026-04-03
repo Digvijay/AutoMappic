@@ -64,6 +64,7 @@ export default withMermaid(defineConfig({
         text: 'Tutorials',
         items: [
           { text: 'Full Features Case Study', link: '/tutorials/full-features-walkthrough' },
+          { text: 'Standalone Mapping ([AutoMap])', link: '/tutorials/standalone-mapping' },
           { text: 'Basic Mapping', link: '/tutorials/basic-mapping' },
           { text: 'Advanced Configuration', link: '/tutorials/advanced-configuration' },
           { text: 'Conditional Mapping', link: '/tutorials/conditional-mapping' },

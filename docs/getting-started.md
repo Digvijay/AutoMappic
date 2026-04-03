@@ -66,6 +66,22 @@ public class MyProfile : Profile
 }
 ```
 
+### Alternative: Standalone Mapping ([AutoMap])
+For many DTOs, you don't even need a `Profile` class. Just decorate the DTO with `[AutoMap]` and make sure it is `partial`:
+
+```csharp
+[AutoMap(typeof(User))]
+public partial class UserDto 
+{
+    public int Id { get; set; }
+    public string Username { get; set; } = "";
+}
+```
+
+::: tip
+See the [Standalone Mapping Tutorial](./tutorials/standalone-mapping.md) for more details.
+:::
+
 ## 5. Setup and Use the Mapper
 
 AutoMappic uses a zero-reflection registration system for maximum performance.

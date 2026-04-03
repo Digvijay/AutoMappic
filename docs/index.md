@@ -24,6 +24,8 @@ features:
     details: Build-time protection with AM0001-AM0018. Catch unmapped properties, fuzzy-match typos, persistence issues, and ProjectTo incompatibilities instantly.
   - title: 100% Native AOT Compatible
     details: AutoMappic generates highly-optimized C# code at compile-time. No runtime reflection, no dynamic IL emission.
+  - title: Standalone Mapping ([AutoMap])
+    details: Eliminate Profile boilerplate for 90% of your DTOs. Just decorate your partial class with [AutoMap] and let the generator handle the implementation.
   - title: Advanced Configuration Parity
     details: Support for ConstructUsing and Condition mapping logic is now fully statically generated. Complex C# rule branches are converted into direct execution paths.
   - title: Asynchronous Mapping
