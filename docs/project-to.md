@@ -1,4 +1,4 @@
-# LINQ Projections: ProjectTo<T>
+# LINQ Projections: `ProjectTo<T>`
 
 AutoMappic v0.6.0 introduces the **Performance King**: `ProjectTo<T>`. This feature allows object mapping to occur directly inside the database query (SQL), drastically reducing database I/O and memory pressure by only selecting the columns required for the DTO.
 

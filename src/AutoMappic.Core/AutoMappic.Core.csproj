@@ -35,7 +35,7 @@
   </ItemGroup>
 
   <!-- High-quality packaging: Include generator and codefixes DLLs + build targets -->
-  <Target Name="PackAnalyzers" BeforeTargets="_GetPackageFiles">
+  <Target Name="PackAnalyzers" BeforeTargets="_GetPackageFiles" Condition="'$(IsCrossTargetingBuild)' != 'true'">
     <ItemGroup>
       <None Include="$(MSBuildProjectDirectory)\..\AutoMappic.Generator\bin\$(Configuration)\netstandard2.0\AutoMappic.Generator.dll" 
             Pack="true" 

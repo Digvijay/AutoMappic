@@ -1,9 +1,9 @@
 ---
-title: Getting Started with AutoMappic v0.5.0
+title: Getting Started with AutoMappic v0.6.0
 description: Learn how to install and configure AutoMappic, the zero-reflection object mapper for .NET 9 and .NET 10 with Native AOT support.
 ---
 
-# Getting Started with AutoMappic v0.5.0
+# Getting Started with AutoMappic v0.6.0
 
 AutoMappic is a zero-reflection, Native AOT-friendly object mapper for .NET 9 and .NET 10. It uses Roslyn Interceptors to replace reflection with fast, static code at compile time.
 
