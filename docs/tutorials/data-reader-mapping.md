@@ -29,14 +29,33 @@ IDataReader reader = cmd.ExecuteReader();
 IEnumerable<UserDto> users = reader.Map<UserDto>();
 ```
 
-## 3. How it Works (Under the Hood)
+## 3. Asynchronous Streaming (`IAsyncEnumerable`) (v0.7.0)
 
-When you call `reader.Map<UserDto>()`, AutoMappic generates a specialized, non-reflective loop:
+For modern .NET data access pipelines, AutoMappic completely supports `IAsyncEnumerable<T>` mapping via `DbDataReader`. This yields a massive performance increase by consuming Database rows sequentially with `yield return` logic as opposed to materializing heavy lists into memory.
+
+```csharp
+using AutoMappic;
+using System.Data.Common;
+
+await using DbDataReader reader = await cmd.ExecuteReaderAsync(ct);
+
+// Stream rows out natively with Zero Allocation overhead!
+IAsyncEnumerable<UserDto> userStream = reader.MapAsync<UserDto>(ct);
+
+await foreach (var user in userStream)
+{
+    await externalService.SendAsync(user);
+}
+```
+
+## 4. How it Works (Under the Hood)
+
+When you call `reader.Map<UserDto>()` or `reader.MapAsync<UserDto>()`, AutoMappic generates a specialized, non-reflective loop:
 
 1.  **Conventional Matching (v0.5.0)**: It automatically transforms property names using your profile's `SourceNamingConvention`. For example, `FirstName` will map to column `first_name` if `LowerUnderscoreNamingConvention` is used.
 2.  **Ordinal Pre-fetching**: It calls `GetOrdinal` for every property.
 3.  **Typed Access**: It calls the correct typed method (`GetInt32`, `GetString`, `GetGuid`) based on your DTO's property type.
-4.  **Null-Safety**: Automatically checks `reader.IsDBNull(ordinal)` for nullable properties.
+4.  **Null-Safety**: Automatically checks `reader.IsDBNullAsync(ordinal)` for nullable properties.
 5.  **Static Speed**: The entire mapping logic is baked into your assembly--no expression trees or IL generation at runtime.
 
 ---

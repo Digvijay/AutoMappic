@@ -24,7 +24,7 @@ var orderService = new OrderService(mapper);
 var userDto = service.GetUser(1);
 var orderDto = orderService.GetOrder(42);
 
-Console.WriteLine("=== AutoMappic v0.6.2 Sample ===");
+Console.WriteLine("=== AutoMappic v0.7.0 \"The Ultimate\" Sample ===");
 Console.WriteLine();
 Console.WriteLine("User mapping (direct + flattened + method):");
 Console.WriteLine($"  Id:          {userDto.Id}");
@@ -130,9 +130,9 @@ public static class MockDatabase
 {
     public static List<User> Users = new()
     {
-        new User { Id = 1, Username = "alice", Address = new Address { City = "Stockholm" } },
-        new User { Id = 2, Username = "bob", Address = new Address { City = "Oslo" } },
-        new User { Id = 3, Username = "charlie", Address = new Address { City = "Copenhagen" } }
+        new User { Id = 1, Username = "alice", Email = "alice@example.com", Address = new Address { City = "Stockholm" } },
+        new User { Id = 2, Username = "bob", Email = "bob@oslo.no", Address = new Address { City = "Oslo" } },
+        new User { Id = 3, Username = "charlie", Email = "charlie@denmark.dk", Address = new Address { City = "Copenhagen" } }
     };
 }
 

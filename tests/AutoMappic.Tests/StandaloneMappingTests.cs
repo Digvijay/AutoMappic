@@ -43,7 +43,7 @@ namespace AutoMappic.Tests
         {
             // Even without explicit profiles, Standalone [AutoMap] classes are discovered by the generator
             // and hooked into the Mapper via interceptors. For the runtime fallback or manual use:
-            var config = new MapperConfiguration(cfg => { }); 
+            var config = new MapperConfiguration(cfg => { });
             return config.CreateMapper();
         }
 
@@ -53,9 +53,9 @@ namespace AutoMappic.Tests
         {
             var source = new SourceDto { Id = 1, Name = "Test" };
             var mapper = GetMapper();
-            
+
             var dest = mapper.Map<DestinationDto>(source);
-            
+
             Assert.Equal(1, dest.Id);
             Assert.Equal("Test", dest.Name);
         }
@@ -66,9 +66,9 @@ namespace AutoMappic.Tests
         {
             var dest = new DestinationDto { Id = 2, Name = "Reverse" };
             var mapper = GetMapper();
-            
+
             var source = mapper.Map<SourceDto>(dest);
-            
+
             Assert.Equal(2, source.Id);
             Assert.Equal("Reverse", source.Name);
         }
@@ -77,20 +77,22 @@ namespace AutoMappic.Tests
         [Description("0.6.0: Verify [AutoMap(DeleteOrphans = true)] removes missing items from collections.")]
         public void DeleteOrphans_Works_When_Enabled()
         {
-            var source = new SourceDto { 
-                Children = new List<SourceChild> { new() { Id = 1, Val = "A" } } 
+            var source = new SourceDto
+            {
+                Children = new List<SourceChild> { new() { Id = 1, Val = "A" } }
             };
-            
-            var dest = new DestinationDto { 
-                Children = new List<ChildDto> { 
+
+            var dest = new DestinationDto
+            {
+                Children = new List<ChildDto> {
                     new() { Id = 1, Val = "Old" },
-                    new() { Id = 2, Val = "Gone" } 
-                } 
+                    new() { Id = 2, Val = "Gone" }
+                }
             };
 
             var mapper = GetMapper();
             mapper.Map(source, dest);
-            
+
             Assert.Equal(1, dest.Children.Count);
             Assert.Equal(1, dest.Children[0].Id);
             Assert.Equal("A", dest.Children[0].Val);
@@ -100,14 +102,14 @@ namespace AutoMappic.Tests
         [Description("0.6.0: Verify ProjectTo uses the new high-performance static Projection fields.")]
         public void ProjectTo_Uses_Static_Expression()
         {
-            var data = new List<SourceDto> { 
-                new SourceDto { Id = 1, Name = "A" }, 
-                new SourceDto { Id = 2, Name = "B" } 
+            var data = new List<SourceDto> {
+                new SourceDto { Id = 1, Name = "A" },
+                new SourceDto { Id = 2, Name = "B" }
             }.AsQueryable();
-            
+
             var mapper = GetMapper();
             var projected = data.ProjectTo<DestinationDto>().ToList();
-            
+
             Assert.Equal(2, projected.Count);
             Assert.Equal("A", projected[0].Name);
         }

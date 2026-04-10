@@ -244,6 +244,7 @@ internal static class ProfileExtractor
         bool identityMgmt = true;
         string? sourceNaming = null;
         string? destNaming = null;
+        bool ignoreUnmapped = false;
 
         foreach (var named in attr.NamedArguments)
         {
@@ -252,6 +253,7 @@ internal static class ProfileExtractor
             if (named.Key == "EnableIdentityManagement" && named.Value.Value is bool b3) identityMgmt = b3;
             if (named.Key == "SourceNamingConvention" && named.Value.Value is INamedTypeSymbol sn) sourceNaming = sn.Name;
             if (named.Key == "DestinationNamingConvention" && named.Value.Value is INamedTypeSymbol dn) destNaming = dn.Name;
+            if (named.Key == "IgnoreUnmapped" && named.Value.Value is bool b4) ignoreUnmapped = b4;
         }
 
         if (!clsDecl.Modifiers.Any(m => m.IsKind(SyntaxKind.PartialKeyword)))
@@ -263,7 +265,7 @@ internal static class ProfileExtractor
             sourceType, destType,
             new Dictionary<string, (string?, string?, bool)>(), Array.Empty<string>(),
             null, // No profileLocation for standalone
-            clsDecl.GetLocation(), diags.Add, null,
+            clsDecl.GetLocation(), d => { if (!ignoreUnmapped || (d.DescriptorId != "AM0001" && d.DescriptorId != "AM0015")) diags.Add(d); }, null,
             sourceNaming, destNaming, identityMgmt);
 
         var location = clsDecl.Identifier.GetLocation();
@@ -304,7 +306,7 @@ internal static class ProfileExtractor
             var (revProps, revCtorArgs) = ConventionEngine.Resolve(
                 destType, sourceType,
                 new Dictionary<string, (string?, string?, bool)>(), Array.Empty<string>(),
-                clsDecl.GetLocation(), null, revDiags.Add, null,
+                clsDecl.GetLocation(), null, d => { if (!ignoreUnmapped || (d.DescriptorId != "AM0001" && d.DescriptorId != "AM0015")) revDiags.Add(d); }, null,
                 destNaming, sourceNaming, identityMgmt);
 
             var (revProjProps, revProjCtorArgs) = ConventionEngine.Resolve(
@@ -443,6 +445,8 @@ internal static class ProfileExtractor
         bool currentlyConfiguringReverse = false;
         string? sourceNaming = profileSourceNaming;
         string? destNaming = profileDestNaming;
+        bool forwardIgnoreUnmapped = false;
+        bool reverseIgnoreUnmapped = false;
 
         // Walk up the chain to collect settings.
         // Orders: CreateMap().ForMember(FWD).ReverseMap().ForMember(REV)
@@ -559,6 +563,11 @@ internal static class ProfileExtractor
                     destNaming = semanticModel.GetTypeInfo(args[1].Expression, ct).Type?.ToDisplayString();
                 }
             }
+            else if (methodName == "IgnoreUnmapped")
+            {
+                if (currentlyConfiguringReverse) reverseIgnoreUnmapped = true;
+                else forwardIgnoreUnmapped = true;
+            }
 
             current = invocation.Parent;
         }
@@ -581,7 +590,7 @@ internal static class ProfileExtractor
                 forwardIgnored,
                 createMapCall.GetLocation(),
                 null,
-                d => diagnostics.Add(d),
+                d => { if (!forwardIgnoreUnmapped || (d.DescriptorId != "AM0001" && d.DescriptorId != "AM0015")) diagnostics.Add(d); },
                 null,
                 sourceNaming,
                 destNaming,
@@ -676,7 +685,7 @@ internal static class ProfileExtractor
                 reverseMaps,
                 reverseIgnored,
                 createMapCall.GetLocation(), null,
-                d => revDiags.Add(d),
+                d => { if (!reverseIgnoreUnmapped || (d.DescriptorId != "AM0001" && d.DescriptorId != "AM0015")) revDiags.Add(d); },
                 null,
                 destNaming, // reversed
                 sourceNaming,

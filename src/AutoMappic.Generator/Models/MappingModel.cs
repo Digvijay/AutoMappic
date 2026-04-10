@@ -144,6 +144,9 @@ internal enum PropertyMapKind
 
     /// <summary>The property was explicitly ignored via <c>ForMember ... Ignore()</c>.</summary>
     Ignored,
+
+    /// <summary>The property is unmapped but a smart-match suggestion was reported (suppresses generic error).</summary>
+    Suggested,
 }
 
 /// <summary>
@@ -216,7 +219,8 @@ internal enum InterceptKind
 {
     Map,
     ProjectTo,
-    DataReaderMap
+    DataReaderMap,
+    DataReaderMapAsync
 }
 
 /// <summary>
@@ -234,6 +238,7 @@ internal sealed record InterceptLocation(
     InterceptKind Kind,
     bool IsCollectionMapping = false,
     bool IsDestinationMapped = false,
+    bool IsExtensionMap = false,
     string? EffectiveSourceTypeFullName = null,
     string? EffectiveDestTypeFullName = null,
     string? GenericParameters = null,

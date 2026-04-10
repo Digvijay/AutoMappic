@@ -22,6 +22,7 @@ public class SqlMappingTests
         public SqlProfile()
         {
             CreateMap<IDataReader, UserDto>();
+            CreateMap<System.Data.Common.DbDataReader, UserDto>();
             CreateMap<Source, UserDto>(); // For ProjectTo
         }
     }
@@ -72,5 +73,39 @@ public class SqlMappingTests
         Assert.Equal(1, (long)results.Count);
         Assert.Equal("Alice", results[0].Name);
         Assert.Equal("alice@a.com", results[0].Email);
+    }
+
+    [Fact]
+    [Description("Tests asynchronous mapping from a DbDataReader (DataTableReader).")]
+    public async global::System.Threading.Tasks.Task DataReader_MapAsync_Works()
+    {
+        // 1. Setup DataTable source
+        using var dt = new DataTable();
+        dt.Columns.Add("Id", typeof(int));
+        dt.Columns.Add("Name", typeof(string));
+        dt.Columns.Add("Email", typeof(string));
+
+        dt.Rows.Add(1, "Alice", "alice@example.com");
+        dt.Rows.Add(2, "Bob", null);
+
+        // 2. Setup AutoMappic
+        var config = new MapperConfiguration(cfg =>
+        {
+            cfg.AddProfile<SqlProfile>();
+        });
+
+        using var reader = dt.CreateDataReader();
+
+        // 3. Act - Use the new MapAsync extension for DbDataReader
+        var results = new List<UserDto>();
+        await foreach (var item in reader.MapAsync<UserDto>())
+        {
+            results.Add(item);
+        }
+
+        // 4. Assert
+        Assert.Equal(2, (long)results.Count);
+        Assert.Equal("Alice", results[0].Name);
+        Assert.Equal("Bob", results[1].Name);
     }
 }

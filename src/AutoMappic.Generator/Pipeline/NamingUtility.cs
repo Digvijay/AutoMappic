@@ -14,6 +14,16 @@ internal static class NamingUtility
 
     public static string ToKebabCase(string name) => ToSeparatedCase(name, '-');
 
+    public static string ToCamelCase(string name)
+    {
+        if (string.IsNullOrEmpty(name)) return name;
+        if (!char.IsUpper(name[0])) return name;
+
+        char[] chars = name.ToCharArray();
+        chars[0] = char.ToLowerInvariant(chars[0]);
+        return new string(chars);
+    }
+
     private static string ToSeparatedCase(string name, char separator)
     {
         if (string.IsNullOrEmpty(name)) return name;

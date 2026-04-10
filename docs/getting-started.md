@@ -1,9 +1,9 @@
 ---
-title: Getting Started with AutoMappic v0.6.0
+title: Getting Started with AutoMappic v0.7.0
 description: Learn how to install and configure AutoMappic, the zero-reflection object mapper for .NET 9 and .NET 10 with Native AOT support.
 ---
 
-# Getting Started with AutoMappic v0.6.0
+# Getting Started with AutoMappic v0.7.0
 
 AutoMappic is a zero-reflection, Native AOT-friendly object mapper for .NET 9 and .NET 10. It uses Roslyn Interceptors to replace reflection with fast, static code at compile time.
 
@@ -111,6 +111,9 @@ var user = new User { Id = 1, Username = "alice", Address = new Address { City =
 // This call is intercepted at compile-time and replaced with direct assignments
 var dto = mapper.Map<User, UserDto>(user);
 
+// NEW in v0.7.0: Fluent API
+var dto2 = user.MapTo<UserDto>(mapper);
+
 Console.WriteLine(dto.AddressCity); // Seattle
 ```
 
@@ -133,8 +136,19 @@ IQueryable<User> query = dbContext.Users.Where(u => u.IsActive);
 var projected = query.ProjectTo<UserDto>(_mapper.ConfigurationProvider);
 ```
 
+### Database Streaming (New in v0.7.0)
+AutoMappic now supports zero-allocation streaming for database results. Use `MapAsync` on a `DbDataReader` to get an `IAsyncEnumerable<T>`:
+
+```csharp
+using var reader = await command.ExecuteReaderAsync();
+await foreach (var customer in reader.MapAsync<CustomerDto>())
+{
+    // Process customer as it streams from the database
+}
+```
+
 ## 7. Performance and Native AOT
-AutoMappic generates source code that you can see and debug. Because it is static C#, it is 100% compatible with Native AOT and Linker trimming. No more `UnreferencedCode` warnings in your mapping logic.
+AutoMappic generates source code that you can see and debug. Because it is static C#, it is 100% compatible with Native AOT and Linker trimming. v0.7.0 includes explicit transparency for AOT-safety via `RequiresUnreferencedCode` annotations on all runtime fallbacks.
 
 ---
 

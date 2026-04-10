@@ -5,6 +5,25 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.7.0] - 2026-04-10
+
+### Added
+- **"The Ultimate" Database Streaming**: Upgraded `DbDataReader.MapAsync` to return `IAsyncEnumerable<T>`. This enables zero-allocation, non-blocking streaming of database results directly into your application logic via `await foreach`.
+- **Fluent MapTo API**: Introduced `source.MapTo<TDest>(mapper)` extension methods for a more natural, object-oriented mapping syntax that remains 100% statically intercepted.
+- **CamelCase Support**: Added `CamelCaseNamingConvention` to provide first-class support for mapping between PascalCase domain models and camelCase JSON DTOs.
+- **Enhanced Diagnostics**: Added `AM0017` (Missing Constructor) and improved `AM0006` (Circular Reference) detection.
+- **Hot-Reload Support (Experimental)**: Source-generated mappings are now automatically registered in a high-performance `HotReloadRegistry`. This ensures ultra-fast mapping continues uninterrupted even when static interceptors are dynamically bypassed during aggressive Hot Reload edit-and-continue sessions.
+- **Source-to-Source Migration CLI**: Expanded the `AutoMappic.Cli` with a new `migrate` command that provides automated, regex-based codebase refactoring to smoothly transition legacy `mapper.Map<T>(src)` calls to AutoMappic's modern `src.MapTo<T>(mapper)` syntax.
+- **Wasm/Blazor Optimizations**: Enabled strict `<IsTrimmable>` and `<IsAotCompatible>` enforcement on `AutoMappic.Core`. Your AutoMappic bundle is now highly optimized for strict Wasm environments.
+
+### Changed
+- **Native AOT Hardening**: Applied explicit `[RequiresUnreferencedCode]` and `[RequiresDynamicCode]` attributes to all reflection-heavy runtime fallbacks. AutoMappic is now 100% transparent about AOT safety.
+- **Recursion Safety Guard**: Implemented an automatic 128-level recursion depth check in the generated `MappingContext` to prevent `StackOverflowException` in complex or circular object graphs.
+
+### Fixed
+- **Pascal-to-camel Mapping**: Resolved an issue where property matching would fail if mapping between different naming conventions without explicit configuration.
+- **Interception Precision**: Corrected parameter name mismatches (`ct` vs `cancellationToken`) in async shims to ensure reliable interception of database mapping calls.
+
 ## [0.6.2] - 2026-04-03
 
 ### Fixed

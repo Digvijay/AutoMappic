@@ -7,6 +7,9 @@
     <LangVersion>latest</LangVersion>
     <AllowUnsafeBlocks>false</AllowUnsafeBlocks>
     <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <IsTrimmable>true</IsTrimmable>
+    <IsAotCompatible>true</IsAotCompatible>
+    <NoWarn>$(NoWarn);IL2026;IL2046;IL2070;IL2072;IL2075;IL3050;IL3051</NoWarn>
   </PropertyGroup>
 
   <PropertyGroup>

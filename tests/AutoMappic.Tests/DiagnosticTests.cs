@@ -433,7 +433,7 @@ public class NonPartialD { public int Id { get; set; } }
 ";
         var result = GeneratorTestHelper.RunGenerator(source);
         var am018 = result.Diagnostics.FirstOrDefault(d => d.Id == "AM0018");
-        
+
         Assert.NotNull(am018);
         Assert.Contains("must be partial", am018!.GetMessage());
     }
@@ -458,13 +458,13 @@ public class MyProfile : Profile
 ";
         var result = GeneratorTestHelper.RunGenerator(source);
         var am001 = result.Diagnostics.FirstOrDefault(d => d.Id == "AM0001");
-        
+
         Assert.NotNull(am001);
-        
+
         // Verify span length is non-zero
         var span = am001!.Location.SourceSpan;
         Assert.True(span.Length > 0, "Diagnostic span should be non-zero length.");
-        
+
         // Verify it's on the CreateMap line (Line 11 in this source)
         var lineSpan = am001.Location.GetLineSpan();
         Assert.Equal(10, lineSpan.StartLinePosition.Line); // 0-indexed

@@ -25,7 +25,7 @@ export default withMermaid(defineConfig({
         "operatingSystem": "Windows, macOS, Linux",
         "applicationCategory": "DeveloperApplication",
         "screenshot": "https://automappic.digvijay.dev/og-image.png",
-        "softwareVersion": "0.6.0",
+        "softwareVersion": "0.7.0",
         "author": {
           "@type": "Organization",
           "name": "AutoMappic OSS",
@@ -82,7 +82,8 @@ export default withMermaid(defineConfig({
           { text: 'Porting from AutoMapper', link: '/tutorials/porting-from-automapper' },
           { text: 'Identity Management', link: '/tutorials/identity-management' },
           { text: 'EF Core Smart-Sync API', link: '/tutorials/ef-core-smart-sync' },
-          { text: 'Static Converters', link: '/tutorials/static-converters' }
+          { text: 'Static Converters', link: '/tutorials/static-converters' },
+          { text: 'Hot Reload Guide', link: '/tutorials/hot-reload' }
         ]
       },
       {

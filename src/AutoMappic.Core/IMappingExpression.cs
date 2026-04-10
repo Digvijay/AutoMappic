@@ -1,3 +1,4 @@
+using System.Diagnostics.CodeAnalysis;
 using System.Linq.Expressions;
 using System.Threading.Tasks;
 
@@ -42,7 +43,12 @@ public interface IMappingExpression
     /// <summary>Gets the destination naming convention for this mapping.</summary>
     INamingConvention? DestinationNaming { get; }
 
+    /// <summary>Whether to suppress unmapped property diagnostics.</summary>
+    bool SuppressUnmapped { get; }
+
     /// <summary>Specifies a custom type converter for this mapping (non-generic version).</summary>
+    [RequiresUnreferencedCode("Runtime mapping configuration requires reflection.")]
+    [RequiresDynamicCode("Runtime mapping configuration requires dynamic code generation.")]
     IMappingExpression ConvertUsing(Type converterType);
 
     /// <summary>Internal use: Executes BeforeMap for runtime fallback.</summary>
@@ -56,6 +62,9 @@ public interface IMappingExpression
 
     /// <summary>Internal use: Executes AfterMapAsync for runtime fallback.</summary>
     Task ExecuteAfterAsync(object source, object destination);
+
+    /// <summary>Suppresses all unmapped property errors for this mapping.</summary>
+    IMappingExpression IgnoreUnmapped();
 }
 
 /// <summary>
@@ -81,6 +90,8 @@ public interface IMappingExpression<TSource, TDestination> : IMappingExpression
     ///   A configuration delegate, e.g. <c>opt =&gt; opt.MapFrom(src =&gt; src.FirstName + " " + src.LastName)</c>.
     /// </param>
     /// <returns>The same expression for chaining.</returns>
+    [RequiresUnreferencedCode("Runtime mapping configuration requires reflection.")]
+    [RequiresDynamicCode("Runtime mapping configuration requires dynamic code generation.")]
     IMappingExpression<TSource, TDestination> ForMember<TMember>(
         Expression<Func<TDestination, TMember>> destinationMember,
         Action<IMemberConfigurationExpression<TSource, TDestination, TMember>> memberOptions);
@@ -92,6 +103,8 @@ public interface IMappingExpression<TSource, TDestination> : IMappingExpression
     /// <typeparam name="TMember">The type of the destination member.</typeparam>
     /// <param name="destinationMember">Selector for the member to ignore.</param>
     /// <returns>The same expression for chaining.</returns>
+    [RequiresUnreferencedCode("Runtime mapping configuration requires reflection.")]
+    [RequiresDynamicCode("Runtime mapping configuration requires dynamic code generation.")]
     IMappingExpression<TSource, TDestination> ForMemberIgnore<TMember>(
         Expression<Func<TDestination, TMember>> destinationMember);
 
@@ -101,17 +114,23 @@ public interface IMappingExpression<TSource, TDestination> : IMappingExpression
     ///   and <c>TDestination -> TSource</c>.
     /// </summary>
     /// <returns>A mapping expression for the reverse direction.</returns>
+    [RequiresUnreferencedCode("Runtime mapping configuration requires reflection.")]
+    [RequiresDynamicCode("Runtime mapping configuration requires dynamic code generation.")]
     IMappingExpression<TDestination, TSource> ReverseMap();
 
     /// <summary>
     ///   Specifies a custom type converter for this mapping.
     /// </summary>
     /// <typeparam name="TConverter">The converter type to use.</typeparam>
+    [RequiresUnreferencedCode("Runtime mapping configuration requires reflection.")]
+    [RequiresDynamicCode("Runtime mapping configuration requires dynamic code generation.")]
     IMappingExpression<TSource, TDestination> ConvertUsing<TConverter>() where TConverter : ITypeConverter<TSource, TDestination>, new();
 
     /// <summary>
     ///   Specifies a custom lambda expression for converting the source to the destination.
     /// </summary>
+    [RequiresUnreferencedCode("Runtime mapping configuration requires reflection.")]
+    [RequiresDynamicCode("Runtime mapping configuration requires dynamic code generation.")]
     IMappingExpression<TSource, TDestination> ConvertUsing(Expression<Func<TSource, TDestination>> converter);
 
     /// <summary>
@@ -138,12 +157,19 @@ public interface IMappingExpression<TSource, TDestination> : IMappingExpression
     ///   Specifies a custom factory expression for creating the destination instance.
     ///   The source generator will use this expression instead of the default constructor.
     /// </summary>
+    [RequiresUnreferencedCode("Runtime mapping configuration requires reflection.")]
+    [RequiresDynamicCode("Runtime mapping configuration requires dynamic code generation.")]
     IMappingExpression<TSource, TDestination> ConstructUsing(Expression<Func<TSource, TDestination>> ctor);
 
     /// <summary>
     ///   Overrides the global naming convention for this specific mapping.
     /// </summary>
     IMappingExpression<TSource, TDestination> WithNamingConvention(INamingConvention source, INamingConvention destination);
+
+    /// <summary>
+    ///   Suppresses all unmapped property errors (AM0001 and AM0015) for this specific mapping configuration.
+    /// </summary>
+    new IMappingExpression<TSource, TDestination> IgnoreUnmapped();
 }
 
 /// <summary>
@@ -162,6 +188,8 @@ public interface IMemberConfigurationExpression<TSource, TDestination, TMember>
     ///   lambda parameter with <c>source</c>.
     /// </summary>
     /// <param name="mapExpression">A lambda expression resolving the source value, e.g. <c>src =&gt; src.Address.City</c>.</param>
+    [RequiresUnreferencedCode("Runtime mapping configuration requires reflection.")]
+    [RequiresDynamicCode("Runtime mapping configuration requires dynamic code generation.")]
     void MapFrom<TResult>(Expression<Func<TSource, TResult>> mapExpression);
 
     /// <summary>Ignores this destination member; no assignment will be emitted for it.</summary>
@@ -172,12 +200,16 @@ public interface IMemberConfigurationExpression<TSource, TDestination, TMember>
     ///   The Source Generator will intelligently emit <c>new TResolver().Resolve(source)</c>.
     /// </summary>
     /// <typeparam name="TResolver">An <see cref="IValueResolver{TSource, TMember}"/> used to construct the logic.</typeparam>
+    [RequiresUnreferencedCode("Runtime mapping configuration requires reflection.")]
+    [RequiresDynamicCode("Runtime mapping configuration requires dynamic code generation.")]
     void MapFrom<TResolver>() where TResolver : IValueResolver<TSource, TMember>, new();
 
     /// <summary>
     ///   Specifies an asynchronous value resolver for this member. 
     ///   When an async resolver is used, the mapping MUST be executed via <see cref="IMapper.MapAsync{TSource, TDestination}(TSource, System.Threading.CancellationToken)"/>.
     /// </summary>
+    [RequiresUnreferencedCode("Runtime mapping configuration requires reflection.")]
+    [RequiresDynamicCode("Runtime mapping configuration requires dynamic code generation.")]
     void MapFromAsync<TResolver>() where TResolver : IAsyncValueResolver<TSource, TMember>, new();
 
     /// <summary>
@@ -185,6 +217,8 @@ public interface IMemberConfigurationExpression<TSource, TDestination, TMember>
     ///   The source generator will wrap the assignment in an 'if' block.
     /// </summary>
     /// <param name="condition">A lambda resolving to a boolean, e.g. <c>(src, dest) =&gt; src.IsActive</c>.</param>
+    [RequiresUnreferencedCode("Runtime mapping configuration requires reflection.")]
+    [RequiresDynamicCode("Runtime mapping configuration requires dynamic code generation.")]
     void Condition(Expression<Func<TSource, TDestination, bool>> condition);
 
     /// <summary>
@@ -194,5 +228,7 @@ public interface IMemberConfigurationExpression<TSource, TDestination, TMember>
     /// <typeparam name="TConverter">An <see cref="IValueConverter{TSourceMember, TMember}"/> used to construct the logic.</typeparam>
     /// <typeparam name="TSourceMember">The type of the source member to convert from.</typeparam>
     /// <param name="sourceMember">Selector for the source member.</param>
+    [RequiresUnreferencedCode("Runtime mapping configuration requires reflection.")]
+    [RequiresDynamicCode("Runtime mapping configuration requires dynamic code generation.")]
     void ConvertUsing<TConverter, TSourceMember>(Expression<Func<TSource, TSourceMember>> sourceMember) where TConverter : IValueConverter<TSourceMember, TMember>, new();
 }

@@ -9,6 +9,7 @@ Native AOT compiles your .NET application directly into a single, standalone mac
 - **Fastest Cold Starts**: Your app starts in milliseconds, making it ideal for Serverless and high-density containers.
 - **Lower Memory Footprint**: No JIT-compiler overhead or reflection-based metadata storage.
 - **Improved Security**: The binary is smaller and has a reduced attack surface.
+- **Wasm/Blazor Ready**: As of v0.7.0, AutoMappic embraces strict `[RequiresUnreferencedCode]` and `<IsTrimmable>true</IsTrimmable>` specifications, making it the premier choice for .NET WebAssembly workloads.
 
 ## 2. Using AutoMappic in an AOT Project
 
@@ -60,6 +61,12 @@ dotnet publish -c Release -r linux-x64 --self-contained
 ```
 
 Because AutoMappic is reflection-free, the resulting binary will be significantly smaller and faster to start than one using traditional mappers.
+
+## 5. Explicit AOT Safety (v0.7.0)
+
+With the release of v0.7.0 "The Ultimate", AutoMappic provides 100% transparency regarding AOT-safety:
+- The `AutoMappic.Core` package is explicitly marked as `<IsAotCompatible>true</IsAotCompatible>`.
+- Any underlying interface fallbacks that rely on dynamic typing (which are bypassed entirely by our source generators) are distinctly marked with `[RequiresDynamicCode]` and `[RequiresUnreferencedCode]`. This guarantees no runtime surprises when deploying to iOS, Wasm, or standalone Linux environments.
 
 ---
 

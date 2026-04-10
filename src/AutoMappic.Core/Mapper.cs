@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using System.Reflection;
 using System.Text.RegularExpressions;
@@ -48,6 +49,8 @@ public sealed class Mapper : IMapper, IDisposable
     }
 
     /// <inheritdoc />
+    [RequiresUnreferencedCode("Object mapping via runtime Mapper requires reflection.")]
+    [RequiresDynamicCode("Object mapping via runtime Mapper requires dynamic code generation.")]
     public TDestination Map<TDestination>(object source)
     {
         if (source is null) return default!;
@@ -55,6 +58,8 @@ public sealed class Mapper : IMapper, IDisposable
     }
 
     /// <inheritdoc />
+    [RequiresUnreferencedCode("Object mapping via runtime Mapper requires reflection.")]
+    [RequiresDynamicCode("Object mapping via runtime Mapper requires dynamic code generation.")]
     public TDestination Map<TSource, TDestination>(TSource source)
     {
         if (source is null) return default!;
@@ -62,6 +67,8 @@ public sealed class Mapper : IMapper, IDisposable
     }
 
     /// <inheritdoc />
+    [RequiresUnreferencedCode("Object mapping via runtime Mapper requires reflection.")]
+    [RequiresDynamicCode("Object mapping via runtime Mapper requires dynamic code generation.")]
     public TDestination Map<TSource, TDestination>(TSource source, TDestination destination)
     {
         ArgumentNullException.ThrowIfNull(source);
@@ -70,6 +77,8 @@ public sealed class Mapper : IMapper, IDisposable
     }
 
     /// <inheritdoc />
+    [RequiresUnreferencedCode("Object mapping via runtime Mapper requires reflection.")]
+    [RequiresDynamicCode("Object mapping via runtime Mapper requires dynamic code generation.")]
     public async global::System.Threading.Tasks.Task<TDestination> MapAsync<TDestination>(object source, global::System.Threading.CancellationToken ct = default)
     {
         try
@@ -84,6 +93,8 @@ public sealed class Mapper : IMapper, IDisposable
     }
 
     /// <inheritdoc />
+    [RequiresUnreferencedCode("Object mapping via runtime Mapper requires reflection.")]
+    [RequiresDynamicCode("Object mapping via runtime Mapper requires dynamic code generation.")]
     public async global::System.Threading.Tasks.Task<TDestination> MapAsync<TSource, TDestination>(TSource source, global::System.Threading.CancellationToken ct = default)
     {
         try
@@ -98,6 +109,8 @@ public sealed class Mapper : IMapper, IDisposable
     }
 
     /// <inheritdoc />
+    [RequiresUnreferencedCode("Object mapping via runtime Mapper requires reflection.")]
+    [RequiresDynamicCode("Object mapping via runtime Mapper requires dynamic code generation.")]
     public async global::System.Threading.Tasks.Task<TDestination> MapAsync<TSource, TDestination>(TSource source, TDestination destination, global::System.Threading.CancellationToken ct = default)
     {
         try
@@ -182,9 +195,27 @@ public sealed class Mapper : IMapper, IDisposable
         }
 
         var key = (sourceType, destType);
-
         if (!_maps.TryGetValue(key, out var entry))
         {
+            // NEW in v0.7.0: Hot Reload Fallback - check for registered shims
+            if (HotReloadRegistry.TryGetShim(sourceType, destType, out var shim) && shim != null)
+            {
+                // Execute the fast shim directly!
+                // Most shims match (mapper, source) or (mapper, source, dest)
+                try
+                {
+                    if (shim is Func<Mapper, object, object> fastShim)
+                    {
+                        return fastShim(this, source);
+                    }
+                    if (shim is Func<Mapper, object, object?, object> fastShimWithDest)
+                    {
+                        return fastShimWithDest(this, source, destination);
+                    }
+                }
+                catch { /* Fallback to standard if shim fails */ }
+            }
+
             throw new AutoMappicException(
                 $"No mapping registered from '{sourceType.FullName}' to '{destType.FullName}'. " +
                 $"Ensure a Profile.CreateMap<{sourceType.Name}, {destType.Name}>() call exists " +

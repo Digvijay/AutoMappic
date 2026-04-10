@@ -38,9 +38,9 @@ AutoMappic is a high-performance, AOT-friendly code generator designed to replac
 - [ ] **High-Performance Memory Buffers**: Optional pooling for collection mapping to further reduce GC allocations during peak traffic.
 - [ ] **Interactive Visualizer (CLI + Web)**: Explore mapping graphs and real-time performance metrics via a visual dashboard.
 - [ ] **Native SQLite/PostgreSQL optimizations**: Specific generated code paths for high-speed IDataReader mapping.
-- [ ] **Native AOT Hardening**: Further refining the edge cases of generic resolution in highly aggressive trimming environments.
 
-## Upcoming & Experimental
-- [ ] **Hot-Reload Support**: Instant mapping regeneration during active debugging sessions.
-- [ ] **Source-to-Source Refactoring**: Tooling to migrate manual mapping code to AutoMappic profiles automatically.
-- [ ] **Wasm/Blazor Optimizations**: Specialized code paths for client-side web assembly environments.
+### Phase 6: The Ultimate (v0.7.0 Release) (Completed)
+- [x] **Hot-Reload Support**: Instant mapping regeneration during active debugging sessions.
+- [x] **Source-to-Source Refactoring**: Tooling to migrate manual mapping code to AutoMappic profiles automatically.
+- [x] **Wasm/Blazor Optimizations**: Specialized code paths for client-side web assembly environments.
+- [x] **Native AOT Hardening**: Further refining the edge cases of generic resolution in highly aggressive trimming environments.

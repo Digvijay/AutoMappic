@@ -53,7 +53,7 @@ internal static class ConventionEngine
                     foreach (var param in ctor.Parameters)
                     {
                         var paramMap = ResolveSourceForMember(source, param.Name, param.Type, explicitMaps, ignoredMembers, profileLocation, param.Locations.FirstOrDefault(), reportDiagnostic, mappingStack, sourceNaming, destNaming, "source", destination.Name, identityManagementEnabled, isProjection);
-                        if (paramMap is null || paramMap.Kind == PropertyMapKind.Ignored)
+                        if (paramMap is null || paramMap.Kind == PropertyMapKind.Ignored || paramMap.Kind == PropertyMapKind.Suggested)
                         {
                             allSatisfied = false;
                             break;
@@ -75,7 +75,7 @@ internal static class ConventionEngine
             {
                 if (!classDest.Constructors.Any(c => c.DeclaredAccessibility == Accessibility.Public && c.Parameters.Length == 0))
                 {
-                    reportDiagnostic(DiagnosticInfo.Create(AutoMappicDiagnostics.MissingConstructor, profileLocation ?? Location.None, destination.Name));
+                    reportDiagnostic(DiagnosticInfo.Create(AutoMappicDiagnostics.MissingConstructor, destination.Locations.FirstOrDefault() ?? profileLocation ?? Location.None, destination.Name));
                 }
             }
 
@@ -129,7 +129,7 @@ internal static class ConventionEngine
                 }
                 else if (!constructorParamNames.Contains(memberName))
                 {
-                    if (source.Name != "IDataReader" && source.Name != "DataRow" && source.Name != "SqlDataReader")
+                    if (source.Name != "IDataReader" && source.Name != "DataRow" && source.Name != "SqlDataReader" && source.Name != "DbDataReader" && source.Name != "DataTableReader")
                     {
                         var props = global::System.Collections.Immutable.ImmutableDictionary<string, string?>.Empty
                             .Add("TargetProperty", memberName);
@@ -177,15 +177,24 @@ internal static class ConventionEngine
         // Tuple Handling
         if (source.IsTupleType && source is INamedTypeSymbol tupleSource)
         {
+            PropertyMap? bestSuggestedSubMap = null;
             for (int i = 0; i < tupleSource.TupleElements.Length; i++)
             {
                 var element = tupleSource.TupleElements[i];
                 var subMap = ResolveSourceForMember(element.Type, targetName, targetType, explicitMaps, Array.Empty<string>(), profileLocation, destMemberLocation, reportDiagnostic, mappingStack, sourceNaming, destNaming, $"{sourceAccess}.Item{i + 1}", destTypeName, identityManagementEnabled, isProjection);
-                if (subMap is not null && subMap.Kind != PropertyMapKind.Ignored)
+                if (subMap is not null)
                 {
-                    return subMap;
+                    if (subMap.Kind != PropertyMapKind.Ignored && subMap.Kind != PropertyMapKind.Suggested)
+                    {
+                        return subMap;
+                    }
+                    if (subMap.Kind == PropertyMapKind.Suggested && bestSuggestedSubMap == null)
+                    {
+                        bestSuggestedSubMap = subMap;
+                    }
                 }
             }
+            if (bestSuggestedSubMap != null) return bestSuggestedSubMap;
         }
 
         // Explicit Maps
@@ -206,7 +215,7 @@ internal static class ConventionEngine
         }
 
         // IDataReader projection
-        if (source.Name == "IDataReader" || source.Name == "DataRow" || source.Name == "SqlDataReader")
+        if (source.Name == "IDataReader" || source.Name == "DataRow" || source.Name == "SqlDataReader" || source.Name == "DbDataReader" || source.Name == "DataTableReader")
         {
             var keyName = targetName;
             if (sourceNaming?.Contains("Kebab") == true)
@@ -328,6 +337,7 @@ internal static class ConventionEngine
                 .Add("TargetProperty", targetName)
                 .Add("Score", bestScore.ToString(global::System.Globalization.CultureInfo.InvariantCulture));
             reportDiagnostic(DiagnosticInfo.Create(AutoMappicDiagnostics.SmartMatchSuggestion, profileLocation ?? destMemberLocation ?? Location.None, props, targetName, destTypeName, bestMember.Name));
+            return new PropertyMap(targetName, null, PropertyMapKind.Suggested);
         }
 
         return null;
@@ -508,7 +518,8 @@ internal static class ConventionEngine
                 }
                 else if (dItemProps.Count > 1 && dItemProps.Any(p => p.Name.EndsWith("Id", StringComparison.OrdinalIgnoreCase)))
                 {
-                    reportDiag(DiagnosticInfo.Create(AutoMappicDiagnostics.AmbiguousEntityKey, destMemberLocation ?? profileLoc ?? Location.None, nItem.Name, targetName));
+                    var props = global::System.Collections.Immutable.ImmutableDictionary<string, string?>.Empty.Add("ItemTypeName", nItem.Name);
+                    reportDiag(DiagnosticInfo.Create(AutoMappicDiagnostics.AmbiguousEntityKey, destMemberLocation ?? profileLoc ?? Location.None, props, nItem.Name, targetName));
                 }
             }
 
@@ -563,16 +574,16 @@ internal static class ConventionEngine
         if (destType.NullableAnnotation == NullableAnnotation.NotAnnotated && !destType.IsValueType && sourceType.NullableAnnotation == NullableAnnotation.Annotated)
         {
             cond = $"{expression} != null";
-            return ($"{expression}.MapTo{SourceEmitter.Sanitise(GetDisplayString(destType), true)}(context)", null, GetDisplayString(destType), false, false, null, expression, cond, null, null, false);
+            return ($"{expression}.MapTo{SourceEmitter.Sanitise(GetDisplayString(destType), true)}(context.Next())", null, GetDisplayString(destType), false, false, null, expression, cond, null, null, false);
         }
 
         if (canBeNull)
         {
-            return ($"({expression} == null ? default! : {expression}.MapTo{SourceEmitter.Sanitise(GetDisplayString(destType), true)}(context))", null, GetDisplayString(destType), false, false, null, expression, cond, null, null, false);
+            return ($"({expression} == null ? default! : {expression}.MapTo{SourceEmitter.Sanitise(GetDisplayString(destType), true)}(context.Next()))", null, GetDisplayString(destType), false, false, null, expression, cond, null, null, false);
         }
         else
         {
-            return ($"{expression}.MapTo{SourceEmitter.Sanitise(GetDisplayString(destType), true)}(context)", null, GetDisplayString(destType), false, false, null, expression, cond, null, null, false);
+            return ($"{expression}.MapTo{SourceEmitter.Sanitise(GetDisplayString(destType), true)}(context.Next())", null, GetDisplayString(destType), false, false, null, expression, cond, null, null, false);
         }
     }
 

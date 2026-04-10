@@ -61,6 +61,20 @@ public class NamingConventionTests
         Prova.Assertions.Assert.Equal(42, dest.CustomerId);
     }
 
+    [Fact]
+    public void NamingConvention_ShouldWork_WithPascalToCamel()
+    {
+        var services = new ServiceCollection();
+        services.AddAutoMappicFromAutoMappic_Tests();
+        var sp = services.BuildServiceProvider();
+        var mapper = sp.GetRequiredService<IMapper>();
+
+        var source = new SourcePascal { FullName = "Alice Smith" };
+        var dest = mapper.Map<DestCamel>(source);
+
+        Prova.Assertions.Assert.Equal("Alice Smith", dest.fullName);
+    }
+
 }
 
 public class CycleProfile : Profile
@@ -111,8 +125,14 @@ public class OverrideNamingProfile : Profile
 
         CreateMap<AcronymSource, AcronymDto>()
             .WithNamingConvention(new PascalCaseNamingConvention(), new CamelCaseNamingConvention());
+
+        CreateMap<SourcePascal, DestCamel>()
+            .WithNamingConvention(new PascalCaseNamingConvention(), new CamelCaseNamingConvention());
     }
 }
+
+public class SourcePascal { public string FullName { get; set; } = ""; }
+public class DestCamel { public string fullName { get; set; } = ""; }
 
 public class KebabNamingProfile : Profile
 {

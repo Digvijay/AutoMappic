@@ -27,6 +27,9 @@ namespace AutoMappic
         /// <summary>When true, enables "Smart-Sync" with orphan deletion for collections.</summary>
         public bool DeleteOrphans { get; set; }
 
+        /// <summary>When true, suppresses all AM0001 (unmapped) and AM0015 (smart-match) errors for this mapping.</summary>
+        public bool IgnoreUnmapped { get; set; }
+
         /// <inheritdoc/>
         public AutoMapAttribute(Type sourceType)
         {

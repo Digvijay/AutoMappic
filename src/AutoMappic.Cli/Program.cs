@@ -48,6 +48,14 @@ internal sealed class Program
         visualize.SetHandler(VisualizeProject, vizProjectArg, formatOpt);
         root.AddCommand(visualize);
 
+        var migrateProjectArg = new Argument<string>("project", "The path to the .csproj file to migrate.");
+        var migrate = new Command("migrate", "Migrates a codebase from AutoMapper to AutoMappic.")
+        {
+            migrateProjectArg
+        };
+        migrate.SetHandler(MigrateProject, migrateProjectArg);
+        root.AddCommand(migrate);
+
         return await root.InvokeAsync(args);
     }
 
@@ -179,5 +187,42 @@ internal sealed class Program
             Console.WriteLine($"[ERROR] Error loading project: {ex.Message}");
             return null;
         }
+    }
+
+    private static async Task MigrateProject(string projectPath)
+    {
+        Console.WriteLine($"\n[INFO] Starting experimental migration for: {projectPath}");
+        var comp = await GetCompilation(projectPath);
+        if (comp == null) return;
+
+        int fileCount = 0;
+        int replacements = 0;
+
+        var regex = new System.Text.RegularExpressions.Regex(@"\b(?<mapper>[a-zA-Z0-9_]+)\.Map<(?<type>[^>]+)>\((?<src>[^)]+)\)");
+
+        foreach (var tree in comp.SyntaxTrees)
+        {
+            var path = tree.FilePath;
+            if (string.IsNullOrEmpty(path) || path.EndsWith(".g.cs", StringComparison.OrdinalIgnoreCase)) continue;
+
+            var text = (await tree.GetTextAsync()).ToString();
+            if (regex.IsMatch(text))
+            {
+                var newText = regex.Replace(text, match =>
+                    $"{match.Groups["src"].Value}.MapTo<{match.Groups["type"].Value}>({match.Groups["mapper"].Value})");
+
+                if (text != newText)
+                {
+                    System.IO.File.WriteAllText(path, newText);
+                    fileCount++;
+                    replacements += regex.Matches(text).Count;
+                    Console.WriteLine($"  [REF] Updated: {System.IO.Path.GetFileName(path)}");
+                }
+            }
+        }
+
+        Console.ForegroundColor = ConsoleColor.Green;
+        Console.WriteLine($"\n[SUCCESS] Migrated {replacements} usages across {fileCount} files!");
+        Console.ResetColor();
     }
 }

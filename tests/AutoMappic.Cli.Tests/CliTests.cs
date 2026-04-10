@@ -44,8 +44,8 @@ public sealed class CliTests
             
             var output = sw.ToString();
             Assert.Equal(0, exitCode);
-            Assert.Contains("[SUCCESS] Validation successful", output);
-            Assert.Contains("User to UserDto", output.Replace("global::", ""));
+            Assert.Contains("[SUCCESS] All mapping profiles are valid.", output);
+            Assert.Contains("User -> UserDto", output.Replace("global::", ""));
         }
         finally
         {
@@ -69,9 +69,9 @@ public sealed class CliTests
             
             var output = sw.ToString();
             Assert.Equal(0, exitCode);
-            Assert.Contains("graph LR", output);
-            Assert.Contains("User --> UserDto", output.Replace("global::", ""));
-            Assert.Contains("Order --> OrderDto", output.Replace("global::", ""));
+            Assert.Contains("graph TD", output);
+            Assert.Contains("UserDto.Username", output);
+            Assert.Contains("OrderDto.Id", output);
         }
         finally
         {
@@ -97,12 +97,66 @@ public sealed class CliTests
             
             var output = sw.ToString();
             Assert.Equal(0, exitCode);
-            Assert.Contains("graph LR", output);
+            Assert.Contains("graph TD", output);
             // It should at least contain some of our test models
-            Assert.Contains("User --> UserDto", output.Replace("global::", ""));
+            Assert.Contains("UserDto.Email", output);
         }
         finally
         {
+            Console.SetOut(originalOut);
+            ConsoleLock.Release();
+        }
+    }
+
+    /// <summary> Verify that the migrate command automatically refactors standard mapping calls to the modern fluent extensions. </summary>
+    [Fact]
+    public async Task Migrate_Project_Refactors_Source_Correctly()
+    {
+        await ConsoleLock.WaitAsync();
+        var sw = new StringWriter();
+        var originalOut = Console.Out;
+        Console.SetOut(sw);
+        
+        string tempPath = Path.Combine(Path.GetTempPath(), "AutoMappicCliTestDir");
+        Directory.CreateDirectory(tempPath);
+        
+        try
+        {
+            var projectFile = Path.Combine(tempPath, "TempProj.csproj");
+            var sourceFile = Path.Combine(tempPath, "Program.cs");
+            
+            File.WriteAllText(projectFile, @"<Project Sdk=""Microsoft.NET.Sdk"">
+  <PropertyGroup>
+    <TargetFramework>net9.0</TargetFramework>
+  </PropertyGroup>
+</Project>");
+
+            File.WriteAllText(sourceFile, @"using System;
+class Program {
+    static void Main() {
+        var user = new object();
+        var _mapper = new object();
+        var res = _mapper.Map<UserDto>(user);
+    }
+}");
+            
+            var args = new[] { "migrate", projectFile };
+            int exitCode = await Program.Main(args);
+            
+            var output = sw.ToString();
+            Assert.Equal(0, exitCode);
+            Assert.Contains("[SUCCESS]", output);
+            Assert.Contains("Migrated 1 usages", output);
+            
+            var updatedCode = File.ReadAllText(sourceFile);
+            Assert.Contains("var res = user.MapTo<UserDto>(_mapper);", updatedCode);
+            Assert.DoesNotContain("_mapper.Map<UserDto>", updatedCode);
+        }
+        finally
+        {
+            if (Directory.Exists(tempPath))
+                Directory.Delete(tempPath, true);
+                
             Console.SetOut(originalOut);
             ConsoleLock.Release();
         }

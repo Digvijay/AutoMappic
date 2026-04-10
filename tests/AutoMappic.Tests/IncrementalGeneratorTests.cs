@@ -1,10 +1,10 @@
 using System.Collections.Immutable;
 using System.Linq;
+using AutoMappic.Generator;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 using Prova;
 using Assert = Prova.Assertions.Assert;
-using AutoMappic.Generator;
 
 namespace AutoMappic.Tests;
 
@@ -59,11 +59,11 @@ public class MyProfile : Profile
 
         // Validate that steps were cached (Unchanged)
         // Note: Step names are internal to the generator, but we can verify that the final 'SourceOutput' for mapping classes was cached.
-        
+
         var mappingClassSteps = res2.TrackedSteps.Values.SelectMany(x => x).Where(x => x.Outputs.Any(o => o.Reason == IncrementalStepRunReason.Cached));
-        
+
         // This is a bit implementation-dependent, but the goal is to show we are using trackers.
-        Assert.True(res2.TrackedOutputSteps.Values.SelectMany(x => x).Any(x => x.Outputs.All(o => o.Reason == IncrementalStepRunReason.Cached)), 
+        Assert.True(res2.TrackedOutputSteps.Values.SelectMany(x => x).Any(x => x.Outputs.All(o => o.Reason == IncrementalStepRunReason.Cached)),
             "The generator output should be fully cached when only comments are added to the file.");
     }
 }

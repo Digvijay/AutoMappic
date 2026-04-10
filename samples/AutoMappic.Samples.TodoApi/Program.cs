@@ -128,10 +128,10 @@ public class TodoProfile : Profile
 
         // Since we used [AutoMap] on TodoListDto and TodoItemDto, read-mappings are automatic.
         // We only use the Profile for complex mappings that need specialized overrides:
-        
+
         CreateMap<UpdateTodoListDto, TodoList>()
             .ForMemberIgnore(d => d.Id); // ID is NOT on the incoming DTO
-        
+
         CreateMap<TodoItemDto, TodoItem>(); // Mapper can also map from DTO back to Entity
     }
 }

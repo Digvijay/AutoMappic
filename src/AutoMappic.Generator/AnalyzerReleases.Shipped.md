@@ -17,7 +17,7 @@ AM0011 | AutoMappic | Error | Multi-Source ProjectTo not supported.
 AM0012 | AutoMappic | Warning | Asymmetric mapping configuration.
 AM0013 | AutoMappic | Warning | Required property patch mismatch.
 AM0014 | AutoMappic | Warning | Unmapped primary key.
-AM0015 | AutoMappic | Warning | Smart-Match property suggestion.
+AM0015 | AutoMappic | Error | Smart-Match property suggestion.
 AM0016 | AutoMappic | Warning | Performance regression warning.
 AM0017 | AutoMappic | Warning | Ambiguous entity key detected.
 AM0018 | AutoMappic | Error | Class must be partial for AutoMap support.

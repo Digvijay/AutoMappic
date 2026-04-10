@@ -53,11 +53,25 @@ graph LR
     CustomerSummary --> UserDto
 ```
 
-## 4. Why Use the CLI?
+## 4. Refactoring Codebases (`migrate`)
+
+The `migrate` command (introduced in v0.7.0) provides an automated, source-to-source refactoring tool to migrate legacy `mapper.Map<TDest>(src)` mappings to AutoMappic's high-performance `src.MapTo<TDest>(mapper)` fluent syntax.
+
+```bash
+automappic migrate path/to/project.csproj
+```
+
+### What `migrate` does:
+- Scans all `.cs` files (ignoring generated files).
+- Safely replaces standard mapping calls with the v0.7.0 Fluent API layout.
+- Provides a summary of modifications immediately.
+
+## 5. Why Use the CLI?
 
 - **CI/CD Integration**: Incorporate `automappic validate` into your build pipelines to prevent breaking mapping changes from being merged.
 - **Architectural Clarity**: Use `visualize` to understand how data flows through your system and identify technical debt or circular dependencies.
 - **Fast Feedback**: Detect unmapped properties instantly, before ever running your application.
+- **Easy Upgrades**: Use `migrate` to automatically upgrade large legacy applications to modern AutoMappic syntax natively within seconds.
 
 ---
 

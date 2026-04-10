@@ -27,9 +27,16 @@ internal static class InterceptorCollector
             return null;
         }
 
+        // Skip internal dispatch calls in MapperExtensions to avoid AM0004 errors on open generics
+        var caller = context.SemanticModel.GetEnclosingSymbol(invocation.SpanStart, cancellationToken);
+        if (caller?.ContainingType?.Name == "MapperExtensions" && caller.ContainingNamespace?.ToDisplayString() == "AutoMappic")
+        {
+            return null;
+        }
+
         var name = symbol.Name;
         bool isProjectTo = name == "ProjectTo";
-        bool isMap = name == "Map" || name == "MapAsync";
+        bool isMap = name == "Map" || name == "MapAsync" || name == "MapTo" || name == "MapToAsync";
 
         if (!isProjectTo && !isMap)
         {
@@ -51,7 +58,7 @@ internal static class InterceptorCollector
         }
         else if (fullContainingType.IndexOf("DataReaderExtensions", System.StringComparison.Ordinal) >= 0)
         {
-            kind = InterceptKind.DataReaderMap;
+            kind = name == "MapAsync" ? InterceptKind.DataReaderMapAsync : InterceptKind.DataReaderMap;
         }
         else if (isMap)
         {
@@ -77,7 +84,18 @@ internal static class InterceptorCollector
 
         if (kind == InterceptKind.Map)
         {
-            callSiteSource = symbol.TypeArguments.Length >= 2 ? symbol.TypeArguments[0] : (invocation.ArgumentList.Arguments.Count > 0 ? context.SemanticModel.GetTypeInfo(invocation.ArgumentList.Arguments[0].Expression, cancellationToken).Type : null);
+            if (symbol.TypeArguments.Length >= 2)
+            {
+                callSiteSource = symbol.TypeArguments[0];
+            }
+            else if (symbol.ReducedFrom != null && invocation.Expression is MemberAccessExpressionSyntax ma)
+            {
+                callSiteSource = context.SemanticModel.GetTypeInfo(ma.Expression, cancellationToken).Type;
+            }
+            else if (invocation.ArgumentList.Arguments.Count > 0)
+            {
+                callSiteSource = context.SemanticModel.GetTypeInfo(invocation.ArgumentList.Arguments[0].Expression, cancellationToken).Type;
+            }
         }
         else if (kind == InterceptKind.ProjectTo)
         {
@@ -125,9 +143,10 @@ internal static class InterceptorCollector
                 }
             }
         }
-        else if (kind == InterceptKind.DataReaderMap)
+        else if (kind == InterceptKind.DataReaderMap || kind == InterceptKind.DataReaderMapAsync)
         {
-            callSiteSource = context.SemanticModel.Compilation.GetTypeByMetadataName("System.Data.IDataReader");
+            var metaName = kind == InterceptKind.DataReaderMap ? "System.Data.IDataReader" : "System.Data.Common.DbDataReader";
+            callSiteSource = context.SemanticModel.Compilation.GetTypeByMetadataName(metaName);
         }
 
         if (callSiteDest is null || callSiteSource is null)
@@ -182,6 +201,7 @@ internal static class InterceptorCollector
             Kind: kind,
             IsCollectionMapping: isCollectionMapping,
             IsDestinationMapped: originalMethod.Parameters.Length > 1 && originalMethod.Parameters[1].Name == "destination",
+            IsExtensionMap: symbol.ReducedFrom != null,
             EffectiveSourceTypeFullName: SourceEmitter.GetDisplayString(effectiveSource),
             EffectiveDestTypeFullName: SourceEmitter.GetDisplayString(effectiveDest),
             GenericParameters: originalMethod.TypeParameters.Length > 0 ? "<" + string.Join(", ", originalMethod.TypeParameters.Select(p => p.Name)) + ">" : null,

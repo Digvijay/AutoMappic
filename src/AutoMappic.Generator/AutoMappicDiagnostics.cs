@@ -34,7 +34,7 @@ internal static class AutoMappicDiagnostics
 
     public static readonly DiagnosticDescriptor UnmappedPrimaryKey = new DiagnosticDescriptor("AM0014", "Unmapped primary key", "Entity collection mapping for '{0}' lacks a mapped primary key from source '{1}'. Existing entities cannot be updated and will be appended.", Category, DiagnosticSeverity.Warning, true, "Syncing Entity collections requires a matching primary key between Source and Destination types to avoid data duplication.");
 
-    public static readonly DiagnosticDescriptor SmartMatchSuggestion = new DiagnosticDescriptor("AM0015", "Smart-Match property suggestion", "Property '{0}' on '{1}' is unmapped. Did you mean to map it from '{2}'?.", Category, DiagnosticSeverity.Warning, true, "The generator detected a closely named property in the source which might be a typo or slight naming mismatch.");
+    public static readonly DiagnosticDescriptor SmartMatchSuggestion = new DiagnosticDescriptor("AM0015", "Smart-Match property suggestion", "Property '{0}' on '{1}' is unmapped. Did you mean to map it from '{2}'?.", Category, DiagnosticSeverity.Error, true, "The generator detected a closely named property in the source which might be a typo or slight naming mismatch.");
 
     public static readonly DiagnosticDescriptor PerformanceRegression = new DiagnosticDescriptor("AM0016", "Performance regression warning", "Mapping collection '{0}' -> '{1}' uses a custom resolver for items, preventing compiler loop vectorization optimizations", Category, DiagnosticSeverity.Warning, true, "Heavy custom logic inside loops impacts performance. Consider static mapping or Global Type Converters.");
 

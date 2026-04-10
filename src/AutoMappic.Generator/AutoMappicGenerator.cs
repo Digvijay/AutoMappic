@@ -262,7 +262,7 @@ public sealed class AutoMappicGenerator : IIncrementalGenerator
             // 3. Report Interceptor Diagnostics (Unresolved or Unsupported)
             foreach (var loc in locations)
             {
-                var key = $"{SourceEmitter.Sanitise(loc.SourceTypeFullName)}_To_{SourceEmitter.Sanitise(loc.DestinationTypeFullName)}";
+                var key = $"{SourceEmitter.Sanitise(loc.EffectiveSourceTypeFullName)}_To_{SourceEmitter.Sanitise(loc.EffectiveDestTypeFullName)}";
                 if (!mappingsByKey.TryGetValue(key, out var model))
                 {
                     // AM0004: Unresolved interceptor (reflective fallback)

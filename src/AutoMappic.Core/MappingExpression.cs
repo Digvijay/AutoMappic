@@ -29,6 +29,7 @@ internal sealed class MappingExpression<TSource, TDestination> :
     private readonly Dictionary<string, Func<TSource, TDestination, bool>> _memberConditions = new(StringComparer.Ordinal);
     private INamingConvention? _sourceNaming;
     private INamingConvention? _destNaming;
+    private bool _suppressUnmapped;
 
     public MappingExpression(Profile? profile = null)
     {
@@ -40,6 +41,9 @@ internal sealed class MappingExpression<TSource, TDestination> :
 
     /// <inheritdoc />
     public INamingConvention? DestinationNaming => _destNaming ?? _profile?.DestinationNamingConvention;
+
+    /// <inheritdoc />
+    public bool SuppressUnmapped => _suppressUnmapped;
 
     /// <inheritdoc />
     public Type SourceType => typeof(TSource);
@@ -218,6 +222,15 @@ internal sealed class MappingExpression<TSource, TDestination> :
         _destNaming = destinationNaming;
         return this;
     }
+
+    /// <inheritdoc />
+    public IMappingExpression<TSource, TDestination> IgnoreUnmapped()
+    {
+        _suppressUnmapped = true;
+        return this;
+    }
+
+    IMappingExpression IMappingExpression.IgnoreUnmapped() => IgnoreUnmapped();
 
     private static string GetMemberName<TMember>(Expression<Func<TDestination, TMember>> selector)
     {

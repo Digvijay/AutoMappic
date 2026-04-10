@@ -1,3 +1,5 @@
+using System.Diagnostics.CodeAnalysis;
+
 namespace AutoMappic;
 
 /// <summary>
@@ -58,6 +60,8 @@ public abstract class Profile
     ///   A fluent <see cref="IMappingExpression{TSource, TDestination}" /> that lets you
     ///   override conventions with explicit <c>ForMember</c> calls.
     /// </returns>
+    [RequiresUnreferencedCode("Runtime mapping configuration requires reflection.")]
+    [RequiresDynamicCode("Runtime mapping configuration requires dynamic code generation.")]
     protected internal IMappingExpression<TSource, TDestination> CreateMap<TSource, TDestination>()
     {
         var expression = new MappingExpression<TSource, TDestination>(this);
@@ -71,6 +75,8 @@ public abstract class Profile
     /// <param name="sourceType">The source type (generic or closed).</param>
     /// <param name="destinationType">The destination type (generic or closed).</param>
     /// <returns>A non-generic configuration expression.</returns>
+    [RequiresUnreferencedCode("Runtime mapping configuration requires reflection.")]
+    [RequiresDynamicCode("Runtime mapping configuration requires dynamic code generation.")]
     protected internal IMappingExpression CreateMap(Type sourceType, Type destinationType)
     {
         var expr = new OpenGenericMappingExpression(sourceType, destinationType);
@@ -93,6 +99,7 @@ internal sealed class OpenGenericMappingExpression(Type s, Type d) : IMappingExp
     public IReadOnlyDictionary<string, Delegate> RuntimeConditions => new Dictionary<string, Delegate>();
     public INamingConvention? SourceNaming => null;
     public INamingConvention? DestinationNaming => null;
+    public bool SuppressUnmapped { get; private set; }
 
     public IMappingExpression ConvertUsing(Type converterType)
     {
@@ -104,4 +111,10 @@ internal sealed class OpenGenericMappingExpression(Type s, Type d) : IMappingExp
     public void ExecuteAfter(object source, object destination) { }
     public global::System.Threading.Tasks.Task ExecuteBeforeAsync(object source, object destination) => global::System.Threading.Tasks.Task.CompletedTask;
     public global::System.Threading.Tasks.Task ExecuteAfterAsync(object source, object destination) => global::System.Threading.Tasks.Task.CompletedTask;
+
+    public IMappingExpression IgnoreUnmapped()
+    {
+        SuppressUnmapped = true;
+        return this;
+    }
 }

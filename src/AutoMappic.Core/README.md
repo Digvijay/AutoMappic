@@ -1,6 +1,6 @@
 # AutoMappic.Core
 
-The **AutoMappic.Core** library contains the public-facing abstractions, attributes, and base classes for the AutoMappic v0.5.0 "Zero-Reflection" mapper.
+The **AutoMappic.Core** library contains the public-facing abstractions, attributes, and base classes for the AutoMappic v0.7.0 "The Ultimate" mapper.
 
 ## Getting Started
 

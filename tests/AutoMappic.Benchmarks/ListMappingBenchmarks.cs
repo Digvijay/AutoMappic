@@ -49,7 +49,7 @@ public class ListMappingBenchmarks
 
     [Benchmark]
     public List<PointDto> AutoMappic_List_ZeroLinq() =>
-        _autoMappic.Map<List<PointSource>, List<PointDto>>(_source);
+        _source.MapTo<List<PointDto>>(_autoMappic);
 
     [Benchmark]
     public List<PointDto> Manual_List()

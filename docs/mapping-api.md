@@ -86,6 +86,16 @@ using var reader = cmd.ExecuteReader();
 var users = reader.Map<UserDto>();
 ```
 
+### DataReader.MapAsync (v0.7.0 "The Ultimate" Streaming)
+Stream millions of rows directly into your logic with zero allocation using `IAsyncEnumerable<T>`.
+```csharp
+using var reader = await cmd.ExecuteReaderAsync();
+await foreach (var user in reader.MapAsync<UserDto>())
+{
+    // Process user without loading the entire result set in memory!
+}
+```
+
 ## 6. Standalone Mappings ([AutoMap])
 
 AutoMappic v0.6.0 allows you to define mappings directly on your DTO classes, eliminating the need for a separate `Profile` class for simple scenarios.
@@ -144,12 +154,12 @@ public class OrderProfile : Profile
 }
 ```
 
-## 7. Choosing Your Mapping Path
+## 8. Choosing Your Mapping Path
 
 AutoMappic offers two ways to invoke generated code. Understanding the difference is key to long-term architectural success.
 
-### Path A: Automatic Interception (Recommended)
-This is the default path. You use the standard `IMapper` interface exactly like you would with AutoMapper.
+### Path A: Classic Interception (Standard)
+This is the default path. You use the standard `IMapper` interface exactly like you would with legacy mapping solutions.
 
 ```csharp
 using AutoMappic;
@@ -157,19 +167,19 @@ using AutoMappic;
 var dto = mapper.Map<User, UserDto>(source);
 ```
 
-*   **How it works**: At compile-time, a **Roslyn Interceptor** Diverts this call to a highly optimized static method. 
+*   **How it works**: At compile-time, a **Roslyn Interceptor** diverts this call to a highly optimized static method. 
 *   **Namespace Required**: `using AutoMappic;`
 *   **Benefit**: 100% syntactical compatibility with existing codebases. No changes required to your business logic.
 
-### Path B: Explicit Extension Methods (High Performance)
-For scenarios where every microsecond counts (e.g., tight loops or Native AOT hot paths), you can call the generated code directly as an extension method on your source object.
+### Path B: Fluent Pattern (v0.7.0 Recommended)
+For a more modern, object-oriented approach, you can call the generated code directly as an extension method on your source object while passing the mapper instance.
 
 ```csharp
-using AutoMappic.Generated;
+using AutoMappic;
 // ...
-var dto = source.MapToUserDto();
+var dto = source.MapTo<UserDto>(mapper);
 ```
 
-*   **How it works**: You call the generated extension method directly. This bypasses the `IMapper` interface resolution entirely. 
-*   **Namespace Required**: `using AutoMappic.Generated;` (This is where the generator places its output).
-*   **Benefit**: Eliminates the (minor) overhead of interface dispatch and `IMapper` injection. Ideal for low-latency systems.
+*   **How it works**: A generic extension method intercepts the `MapTo<TDest>` call just like standard mapping.
+*   **Namespace Required**: `using AutoMappic;`
+*   **Benefit**: Elegant syntax that plays beautifully with LINQ (`.Select(x => x.MapTo<Dest>(mapper))`) and retains full static interception and AOT-safety without interface dispatch overhead.
