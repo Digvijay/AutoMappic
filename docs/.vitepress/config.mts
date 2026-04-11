@@ -63,6 +63,7 @@ export default withMermaid(defineConfig({
       {
         text: 'Tutorials',
         items: [
+          { text: 'Hello World Sample', link: '/tutorials/hello-world' },
           { text: 'Full Features Case Study', link: '/tutorials/full-features-walkthrough' },
           { text: 'Standalone Mapping ([AutoMap])', link: '/tutorials/standalone-mapping' },
           { text: 'Basic Mapping', link: '/tutorials/basic-mapping' },

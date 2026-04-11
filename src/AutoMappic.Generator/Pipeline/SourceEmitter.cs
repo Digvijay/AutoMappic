@@ -611,6 +611,7 @@ internal static class SourceEmitter
         sb.AppendLine("    }");
     }
 
+
     public static (string HintName, string Source) EmitInterceptors(
         ImmutableArray<InterceptLocation> locations,
         IReadOnlyDictionary<string, MappingModel> mappingsByKey)
@@ -638,44 +639,7 @@ internal static class SourceEmitter
         sb.AppendLine();
         sb.AppendLine("namespace AutoMappic.Generated");
         sb.AppendLine("{");
-        sb.AppendLine("    /// <summary>Provides runtime state for recursive graph mapping and identity management.</summary>");
-        sb.AppendLine("    [global::System.ComponentModel.EditorBrowsable(global::System.ComponentModel.EditorBrowsableState.Never)]");
-        sb.AppendLine("    public readonly struct MappingContext");
-        sb.AppendLine("    {");
-        sb.AppendLine("        private readonly global::System.Collections.Generic.Dictionary<global::System.ValueTuple<global::System.Type, object>, object>? _tracked;");
-        sb.AppendLine("        public int Depth { get; }");
-        sb.AppendLine();
-        sb.AppendLine("        public MappingContext() { _tracked = null; Depth = 0; }");
-        sb.AppendLine("        public MappingContext(bool enableTracking) { _tracked = enableTracking ? new() : null; Depth = 0; }");
-        sb.AppendLine("        private MappingContext(global::System.Collections.Generic.Dictionary<global::System.ValueTuple<global::System.Type, object>, object>? tracked, int depth)");
-        sb.AppendLine("        {");
-        sb.AppendLine("            _tracked = tracked;");
-        sb.AppendLine("            Depth = depth;");
-        sb.AppendLine("        }");
-        sb.AppendLine();
-        sb.AppendLine("        /// <summary>Increments the recursion depth and returns a new context state.</summary>");
-        sb.AppendLine("        public MappingContext Next()");
-        sb.AppendLine("        {");
-        sb.AppendLine("            if (Depth > 128) throw new global::AutoMappic.AutoMappicException(\"Circular mapping detected (Max depth 128 exceeded). Enable Identity Management on your mapping profile to handle circular graphs.\");");
-        sb.AppendLine("            return new MappingContext(_tracked, Depth + 1);");
-        sb.AppendLine("        }");
-        sb.AppendLine();
-        sb.AppendLine("        public bool TryGetEntity<TEntity>(object key, out TEntity entity) where TEntity : class");
-        sb.AppendLine("        {");
-        sb.AppendLine("            if (key != null && _tracked != null && _tracked.TryGetValue((typeof(TEntity), key), out var obj) && obj is TEntity typed)");
-        sb.AppendLine("            {");
-        sb.AppendLine("                entity = typed;");
-        sb.AppendLine("                return true;");
-        sb.AppendLine("            }");
-        sb.AppendLine("            entity = default!;");
-        sb.AppendLine("            return false;");
-        sb.AppendLine("        }");
-        sb.AppendLine("        public void Register<TEntity>(object key, TEntity entity) where TEntity : class");
-        sb.AppendLine("        {");
-        sb.AppendLine("            if (key != null && _tracked != null) _tracked[(typeof(TEntity), key)] = entity;");
-        sb.AppendLine("        }");
-        sb.AppendLine("    }");
-        sb.AppendLine();
+
         sb.AppendLine("    /// <summary>Internal call-site interceptors for IMapper redirection.</summary>");
         sb.AppendLine("    [global::System.ComponentModel.EditorBrowsable(global::System.ComponentModel.EditorBrowsableState.Never)]");
         sb.AppendLine("    internal static class MapperInterceptors");

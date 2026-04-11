@@ -75,5 +75,49 @@ internal sealed class HasAutoMappicProfilesAttribute : global::System.Attribute;
 [global::System.AttributeUsage(global::System.AttributeTargets.Method)]
 internal sealed class AutoMappicConverterAttribute : global::System.Attribute;
 ");
+
+        // Emit Mapping Context
+        spc.AddSource("MappingContext.g.cs", @"
+#nullable enable
+namespace AutoMappic.Generated
+{
+    [global::System.ComponentModel.EditorBrowsable(global::System.ComponentModel.EditorBrowsableState.Never)]
+    internal readonly struct MappingContext
+    {
+        private readonly global::System.Collections.Generic.Dictionary<global::System.ValueTuple<global::System.Type, object>, object>? _tracked;
+        public int Depth { get; }
+
+        public MappingContext() { _tracked = null; Depth = 0; }
+        public MappingContext(bool enableTracking) { _tracked = enableTracking ? new() : null; Depth = 0; }
+        private MappingContext(global::System.Collections.Generic.Dictionary<global::System.ValueTuple<global::System.Type, object>, object>? tracked, int depth)
+        {
+            _tracked = tracked;
+            Depth = depth;
+        }
+
+        public MappingContext Next()
+        {
+            if (Depth > 128) throw new global::System.Exception(""Circular mapping detected"");
+            return new MappingContext(_tracked, Depth + 1);
+        }
+
+        public bool TryGetEntity<TEntity>(object key, out TEntity entity) where TEntity : class
+        {
+            if (key != null && _tracked != null && _tracked.TryGetValue((typeof(TEntity), key), out var obj) && obj is TEntity typed)
+            {
+                entity = typed;
+                return true;
+            }
+            entity = default!;
+            return false;
+        }
+
+        public void Register<TEntity>(object key, TEntity entity) where TEntity : class
+        {
+            if (key != null && _tracked != null) _tracked[(typeof(TEntity), key)] = entity;
+        }
+    }
+}
+");
     }
 }

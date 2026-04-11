@@ -5,7 +5,7 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [0.7.0] - 2026-04-10
+## [0.7.0] - 2026-04-11
 
 ### Added
 - **"The Ultimate" Database Streaming**: Upgraded `DbDataReader.MapAsync` to return `IAsyncEnumerable<T>`. This enables zero-allocation, non-blocking streaming of database results directly into your application logic via `await foreach`.
@@ -21,6 +21,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Recursion Safety Guard**: Implemented an automatic 128-level recursion depth check in the generated `MappingContext` to prevent `StackOverflowException` in complex or circular object graphs.
 
 ### Fixed
+- **MappingContext CS0436 Integrity**: Resolved a brutal namespace collision where `MappingContext.g.cs` would conflict with identical core definitions. `MappingContext` is now a native `AutoMappic.Core` class, preventing any duplication errors across projects.
 - **Pascal-to-camel Mapping**: Resolved an issue where property matching would fail if mapping between different naming conventions without explicit configuration.
 - **Interception Precision**: Corrected parameter name mismatches (`ct` vs `cancellationToken`) in async shims to ensure reliable interception of database mapping calls.
 
