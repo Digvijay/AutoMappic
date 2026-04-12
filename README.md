@@ -1,6 +1,6 @@
 ![AutoMappic Hero](./docs/public/assets/hero.png)
 
-# AutoMappic v0.6.0
+# AutoMappic v0.7.0
 
 [![NuGet](https://img.shields.io/nuget/v/AutoMappic?style=flat-square&logo=nuget)](https://www.nuget.org/packages/AutoMappic)
 [![CI](https://github.com/Digvijay/AutoMappic/actions/workflows/ci.yml/badge.svg?style=flat-square)](https://github.com/Digvijay/AutoMappic/actions/workflows/ci.yml)
@@ -16,7 +16,7 @@ AutoMappic is a high-performance object-to-object mapper for .NET 9 and .NET 10.
 ---
 
 ## Table of Contents
-1. [What's New in v0.6.0](#whats-new-in-v060)
+1. [What's New in v0.7.0](#whats-new-in-v070)
 2. [Goals](#goals)
 3. [Benchmarks](#benchmarks)
 4. [Quick Start](#quick-start)
@@ -27,26 +27,25 @@ AutoMappic is a high-performance object-to-object mapper for .NET 9 and .NET 10.
 
 ---
 
-## What's New in v0.6.0
+## What's New in v0.7.0
 
-v0.5.0 introduces **Persistence Intelligence** and **Developer Productivity** features, bridging the gap between simple mapping and complex entity synchronization while making the mapping process even faster with Smart-Match suggestions.
+v0.7.0 is our "Ultimate" release, bringing advanced database streaming, a new fluent mapping API, and robust Hot-Reload support to make the development experience faster and more fluid.
 
-### Smart-Sync (EF Core Identity Mapping)
-AutoMappic now intelligently synchronizes nested collections by comparing primary keys (`Id`, `[Key]`, or `[AutoMappicKey]`). Existing entities are updated **in-place**, preserving EF Core's Change Tracker state and eliminating redundant database operations.
+### "The Ultimate" Database Streaming
+`DbDataReader.MapAsync` now returns an `IAsyncEnumerable<T>`, enabling zero-allocation, non-blocking streaming of database results directly into your application logic via `await foreach`.
 
-### Smart-Match (AI-Lite Fuzzy Suggestions)
-Never manually map a typo again. The AM0015 Smart-Match analyzer detects unmapped properties with similar names and provides a direct IDE Code-Fix to automatically apply the correct `[MapProperty]` attribute.
+### Fluent MapTo API
+Introduced `source.MapTo<TDest>(mapper)` extension methods for a more natural, object-oriented syntax that is still 100% statically intercepted. We've also included a built-in `migrate` CLI command to easily transition your legacy code.
 
-### Performance Guardrails
-AM0016 warns you if your custom collection mapping logic (like LINQ `.Select`) is preventing compiler loop vectorization, ensuring your hot paths stay truly zero-overhead.
+### Cross-Environment Excellence
+From native AOT hardening and Wasm/Blazor optimizations to a robust recursion safety guard, v0.7.0 runs everywhere seamlessly. We also added first-class support for mapping between PascalCase domain models and camelCase JSON DTOs.
 
 | Feature | Description |
 | :--- | :--- |
-| **Identity Management** | Opt-in `MappingContext` tracks object instances, prevents cyclic recursion, and enables entity-aware graph resolution. Enable via `<AutoMappic_EnableIdentityManagement>true` in your `.csproj`. |
-| **Collection Syncing** | Key-based "Match-and-Sync" diffing replaces "Clear-and-Add" for collections, preserving EF Core change tracker state. |
-| **Patch Mode** | With identity management active, nullable source properties generate conditional assignments (`if (source.Prop != null)`), enabling seamless HTTP PATCH. |
-| **Static Converters** | `[AutoMappicConverter]` attribute enables zero-allocation custom mapping methods that bypass reflection entirely. |
-| **AM0013 Diagnostic** | Build-time warning for required property/nullable source mismatches in patch mode. |
+| **Hot-Reload Support** | High-performance `HotReloadRegistry` ensures ultra-fast mapping continues uninterrupted during aggressive edit-and-continue sessions. |
+| **CamelCase Support** | `CamelCaseNamingConvention` solves mismatches between C# record properties and external JSON schemas. |
+| **Enhanced Diagnostics** | Improved `AM0006` (Circular Reference) detection and recursion safety guard safeguard your mappings. |
+| **Integrity Checks** | Robust 128-level recursion limiter and the eradication of `MappingContext` CS0436 conflicts across multi-project solutions. |
 
 ---
 
@@ -109,7 +108,7 @@ AutoMappic achieves performance parity with manual hand-written C# by shifting a
 - **Enterprise Ready**: Support for cyclic graphs, identity management, and collection syncing.
 - **Diagnostic Safety**: Rich build-time feedback (e.g., **AM0013** for patch-mode integrity).
 
-## Performance Comparison (v0.5.0)
+## Performance Comparison (v0.7.0)
 
 | Metric | AutoMapper (JIT) | AutoMappic (Native AOT) | Advantage |
 | :--- | :--- | :--- | :--- |
@@ -123,7 +122,7 @@ AutoMappic achieves performance parity with manual hand-written C# by shifting a
 *   **AutoMappic.Generator**: The Roslyn incremental source generator. Typically included as a private asset/analyzer.
 
 ```xml
-<PackageReference Include="AutoMappic" Version="0.6.0" />
+<PackageReference Include="AutoMappic" Version="0.7.0" />
 ```
 
 ## Diagnostics
