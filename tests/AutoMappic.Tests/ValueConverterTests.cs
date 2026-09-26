@@ -1,3 +1,4 @@
+using System.Globalization;
 using Microsoft.Extensions.DependencyInjection;
 using Prova;
 
@@ -42,7 +43,11 @@ public class DoublingConverter : IValueConverter<int, int>
 
 public class MoneyConverter : IValueConverter<decimal, string>
 {
-    public string Convert(decimal sourceMember) => $"${sourceMember:F2}";
+    // The "$" prefix is fixed, so the number has to be formatted with a fixed
+    // culture too. Interpolating used the ambient culture, which yields
+    // "$99,99" on any comma-decimal locale and only passed because CI runs en-US.
+    public string Convert(decimal sourceMember) =>
+        "$" + sourceMember.ToString("F2", CultureInfo.InvariantCulture);
 }
 
 public class ConvOrderSource { public decimal Price { get; set; } }
