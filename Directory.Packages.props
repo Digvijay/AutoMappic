@@ -26,7 +26,7 @@
     <PackageVersion Include="AutoMapper" Version="16.2.0" />
     <PackageVersion Include="Riok.Mapperly" Version="4.3.1" />
     <!-- CLI & Tools -->
-    <PackageVersion Include="System.CommandLine" Version="2.0.0-beta4.22272.1" />
+    <PackageVersion Include="System.CommandLine" Version="2.0.12" />
     <PackageVersion Include="Microsoft.Build.Locator" Version="1.11.2" />
     <!-- Compile-time only; the real MSBuild comes from the instance MSBuildLocator registers. Kept at the floor Microsoft.CodeAnalysis.Workspaces.MSBuild resolves to. -->
     <PackageVersion Include="Microsoft.Build" Version="17.7.2" />
@@ -34,7 +34,7 @@
     <PackageVersion Include="Microsoft.CodeAnalysis.Workspaces.MSBuild" Version="4.14.0" />
     <PackageVersion Include="Microsoft.CodeAnalysis.Workspaces.Common" Version="4.14.0" />
     <PackageVersion Include="Microsoft.CodeAnalysis.Common" Version="4.14.0" />
-    <PackageVersion Include="Microsoft.NET.StringTools" Version="18.10.1" />
+    <PackageVersion Include="Microsoft.NET.StringTools" Version="17.14.28" />
     <PackageVersion Include="Microsoft.Build.Framework" Version="17.14.28" />
     <PackageVersion Include="Microsoft.Build.Tasks.Core" Version="17.14.28" />
     <PackageVersion Include="Microsoft.Build.Utilities.Core" Version="17.14.28" />

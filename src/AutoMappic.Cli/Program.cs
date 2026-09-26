@@ -26,37 +26,40 @@ internal sealed class Program
 
         var root = new RootCommand("AutoMappic CLI - Mapping validation and visualization tool.");
 
-        var projectArg = new Argument<string>("project", "The path to the .csproj file.");
-        var validateFormatOpt = new Option<string>("--format", () => "text", "The output format (text, json).");
+        var projectArg = new Argument<string>("project") { Description = "The path to the .csproj file." };
+        var validateFormatOpt = new Option<string>("--format") { Description = "The output format (text, json).", DefaultValueFactory = _ => "text" };
         var validate = new Command("validate", "Validates all mapping declarations in a project.")
         {
             projectArg,
             validateFormatOpt
         };
 
-        validate.SetHandler(ValidateProject, projectArg, validateFormatOpt);
-        root.AddCommand(validate);
+        validate.SetAction((parseResult, cancellationToken) =>
+            ValidateProject(parseResult.GetValue(projectArg)!, parseResult.GetValue(validateFormatOpt)!));
+        root.Subcommands.Add(validate);
 
-        var vizProjectArg = new Argument<string>("project", "The path to the .csproj file.");
-        var formatOpt = new Option<string>("--format", () => "mermaid", "The visualization format (mermaid).");
+        var vizProjectArg = new Argument<string>("project") { Description = "The path to the .csproj file." };
+        var formatOpt = new Option<string>("--format") { Description = "The visualization format (mermaid).", DefaultValueFactory = _ => "mermaid" };
         var visualize = new Command("visualize", "Generates a mapping graph visualization.")
         {
             vizProjectArg,
             formatOpt
         };
 
-        visualize.SetHandler(VisualizeProject, vizProjectArg, formatOpt);
-        root.AddCommand(visualize);
+        visualize.SetAction((parseResult, cancellationToken) =>
+            VisualizeProject(parseResult.GetValue(vizProjectArg)!, parseResult.GetValue(formatOpt)!));
+        root.Subcommands.Add(visualize);
 
-        var migrateProjectArg = new Argument<string>("project", "The path to the .csproj file to migrate.");
+        var migrateProjectArg = new Argument<string>("project") { Description = "The path to the .csproj file to migrate." };
         var migrate = new Command("migrate", "Migrates a codebase from AutoMapper to AutoMappic.")
         {
             migrateProjectArg
         };
-        migrate.SetHandler(MigrateProject, migrateProjectArg);
-        root.AddCommand(migrate);
+        migrate.SetAction((parseResult, cancellationToken) =>
+            MigrateProject(parseResult.GetValue(migrateProjectArg)!));
+        root.Subcommands.Add(migrate);
 
-        return await root.InvokeAsync(args);
+        return await root.Parse(args).InvokeAsync().ConfigureAwait(false);
     }
 
     private static readonly JsonSerializerOptions _jsonOptions = new() { WriteIndented = true };

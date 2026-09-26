@@ -8,6 +8,17 @@ updates:
     labels:
       - "dependencies"
     groups:
+      # Microsoft.Build.*, Microsoft.NET.StringTools and Microsoft.Build.Locator
+      # ship from the MSBuild repository as a matched set and are loaded into a
+      # single MSBuild instance at run time. Updating one without the others
+      # produces a mixed-version closure -- taking StringTools 18.x while the
+      # rest sat at 17.14.28 both skewed that set and dropped net9.0 support.
+      # Group them so Dependabot can only propose them together.
+      msbuild:
+        patterns:
+          - "Microsoft.Build"
+          - "Microsoft.Build.*"
+          - "Microsoft.NET.StringTools"
       microsoft-extensions:
         patterns:
           - "Microsoft.Extensions.*"
