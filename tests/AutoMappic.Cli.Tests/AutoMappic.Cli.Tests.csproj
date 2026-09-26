@@ -1,7 +1,9 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <OutputType>Exe</OutputType>
-    <TargetFramework>net10.0</TargetFramework>
+    <!-- Matches AutoMappic.Cli's TargetFramework so the tests exercise the
+         framework the tool actually ships on. -->
+    <TargetFramework>net9.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
     <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
@@ -13,5 +15,19 @@
     <PackageReference Include="Prova" />
     <PackageReference Include="Microsoft.Testing.Platform.MSBuild" />
     <ProjectReference Include="..\..\src\AutoMappic.Cli\AutoMappic.Cli.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- Mirrors AutoMappic.Cli. Those declarations use PrivateAssets="all", so
+         they deliberately do not flow across the ProjectReference, and
+         Microsoft.Build still arrives here transitively via
+         Microsoft.CodeAnalysis.Workspaces.MSBuild. Without the same treatment
+         the MSBuild assemblies are copied next to the test host and shadow the
+         SDK instance MSBuildLocator registers (MSBL001). -->
+    <PackageReference Include="Microsoft.Build" ExcludeAssets="runtime" PrivateAssets="all" />
+    <PackageReference Include="Microsoft.Build.Framework" ExcludeAssets="runtime" PrivateAssets="all" />
+    <PackageReference Include="Microsoft.Build.Utilities.Core" ExcludeAssets="runtime" PrivateAssets="all" />
+    <PackageReference Include="Microsoft.Build.Tasks.Core" ExcludeAssets="runtime" PrivateAssets="all" />
+    <PackageReference Include="Microsoft.NET.StringTools" ExcludeAssets="runtime" PrivateAssets="all" />
   </ItemGroup>
 </Project>

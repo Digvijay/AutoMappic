@@ -23,7 +23,11 @@ jobs:
     - name: Setup .NET
       uses: actions/setup-dotnet@v6
       with:
-        dotnet-version: 10.0.x
+        # 9.0.x is needed as well as 10.0.x: AutoMappic.Core ships a net9.0
+        # target and the CLI runs on net9.0, so both have tests to execute.
+        dotnet-version: |
+          9.0.x
+          10.0.x
 
     - name: Restore dependencies
       run: dotnet restore AutoMappic.sln
@@ -32,7 +36,13 @@ jobs:
       run: dotnet build AutoMappic.sln --no-restore --configuration Release
 
     - name: Test
-      run: dotnet run --project tests/AutoMappic.Tests/AutoMappic.Tests.csproj --configuration Release
+      # Run every shipped target framework, and both test projects. Previously
+      # this ran AutoMappic.Tests on its single TFM only, so the CLI's tests
+      # never executed in CI at all.
+      run: |
+        dotnet run --project tests/AutoMappic.Tests/AutoMappic.Tests.csproj --configuration Release --no-build -f net9.0
+        dotnet run --project tests/AutoMappic.Tests/AutoMappic.Tests.csproj --configuration Release --no-build -f net10.0
+        dotnet run --project tests/AutoMappic.Cli.Tests/AutoMappic.Cli.Tests.csproj --configuration Release --no-build -f net9.0
 
     - name: Pack
       env:

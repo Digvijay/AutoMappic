@@ -31,6 +31,18 @@ updates:
           - "xunit*"
           - "Microsoft.NET.Test.Sdk"
           - "coverlet.*"
+    ignore:
+      # MSBuild 18.x requires net11.0 -- building against it from net9.0 emits
+      # "doesn't support net9.0 and has not been tested with it". That warning
+      # comes from a targets file rather than the compiler, so it slips past
+      # TreatWarningsAsErrors and CI stays green while the closure is wrong.
+      # These can only move once AutoMappic.Cli targets net11.0 or later.
+      - dependency-name: "Microsoft.Build"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "Microsoft.Build.*"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "Microsoft.NET.StringTools"
+        update-types: ["version-update:semver-major"]
 
   - package-ecosystem: "github-actions"
     directory: "/"
