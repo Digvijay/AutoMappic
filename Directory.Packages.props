@@ -42,7 +42,7 @@
          band rather than to a later 10.0.2xx. 10.0.401 sits outside every
          vulnerable range in the advisory. -->
     <PackageVersion Include="Microsoft.Build.Tasks.Git" Version="10.0.401" />
-    <PackageVersion Include="Nerdbank.GitVersioning" Version="3.6.143" />
+    <PackageVersion Include="Nerdbank.GitVersioning" Version="3.10.94" />
     <!-- Security Overrides for Transitive Dependencies -->
     <PackageVersion Include="System.Formats.Asn1" Version="9.0.2" />
     <PackageVersion Include="System.Text.Json" Version="9.0.2" />
