@@ -11,7 +11,7 @@ This project implements the **Roslyn Incremental Source Generator**. It is an in
 End users do not reference this project directly. Instead, they install the main library:
 
 ```xml
-<PackageReference Include="AutoMappic" Version="0.5.0" />
+<PackageReference Include="AutoMappic" Version="0.7.0" />
 ```
 
 At build time, the NuGet package provides both the runtime abstractions and this generator in the `analyzers/` folder, enabling zero-configuration mapping generation.

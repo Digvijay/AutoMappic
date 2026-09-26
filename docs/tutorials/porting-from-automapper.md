@@ -21,7 +21,7 @@ In your project file (`.csproj`), remove the AutoMapper packages and add AutoMap
   <!-- <PackageReference Include="AutoMapper.Extensions.Microsoft.DependencyInjection" Version="..." /> -->
 
   <!-- Add this -->
-  <PackageReference Include="AutoMappic" Version="0.5.0" />
+  <PackageReference Include="AutoMappic" Version="0.7.0" />
 </ItemGroup>
 ```
 
