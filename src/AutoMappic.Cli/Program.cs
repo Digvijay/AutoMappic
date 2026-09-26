@@ -215,7 +215,7 @@ internal sealed class Program
                 {
                     System.IO.File.WriteAllText(path, newText);
                     fileCount++;
-                    replacements += regex.Matches(text).Count;
+                    replacements += regex.Count(text);
                     Console.WriteLine($"  [REF] Updated: {System.IO.Path.GetFileName(path)}");
                 }
             }
