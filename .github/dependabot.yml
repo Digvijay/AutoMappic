@@ -34,6 +34,14 @@ updates:
       interval: "weekly"
     labels:
       - "dependencies"
+    ignore:
+      # vitepress-plugin-mermaid (latest: 2.0.17) declares a peer range of
+      # mermaid "10 || 11". Taking mermaid 12 satisfies npm's version check but
+      # violates that peer range, so `npm ci` fails ERESOLVE and the docs site
+      # stops deploying. Hold the major until the plugin supports mermaid 12,
+      # or until the docs move to a maintained alternative.
+      - dependency-name: "mermaid"
+        update-types: ["version-update:semver-major"]
 
   - package-ecosystem: "dotnet-sdk"
     directory: "/"
