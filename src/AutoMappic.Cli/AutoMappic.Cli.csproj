@@ -25,6 +25,16 @@
     <PackageReference Include="System.CommandLine" />
     <PackageReference Include="Microsoft.CodeAnalysis.CSharp" />
     <PackageReference Include="Microsoft.Build.Locator" />
+    <!-- MSBuildLocator loads MSBuild from the SDK instance it registers at
+         run time. Microsoft.CodeAnalysis.Workspaces.MSBuild drags Microsoft.Build
+         in transitively, and without ExcludeAssets="runtime" those assemblies are
+         also copied next to the tool, where they shadow the registered ones and
+         break assembly loading. Build.Locator 1.11.2 detects this as MSBL001. -->
+    <PackageReference Include="Microsoft.Build" ExcludeAssets="runtime" PrivateAssets="all" />
+    <PackageReference Include="Microsoft.Build.Framework" ExcludeAssets="runtime" PrivateAssets="all" />
+    <PackageReference Include="Microsoft.Build.Utilities.Core" ExcludeAssets="runtime" PrivateAssets="all" />
+    <PackageReference Include="Microsoft.Build.Tasks.Core" ExcludeAssets="runtime" PrivateAssets="all" />
+    <PackageReference Include="Microsoft.NET.StringTools" ExcludeAssets="runtime" PrivateAssets="all" />
     <PackageReference Include="Microsoft.CodeAnalysis.CSharp.Workspaces" />
     <PackageReference Include="Microsoft.CodeAnalysis.Workspaces.MSBuild" />
   </ItemGroup>
