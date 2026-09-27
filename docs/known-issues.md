@@ -526,8 +526,13 @@ GHSA-8q5v-6pqq-x66h, GHSA-cvvh-rhrc-wg4q, GHSA-g8r8-53c2-pm3f, GHSA-mmjf-rqrv-85
 GHSA-w3x6-4m5h-cxqf and one further advisory). Nothing in AutoMappic calls the package, but it
 was still resolved into the shipped tool.
 
-Fixed by pinning a patched version. `dotnet list ... --vulnerable --include-transitive` now
-reports no vulnerable packages for any project, including `AutoMappic.Cli`.
+Fixed by pinning a patched version. Note that the first attempted pin, 10.0.0, is vulnerable to
+all nine advisories as well - a local vulnerability audit reported it clean, because the package
+mirror used for local builds does not carry nuget.org's advisory data. Only the CI audit caught
+it. 10.0.10 is the first 10.x release patched for every one of the nine; 10.0.12 is pinned as
+the first such release available, matching the 10.0.12 BCL packages already in use.
+
+The lesson worth keeping: a local audit against a mirror is not evidence of a clean result.
 
 ## 23. The AOT and trim gate measured the tests instead of the library
 
