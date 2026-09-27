@@ -13,7 +13,9 @@ namespace AutoMappic;
 ///   reads <c>CreateMap&lt;TSource, TDestination&gt;()</c> calls from the Roslyn syntax tree
 ///   and does not instantiate this class.
 /// </remarks>
-internal sealed class MappingExpression<TSource, TDestination> :
+internal sealed class MappingExpression<
+    [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicProperties | DynamicallyAccessedMemberTypes.PublicMethods)] TSource,
+    [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicProperties | DynamicallyAccessedMemberTypes.PublicMethods | DynamicallyAccessedMemberTypes.PublicParameterlessConstructor)] TDestination> :
     IMappingExpression<TSource, TDestination>
 {
     // Keyed by destination member name.
@@ -21,6 +23,7 @@ internal sealed class MappingExpression<TSource, TDestination> :
     internal readonly Dictionary<string, Func<object, object?>> RuntimeMaps = new(StringComparer.Ordinal);
     private readonly HashSet<string> _ignoredMembers = new(StringComparer.Ordinal);
     private readonly Profile? _profile;
+    [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicParameterlessConstructor | DynamicallyAccessedMemberTypes.PublicMethods)]
     private Type? _converterType;
     private Action<TSource, TDestination>? _beforeMap;
     private Action<TSource, TDestination>? _afterMap;
@@ -47,9 +50,11 @@ internal sealed class MappingExpression<TSource, TDestination> :
     public bool SuppressUnmapped => _suppressUnmapped;
 
     /// <inheritdoc />
+    [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicProperties | DynamicallyAccessedMemberTypes.PublicMethods)]
     public Type SourceType => typeof(TSource);
 
     /// <inheritdoc />
+    [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicProperties | DynamicallyAccessedMemberTypes.PublicMethods | DynamicallyAccessedMemberTypes.PublicParameterlessConstructor)]
     public Type DestinationType => typeof(TDestination);
 
     /// <inheritdoc />
@@ -62,6 +67,7 @@ internal sealed class MappingExpression<TSource, TDestination> :
     IReadOnlyDictionary<string, Func<object, object?>> IMappingExpression.RuntimeMaps => RuntimeMaps;
 
     /// <inheritdoc />
+    [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicParameterlessConstructor | DynamicallyAccessedMemberTypes.PublicMethods)]
     public Type? ConverterType => _converterType;
 
     /// <inheritdoc />
@@ -314,3 +320,4 @@ internal sealed class MemberConfigurationExpression<TSource, TDestination, TMemb
         MapFromExpression = src => new TConverter().Convert(sourceMember.Compile()(src));
     }
 }
+

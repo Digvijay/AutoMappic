@@ -1,3 +1,5 @@
+using System.Diagnostics.CodeAnalysis;
+
 namespace AutoMappic;
 
 /// <summary>
@@ -51,7 +53,10 @@ public interface IMapperConfigurationExpression
     void AddMaps(params System.Reflection.Assembly[] assemblies);
 
     /// <summary>Creates a new mapping configuration directly on the expression.</summary>
-    IMappingExpression<TSource, TDestination> CreateMap<TSource, TDestination>();
+    /// <remarks>See the remarks on <see cref="Profile.CreateMap{TSource, TDestination}" />.</remarks>
+    IMappingExpression<TSource, TDestination> CreateMap<
+        [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicProperties | DynamicallyAccessedMemberTypes.PublicMethods)] TSource,
+        [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicProperties | DynamicallyAccessedMemberTypes.PublicMethods | DynamicallyAccessedMemberTypes.PublicParameterlessConstructor)] TDestination>();
 }
 
 /// <summary>Empty marker interface for AutoMapper compatibility.</summary>
@@ -87,7 +92,10 @@ internal sealed class MapperConfigurationExpression : IMapperConfigurationExpres
         }
     }
 
-    public IMappingExpression<TSource, TDestination> CreateMap<TSource, TDestination>()
+    /// <remarks>See the remarks on <see cref="Profile.CreateMap{TSource, TDestination}" />.</remarks>
+    public IMappingExpression<TSource, TDestination> CreateMap<
+        [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicProperties | DynamicallyAccessedMemberTypes.PublicMethods)] TSource,
+        [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicProperties | DynamicallyAccessedMemberTypes.PublicMethods | DynamicallyAccessedMemberTypes.PublicParameterlessConstructor)] TDestination>()
         => _adHoc.CreateMap<TSource, TDestination>();
 
     private sealed class AdHocProfile : Profile { }

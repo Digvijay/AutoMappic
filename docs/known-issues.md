@@ -548,6 +548,38 @@ The gate therefore could not fail for a real reason: the signal from the shipped
 buried under 96% noise. Scoped to `src/AutoMappic.Core`, which builds clean under the same
 switches.
 
+## 24. The trim requirement sat on the declarative API, not the reflective one
+
+`Profile.CreateMap<TSource, TDestination>()` carried `[RequiresUnreferencedCode]`. That is the
+API the source generator reads: declaring a mapping is how a consumer opts *into* the generated,
+reflection-free path. Annotating it meant the library's advertised AOT-safe usage produced a trim
+error for every correct consumer. `samples/AotBenchmark` - the sample whose entire purpose is to
+demonstrate Native AOT - failed its own gate on the line `CreateMap<User, UserDto>();`.
+
+The requirement belongs to the runtime fallback in `Mapper.BuildFallbackDelegate`, which is what
+actually reflects. Six `IL2072`/`IL2075` errors there were the honest signal, and they were
+reported because the fallback received `Type` values carrying no annotation.
+
+Fixed by replacing the blanket annotation with `DynamicallyAccessedMembers` constraints naming
+exactly the members the fallback reflects over - `PublicProperties | PublicMethods` on the source,
+plus `PublicParameterlessConstructor` on the destination, and
+`PublicParameterlessConstructor | PublicMethods` on converter types. This is a stronger guarantee
+than the attribute it replaces: the trimmer now *preserves* those members instead of merely
+warning that they might vanish.
+
+The constraint cascades, and the analyzer enumerates the sites: `IMappingExpression`,
+`IMappingExpression<,>`, `MappingExpression<,>` and its `_converterType` field,
+`IMapperConfigurationExpression`, `MapperConfigurationExpression`, `MapperConfiguration` and
+`OpenGenericMappingExpression`. Interface and implementation must agree exactly or the build fails
+with `IL2093`/`IL2095`, which `AotAnnotationParityTests` also guards at runtime.
+
+Consumer-visible consequence: a caller that forwards its own generic parameters into `CreateMap`
+must now propagate the same `DynamicallyAccessedMembers` constraints.
+
+`ProfileAotAnnotationTests` previously asserted the attribute was *present*. That assertion
+encoded the defect, so it now asserts the inverse contract - no `RequiresUnreferencedCode`, and
+the type parameters carry the required member kinds.
+
 ## Supported frameworks
 
 AutoMappic multi-targets `net8.0` (LTS) and `net10.0` (current); `net8.0` was previously skipped

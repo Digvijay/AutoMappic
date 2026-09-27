@@ -8,9 +8,18 @@ namespace AutoMappic;
 public interface IMappingExpression
 {
     /// <summary>Gets the CLR type that is the source of this mapping.</summary>
+    /// <remarks>
+    /// The annotation is what makes the runtime fallback trim-safe: it flows the members the
+    /// fallback reflects over back to <c>CreateMap</c>, so the trimmer preserves them instead of
+    /// the library having to declare <see cref="RequiresUnreferencedCodeAttribute"/> and warn
+    /// every consumer, including the ones that only ever use the generated path.
+    /// </remarks>
+    [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicProperties | DynamicallyAccessedMemberTypes.PublicMethods)]
     Type SourceType { get; }
 
     /// <summary>Gets the CLR type that is the destination of this mapping.</summary>
+    /// <remarks>See the remarks on <see cref="SourceType"/>.</remarks>
+    [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicProperties | DynamicallyAccessedMemberTypes.PublicMethods | DynamicallyAccessedMemberTypes.PublicParameterlessConstructor)]
     Type DestinationType { get; }
 
     /// <summary>Members that should be skipped during mapping.</summary>
@@ -23,6 +32,8 @@ public interface IMappingExpression
     IReadOnlyDictionary<string, Func<object, object?>> RuntimeMaps { get; }
 
     /// <summary>Custom type converter for the entire mapping.</summary>
+    /// <remarks>See the remarks on <see cref="SourceType"/>.</remarks>
+    [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicParameterlessConstructor | DynamicallyAccessedMemberTypes.PublicMethods)]
     Type? ConverterType { get; }
 
     /// <summary>Specifies a custom expression for constructing the destination type.</summary>
@@ -75,7 +86,9 @@ public interface IMappingExpression
 /// </summary>
 /// <typeparam name="TSource">The type to map from.</typeparam>
 /// <typeparam name="TDestination">The type to map to.</typeparam>
-public interface IMappingExpression<TSource, TDestination> : IMappingExpression
+public interface IMappingExpression<
+    [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicProperties | DynamicallyAccessedMemberTypes.PublicMethods)] TSource,
+    [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicProperties | DynamicallyAccessedMemberTypes.PublicMethods | DynamicallyAccessedMemberTypes.PublicParameterlessConstructor)] TDestination> : IMappingExpression
 {
     /// <summary>
     ///   Provides an explicit mapping rule for a single destination member, overriding or

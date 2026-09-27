@@ -47,13 +47,47 @@ public class ProfileAotAnnotationTests
         Assert.Null(method.GetCustomAttribute<RequiresDynamicCodeAttribute>());
     }
 
-    /// <summary>The runtime fallback still reflects over members, so trimming remains a risk.</summary>
+    /// <summary>
+    ///   The generic overload must <em>not</em> be marked as requiring unreferenced code, and
+    ///   must instead constrain its type parameters.
+    /// </summary>
+    /// <remarks>
+    ///   This assertion is the inverse of what it used to be. <c>RequiresUnreferencedCode</c> on
+    ///   the generic overload made the library's advertised path unusable under trimming: this is
+    ///   the declarative API the source generator reads, so a consumer got a trim error for
+    ///   merely declaring a profile, even when every mapping it declared was generated at compile
+    ///   time and no reflection ever ran. The requirement belongs to the runtime fallback.
+    ///
+    ///   Constraining the type parameters with <c>DynamicallyAccessedMembers</c> expresses the
+    ///   same requirement without penalising correct use: the trimmer preserves exactly the
+    ///   members the fallback would reflect over, which makes the fallback genuinely safe rather
+    ///   than merely warned about.
+    /// </remarks>
     [Fact]
-    public void Generic_CreateMap_is_still_marked_as_requiring_unreferenced_code()
+    public void Generic_CreateMap_constrains_its_type_parameters_instead_of_requiring_unreferenced_code()
     {
         var method = GenericCreateMap();
 
-        Assert.NotNull(method.GetCustomAttribute<RequiresUnreferencedCodeAttribute>());
+        Assert.Null(method.GetCustomAttribute<RequiresUnreferencedCodeAttribute>());
+
+        var parameters = method.GetGenericArguments();
+        foreach (var parameter in parameters)
+        {
+            var dam = parameter.GetCustomAttribute<DynamicallyAccessedMembersAttribute>();
+            Assert.NotNull(dam);
+            Assert.True(
+                dam!.MemberTypes.HasFlag(DynamicallyAccessedMemberTypes.PublicProperties),
+                parameter.Name + " must preserve public properties for the runtime fallback.");
+            Assert.True(
+                dam.MemberTypes.HasFlag(DynamicallyAccessedMemberTypes.PublicMethods),
+                parameter.Name + " must preserve public methods for the runtime fallback.");
+        }
+
+        var destination = parameters.Single(p => p.Name == "TDestination");
+        Assert.True(
+            destination.GetCustomAttribute<DynamicallyAccessedMembersAttribute>()!
+                .MemberTypes.HasFlag(DynamicallyAccessedMemberTypes.PublicParameterlessConstructor),
+            "TDestination must preserve its parameterless constructor; the fallback activates it.");
     }
 
     /// <summary>The open-generic overload resolves types at runtime and genuinely needs both.</summary>
