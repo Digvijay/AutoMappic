@@ -79,8 +79,18 @@ jobs:
           dotnet-version: 10.0.x
 
       - name: Build with AOT and trim analyzers as errors
+        # Scoped to AutoMappic.Core, the shipped library. Running this over the solution gated
+        # the result on AutoMappic.Tests, which contributed 2562 of the 2672 errors: the tests
+        # exercise the reflective fallback on purpose, so every call correctly reports the
+        # RequiresUnreferencedCode and RequiresDynamicCode the fallback declares. That is the
+        # annotations working, not a defect. The samples, benchmarks and CLI are the same story.
+        # The two generator projects target netstandard2.0, where these analysers are not
+        # supported at all and only produce NETSDK1210.
+        #
+        # The %3B is an escaped semicolon and has to stay escaped: the dotnet CLI splits a -p:
+        # value on semicolons, so a plain list fails with MSB1006 before compiling anything.
         run: >
-          dotnet build AutoMappic.sln
+          dotnet build src/AutoMappic.Core/AutoMappic.Core.csproj
           --configuration Release
           -p:EnableAotAnalyzer=true
           -p:EnableTrimAnalyzer=true

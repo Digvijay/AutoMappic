@@ -489,6 +489,60 @@ the entries above are worth:
   same machine with SDK `11.0.100-rc.1.26425.128` (restore, build and every test, `net8.0`,
   `net10.0` and `net11.0`), with no failures. A release candidate is not a release; the leg
   should be re-run against the GA SDK.
+## 21. Generated projections did not compile for a flattened non-nullable value type
+
+Flattening resolves a nested member into a null-propagating path and appends a fallback, e.g.
+`Metadata?.LastLogin ?? (default!)`. The projection emitter then rewrites `?.` to `.`, because
+EF cannot translate null propagation. That rewrite invalidated the fallback it left behind: with
+the chain no longer nullable, `??` cannot be applied when the member is a non-nullable value
+type. The emitter also appended `!` via `TrimEnd('!') + "!"`, which cannot see a `!` inside a
+parenthesised fallback, so `(default!)` became `(default!)!`.
+
+For a `DateTime` member the generated line was:
+
+```csharp
+MetadataLastLogin = source.Metadata.LastLogin ?? (default!)!,
+```
+
+which fails to compile with CS0019 ("Operator '??' cannot be applied to operands of type
+'DateTime' and 'default'") and CS8715 ("Duplicate null suppression operator"). The fallback is
+also redundant in a projection: a null navigation projects to SQL NULL rather than throwing.
+
+The whole generator test suite passed throughout, because **no test compiled the generated
+output** - every one of them asserted on the emitted text. The defect only appeared in a
+consumer's build, and was found when the AOT publish job failed on `samples/AotBenchmark`.
+
+Fixed by routing both emit sites through a single `SourceEmitter.ToProjectionExpression`, which
+drops the `?? (default!)` guard when it strips `?.` and appends `!` only when one is not already
+present. `ProjectionCompilesTests` now compiles the generator's output and asserts on compiler
+diagnostics; reverting the fix fails three of its four tests with exactly CS0019 and CS8715.
+
+## 22. The CLI shipped a dependency with nine high-severity advisories
+
+`AutoMappic.Cli` depends on the MSBuild packages, which drag in
+`System.Security.Cryptography.Xml` 9.0.0 transitively. That version carries nine known
+high-severity advisories (GHSA-23rf-6693-g89p, GHSA-37gx-xxp4-5rgx, GHSA-6588-8gv4-xfgh,
+GHSA-8q5v-6pqq-x66h, GHSA-cvvh-rhrc-wg4q, GHSA-g8r8-53c2-pm3f, GHSA-mmjf-rqrv-855v,
+GHSA-w3x6-4m5h-cxqf and one further advisory). Nothing in AutoMappic calls the package, but it
+was still resolved into the shipped tool.
+
+Fixed by pinning a patched version. `dotnet list ... --vulnerable --include-transitive` now
+reports no vulnerable packages for any project, including `AutoMappic.Cli`.
+
+## 23. The AOT and trim gate measured the tests instead of the library
+
+`aot-validation.yml` ran the analyzers over `AutoMappic.sln` with the IL codes promoted to
+errors. That gated the result on every project in the repository and reported 2672 errors, of
+which 2562 came from `AutoMappic.Tests`: the tests exercise the reflective fallback deliberately,
+so each call correctly reports the `RequiresUnreferencedCode` and `RequiresDynamicCode` that the
+fallback declares. That is the annotations working, not a defect. The samples, benchmarks and CLI
+contributed the same kind of noise, and the two `netstandard2.0` generator projects do not
+support these analyzers at all - they only emit NETSDK1210.
+
+The gate therefore could not fail for a real reason: the signal from the shipped library was
+buried under 96% noise. Scoped to `src/AutoMappic.Core`, which builds clean under the same
+switches.
+
 ## Supported frameworks
 
 AutoMappic multi-targets `net8.0` (LTS) and `net10.0` (current); `net8.0` was previously skipped

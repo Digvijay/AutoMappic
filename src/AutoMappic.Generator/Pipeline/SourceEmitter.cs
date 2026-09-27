@@ -167,7 +167,7 @@ internal static class SourceEmitter
             // We only suppress warnings for the projection expression because it is not executed as C# but translated to SQL.
             sb.AppendLine("    #pragma warning disable CS8602, CS8603, CS8604");
             var ctorCall = model.ProjectionConstructorArguments.Any(c => c.Kind != PropertyMapKind.Suggested)
-                ? $"new {destTypeNameFixed}({string.Join(", ", model.ProjectionConstructorArguments.Where(c => c.Kind != PropertyMapKind.Suggested).Select(c => c.SourceExpression?.Replace("?.", ".").Replace("(context)", "()").Replace(", context)", ")").TrimEnd('!') + "!"))})"
+                ? $"new {destTypeNameFixed}({string.Join(", ", model.ProjectionConstructorArguments.Where(c => c.Kind != PropertyMapKind.Suggested).Select(c => ToProjectionExpression(c.SourceExpression)))})"
                 : $"new {destTypeNameFixed}()";
 
             sb.AppendLine($"    public static readonly global::System.Linq.Expressions.Expression<global::System.Func<{sourceTypeNameFixed}, {destTypeNameFixed}>> Projection = source => {ctorCall}");
@@ -178,7 +178,7 @@ internal static class SourceEmitter
                 {
                     if (!string.IsNullOrEmpty(prop.SourceExpression))
                     {
-                        var expr = prop.SourceExpression!.Replace("?.", ".").Replace("(context)", "()").Replace(", context)", ")").TrimEnd('!') + "!";
+                        var expr = ToProjectionExpression(prop.SourceExpression);
                         sb.AppendLine($"        {prop.DestinationProperty} = {expr},");
                     }
                 }
@@ -1154,6 +1154,42 @@ internal static class SourceEmitter
         var inner = typeName.Substring(angleIndex + 1, endAngle - angleIndex - 1);
         var commas = inner.Count(c => c == ',');
         return prefix + new string(',', commas) + ">";
+    }
+
+    /// <summary>
+    /// Rewrites a mapping source expression into one that is valid inside a projection
+    /// expression tree.
+    /// </summary>
+    /// <remarks>
+    /// Projections strip the null-propagating <c>?.</c> because EF cannot translate it. That
+    /// has two consequences the previous inline rewrite did not handle, both of which emitted
+    /// C# that failed to compile in the consumer's build:
+    /// <list type="number">
+    /// <item>A flattened path carries a <c>?? (default!)</c> guard sized for the nullable
+    /// <c>?.</c> chain. Once the chain is non-nullable the guard is invalid whenever the member
+    /// is a non-nullable value type, producing CS0019 (for example <c>DateTime ?? default</c>).
+    /// It is also redundant: a null navigation projects to SQL NULL rather than throwing.</item>
+    /// <item><c>TrimEnd('!')</c> cannot see a <c>!</c> inside a parenthesised fallback such as
+    /// <c>(default!)</c>, so unconditionally appending <c>!</c> produced <c>(default!)!</c>
+    /// and CS8715.</item>
+    /// </list>
+    /// </remarks>
+    internal static string ToProjectionExpression(string? sourceExpression)
+    {
+        if (string.IsNullOrEmpty(sourceExpression)) return string.Empty;
+
+        var expr = sourceExpression!
+            .Replace("?.", ".")
+            .Replace("(context)", "()")
+            .Replace(", context)", ")");
+
+        const string valueFallback = " ?? (default!)";
+        if (expr.EndsWith(valueFallback, StringComparison.Ordinal))
+        {
+            expr = expr.Substring(0, expr.Length - valueFallback.Length);
+        }
+
+        return expr.EndsWith("!", StringComparison.Ordinal) ? expr : expr + "!";
     }
 
     public static string Sanitise(string? name, bool includeHash = true)
