@@ -108,6 +108,8 @@ internal sealed class OpenGenericMappingExpression(Type s, Type d) : IMappingExp
     public INamingConvention? DestinationNaming => null;
     public bool SuppressUnmapped { get; private set; }
 
+    [RequiresUnreferencedCode("Runtime mapping configuration requires reflection.")]
+    [RequiresDynamicCode("Runtime mapping configuration requires dynamic code generation.")]
     public IMappingExpression ConvertUsing(Type converterType)
     {
         ConverterType = converterType;
