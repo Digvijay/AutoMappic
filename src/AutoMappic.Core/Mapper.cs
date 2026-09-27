@@ -126,12 +126,16 @@ public sealed class Mapper : IMapper, IDisposable
     }
 
     /// <summary>Internal core mapping logic used for recursive resolution and fallback mapping.</summary>
+    [RequiresUnreferencedCode("Object mapping via runtime Mapper requires reflection.")]
+    [RequiresDynamicCode("Object mapping via runtime Mapper requires dynamic code generation.")]
     public object MapCore(Type sourceType, Type destType, object source, object? destination)
     {
         return MapCoreAsync(sourceType, destType, source, destination).GetAwaiter().GetResult();
     }
 
     /// <summary>Asynchronous core mapping logic.</summary>
+    [RequiresUnreferencedCode("Object mapping via runtime Mapper requires reflection.")]
+    [RequiresDynamicCode("Object mapping via runtime Mapper requires dynamic code generation.")]
     public async global::System.Threading.Tasks.Task<object> MapCoreAsync(Type sourceType, Type destType, object source, object? destination)
     {
         if (destType.IsAssignableFrom(sourceType))
