@@ -32,11 +32,13 @@ updates:
           - "Microsoft.NET.Test.Sdk"
           - "coverlet.*"
     ignore:
-      # MSBuild 18.x requires net11.0 -- building against it from net9.0 emits
-      # "doesn't support net9.0 and has not been tested with it". That warning
+      # MSBuild 18.x requires net11.0 -- building against it from net10.0 emits
+      # "doesn't support net10.0 and has not been tested with it". That warning
       # comes from a targets file rather than the compiler, so it slips past
       # TreatWarningsAsErrors and CI stays green while the closure is wrong.
-      # These can only move once AutoMappic.Cli targets net11.0 or later.
+      # Retargeting the CLI from net9.0 to net10.0 did not lift this: verified
+      # empirically that 18.10.1 still warns on net10.0 and still asks for
+      # net11.0. These can only move once the CLI targets net11.0 or later.
       - dependency-name: "Microsoft.Build"
         update-types: ["version-update:semver-major"]
       - dependency-name: "Microsoft.Build.*"

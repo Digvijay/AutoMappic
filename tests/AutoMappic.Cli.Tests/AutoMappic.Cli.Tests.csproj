@@ -3,7 +3,7 @@
     <OutputType>Exe</OutputType>
     <!-- Matches AutoMappic.Cli's TargetFramework so the tests exercise the
          framework the tool actually ships on. -->
-    <TargetFramework>net9.0</TargetFramework>
+    <TargetFramework>net10.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
     <TreatWarningsAsErrors>true</TreatWarningsAsErrors>

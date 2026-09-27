@@ -1,7 +1,12 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <TargetFrameworks>net9.0;net10.0</TargetFrameworks>
+    <!-- net8.0 is the floor rather than net9.0. There is no framework-conditional
+         code in this library, so a net9.0 target produces the same IL as net8.0
+         while reaching fewer consumers, and both reach end of support on the same
+         day (2026-11-10). net9.0 consumers resolve the net8.0 asset. net10.0 is
+         LTS through 2028-11-14. -->
+    <TargetFrameworks>net8.0;net10.0</TargetFrameworks>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
     <LangVersion>latest</LangVersion>
@@ -16,7 +21,7 @@
     <AssemblyName>AutoMappic.Core</AssemblyName>
     <PackageId>AutoMappic</PackageId>
     <RootNamespace>AutoMappic</RootNamespace>
-    <Description>AutoMappic is a zero-reflection, Native AOT-friendly object mapper for .NET 9+ powered by Roslyn Interceptors.</Description>
+    <Description>AutoMappic is a zero-reflection, Native AOT-friendly object mapper for .NET 8+ powered by Roslyn Interceptors.</Description>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
     <IsPackable>true</IsPackable>
     <PackageIcon>icon.png</PackageIcon>

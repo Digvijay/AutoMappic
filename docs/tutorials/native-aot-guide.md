@@ -21,7 +21,7 @@ Ensure your `.csproj` file is set up for Native AOT:
 
 ```xml
 <PropertyGroup>
-  <TargetFramework>net9.0</TargetFramework>
+  <TargetFramework>net10.0</TargetFramework>
   <PublishAot>true</PublishAot>
 </PropertyGroup>
 ```

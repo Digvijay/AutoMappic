@@ -1,7 +1,10 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <OutputType>Exe</OutputType>
-    <TargetFramework>net9.0</TargetFramework>
+    <!-- A tool, not a library: this is the runtime users must have installed to
+         run it, so it tracks LTS rather than the library's compatibility floor.
+         net9.0 reaches end of support on 2026-11-10; net10.0 runs to 2028-11-14. -->
+    <TargetFramework>net10.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
     <PackAsTool>true</PackAsTool>
