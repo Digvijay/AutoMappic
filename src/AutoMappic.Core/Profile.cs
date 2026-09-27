@@ -60,8 +60,15 @@ public abstract class Profile
     ///   A fluent <see cref="IMappingExpression{TSource, TDestination}" /> that lets you
     ///   override conventions with explicit <c>ForMember</c> calls.
     /// </returns>
-    [RequiresUnreferencedCode("Runtime mapping configuration requires reflection.")]
-    [RequiresDynamicCode("Runtime mapping configuration requires dynamic code generation.")]
+    /// <remarks>
+    ///   This method itself contains no dynamic code: it allocates
+    ///   <c>MappingExpression&lt;TSource, TDestination&gt;</c> over two statically known type
+    ///   arguments. It is therefore <em>not</em> annotated with
+    ///   <see cref="RequiresDynamicCodeAttribute" />. It remains annotated with
+    ///   <see cref="RequiresUnreferencedCodeAttribute" /> because the runtime fallback mapper
+    ///   reads the members of both types reflectively, and those members may be trimmed.
+    /// </remarks>
+    [RequiresUnreferencedCode("The runtime fallback mapper reads source and destination members reflectively, so they may be trimmed. The generated mapping path does not have this limitation.")]
     protected internal IMappingExpression<TSource, TDestination> CreateMap<TSource, TDestination>()
     {
         var expression = new MappingExpression<TSource, TDestination>(this);

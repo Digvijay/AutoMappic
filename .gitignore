@@ -113,3 +113,9 @@ GettingStarted.md
 
 # Release Hygiene
 PUSH_CHECKLIST.md
+
+# Build output must never be committed - packages are produced by CI, not by hand.
+out/
+*.nupkg
+*.snupkg
+*.backup

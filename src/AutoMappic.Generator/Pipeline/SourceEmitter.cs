@@ -198,9 +198,13 @@ internal static class SourceEmitter
     {
         var keyProp = model.Properties.FirstOrDefault(p => p.IsKey && p.Kind != PropertyMapKind.Ignored && p.Kind != PropertyMapKind.Suggested);
 
-        if (true && keyProp != null && keyProp.SourceExpression != null)
+        if (keyProp != null && keyProp.SourceExpression != null)
         {
-            sb.AppendLine($"        var __keyVal = (object?){keyProp.SourceExpression};");
+            // The key is boxed to object so it can be used in the identity map. Boxing is
+            // deferred behind IsTracking: identity tracking is off for the overwhelming
+            // majority of maps, and an unconditional cast allocated on every single call
+            // to support a feature that was not enabled.
+            sb.AppendLine($"        var __keyVal = context.IsTracking ? (object?){keyProp.SourceExpression} : null;");
             sb.AppendLine($"        if (__keyVal != null)");
             sb.AppendLine("        {");
             sb.AppendLine($"            if (context.TryGetEntity<{destTypeNameFixed}>(__keyVal, out var existing)) return existing;");
@@ -355,9 +359,10 @@ internal static class SourceEmitter
 
         var keyProp = model.Properties.FirstOrDefault(p => p.IsKey && p.Kind != PropertyMapKind.Ignored && p.Kind != PropertyMapKind.Suggested);
 
-        if (true && keyProp != null && keyProp.SourceExpression != null)
+        if (keyProp != null && keyProp.SourceExpression != null)
         {
-            sb.AppendLine($"        var __keyVal = (object?){keyProp.SourceExpression};");
+            // See EmitMappingBody: the key is only boxed when identity tracking is active.
+            sb.AppendLine($"        var __keyVal = context.IsTracking ? (object?){keyProp.SourceExpression} : null;");
             sb.AppendLine("        if (__keyVal != null)");
             sb.AppendLine("        {");
             sb.AppendLine($"            context.Register<{destTypeNameFixed}>(__keyVal, destination);");
@@ -1074,7 +1079,11 @@ internal static class SourceEmitter
         sb.AppendLine($"    internal sealed class Marker_{sanitized} {{ }}");
         sb.AppendLine();
         sb.AppendLine($"    [global::System.ComponentModel.EditorBrowsable(global::System.ComponentModel.EditorBrowsableState.Never)]");
-        sb.AppendLine($"    internal static class {sanitized}_Registration");
+        // Must be public, not internal. A referencing assembly's generated registration calls
+        // <Assembly>_Registration.AddProfiles on every assembly it references, so an internal type
+        // here produces CS0122 at the call site and forces consumers to add InternalsVisibleTo.
+        // EditorBrowsable(Never) keeps it out of IntelliSense despite being public.
+        sb.AppendLine($"    public static class {sanitized}_Registration");
         sb.AppendLine("    {");
         sb.AppendLine("        public static void AddProfiles(global::Microsoft.Extensions.DependencyInjection.IServiceCollection services)");
         sb.AppendLine("        {");
@@ -1168,15 +1177,24 @@ internal static class SourceEmitter
             .Replace("!", "_")
             .Replace("*", "_");
 
-        if (!includeHash) return structural;
-
-        // 2. Character-by-character cleaning for hint names
+        // 2. Character-by-character cleaning.
+        // This must run on BOTH paths. The structural pass above only replaces a fixed list of
+        // characters, so anything outside it survives verbatim -- most importantly '-', which is
+        // legal in an assembly name but not in a C# identifier. Assembly names such as "my-app" or
+        // BenchmarkDotNet's generated host "VikingAir.Benchmarks-DefaultJob-1" previously emitted
+        // "class AutoMappic_Extension_VikingAir_Benchmarks-DefaultJob-1", which the compiler parsed
+        // as a subtraction expression and reported as CS0116/CS1106/CS0548.
         var res = new StringBuilder();
         foreach (var c in structural)
         {
             if (char.IsLetterOrDigit(c)) res.Append(c);
             else res.Append('_');
         }
+
+        // An identifier may not begin with a digit.
+        if (res.Length > 0 && char.IsDigit(res[0])) res.Insert(0, '_');
+
+        if (!includeHash) return res.ToString();
 
         var hash = GetStableHash(name!);
         return $"{res}_{hash:X}";

@@ -1,4 +1,3 @@
-using System.Globalization;
 using Microsoft.Extensions.DependencyInjection;
 using Prova;
 
@@ -43,11 +42,12 @@ public class DoublingConverter : IValueConverter<int, int>
 
 public class MoneyConverter : IValueConverter<decimal, string>
 {
-    // The "$" prefix is fixed, so the number has to be formatted with a fixed
-    // culture too. Interpolating used the ambient culture, which yields
-    // "$99,99" on any comma-decimal locale and only passed because CI runs en-US.
+    // Formatted with InvariantCulture deliberately. Interpolating with the ambient culture made
+    // this test fail on any machine whose locale uses "," as the decimal separator (for example
+    // sv-SE), producing "$99,99" instead of "$99.99". Money formatting in a mapper should be
+    // explicit about culture rather than inheriting whatever locale the server happens to run in.
     public string Convert(decimal sourceMember) =>
-        "$" + sourceMember.ToString("F2", CultureInfo.InvariantCulture);
+        string.Create(System.Globalization.CultureInfo.InvariantCulture, $"${sourceMember:F2}");
 }
 
 public class ConvOrderSource { public decimal Price { get; set; } }

@@ -32,8 +32,9 @@ public class KADest { [Key] public int SSN { get; set; } public string Name { ge
         var result = GeneratorTestHelper.RunGenerator(source);
         var mapSource = result.Sources.First(f => f.HintName.Contains("KASource") && f.HintName.Contains("KADest")).SourceText.ToString();
 
-        // Should use SSN for identity management
-        Assert.Contains("var __keyVal = (object?)source.SSN;", mapSource);
+        // Should use SSN for identity management, but only pay for boxing when the context is
+        // actually tracking. See MappingContextParityTests / IdentityKeyBoxingTests.
+        Assert.Contains("var __keyVal = context.IsTracking ? (object?)source.SSN : null;", mapSource);
         Assert.Contains("context.TryGetEntity<global::KADest>(__keyVal, out var existing)", mapSource);
         Assert.Contains("return existing;", mapSource);
     }
@@ -62,7 +63,7 @@ public class AMKDest { [AutoMappicKey] public string Code { get; set; } }
         var result = GeneratorTestHelper.RunGenerator(source);
         var mapSource = result.Sources.First(f => f.HintName.Contains("AMKSource") && f.HintName.Contains("AMKDest")).SourceText.ToString();
 
-        Assert.Contains("var __keyVal = (object?)source.Code;", mapSource);
+        Assert.Contains("var __keyVal = context.IsTracking ? (object?)source.Code : null;", mapSource);
     }
 
     /// <summary> Identity Hardening: Verify Smart-Sync collection mapping uses [Key] attribute </summary>

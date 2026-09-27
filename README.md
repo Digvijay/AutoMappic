@@ -11,7 +11,7 @@
 
 **Zero-Reflection. Zero-Overhead. Native AOT-First.**
 
-AutoMappic is a high-performance object-to-object mapper for .NET 9 and .NET 10. It uses **Roslyn Interceptors** to replace standard reflection-based mapping with statically-generated C# at compile time.
+AutoMappic is a high-performance object-to-object mapper for .NET 8 and .NET 10. It uses **Roslyn Interceptors** to replace standard reflection-based mapping with statically-generated C# at compile time.
 
 ---
 
@@ -50,10 +50,18 @@ From native AOT hardening and Wasm/Blazor optimizations to a robust recursion sa
 ---
 
 ## Goals
-*   **High Performance**: Faster than manual mapping by enabling aggressive JIT inlining of straight-line C# assignments.
-*   **Native AOT Ready**: 100% compatible with Native AOT and trimming. No dynamic code generation or reflection at runtime.
+*   **High Performance**: Generates straight-line C# assignments that the JIT can inline. Substantially faster than reflection-based mapping; see [Benchmarks](#benchmarks) for how it compares to a hand-written mapper.
+*   **Native AOT**: Mapping is generated at compile time, with no dynamic code generation or reflection at runtime. Note that the AutoMapper-compatible `Profile` / `IMapper` API surface is currently annotated `RequiresDynamicCode`, so AOT consumers of that API see IL3050 warnings — see [docs/known-issues.md](docs/known-issues.md).
 *   **Build-Time Safety**: Mapping errors (ambiguity, missing members, circular references) are caught during compilation, not at runtime.
 *   **Zero-Startup Cost**: Eliminates reflection-based profile scanning. Dependency injection initializes instantly.
+
+> **Before adopting:** `PrivateAssets="all"` on the package reference causes a runtime
+> `FileNotFoundException` rather than a build error, and the AutoMapper-compatible
+> `Profile` / `IMapper` surface is annotated `RequiresDynamicCode`, so AOT consumers of that API
+> see IL3050 warnings. Both are documented with workarounds in
+> [docs/known-issues.md](docs/known-issues.md). The previous requirement to add
+> `InternalsVisibleTo` across assembly boundaries has been **fixed** — the generated registration
+> class is now public.
 
 ## Development
 
@@ -87,6 +95,47 @@ AutoMappic achieves performance parity with manual hand-written C# by shifting a
 | Mapperly_Explicit | Source Generation | 28.50 ns | 0.15 | 48 B |
 | AutoMapper_Legacy | Reflection / IL Emit | 188.00 ns | 1.00 | 48 B |
 
+*Hardware and .NET version for this run are not recorded. Treat the absolute numbers as
+indicative and reproduce them on your own hardware before relying on them.*
+
+### Independent re-measurement
+
+Measured in this repository's own benchmark suite on a Snapdragon X Elite X1E80100 (ARM64),
+Windows 11, BenchmarkDotNet 0.15.8, 30 iterations, mapping a five-member object. Both frameworks
+the package ships are measured, because the answer is not the same on each:
+
+**.NET 10**
+
+| Method | Mean | Allocated |
+| :--- | ---: | ---: |
+| Hand-written | 7.82 ns | 48 B |
+| **AutoMappic** | **7.51 ns** | **48 B** |
+| Mapperly | 7.65 ns | 48 B |
+| AutoMapper | 57.27 ns | 48 B |
+
+**.NET 8**
+
+| Method | Mean | Allocated |
+| :--- | ---: | ---: |
+| Hand-written | 10.33 ns | 48 B |
+| **AutoMappic** | **11.63 ns** | **48 B** |
+| Mapperly | 10.77 ns | 48 B |
+| AutoMapper | 60.20 ns | 48 B |
+
+Allocation is identical to a hand-written mapper on both frameworks, and roughly 7.6x faster than
+AutoMapper on .NET 10. AutoMappic is marginally faster than hand-written mapping on .NET 10 and
+about 12% slower on .NET 8; the per-framework difference is the reason both are published.
+
+Reproduce with `dotnet run -c Release -f net10.0` from `tests/AutoMappic.Benchmarks`, substituting
+the framework you care about.
+
+> **An earlier version of this section published different numbers** — 136 B against 208 B, and a
+> 22% deficit to hand-written mapping — and described the allocation overhead as an open issue.
+> Those figures were not reproducible. The benchmark suite could not build at all, so no result it
+> reported was meaningful. Both the build failure and a genuine boxing defect that the working
+> benchmarks then exposed are recorded in [docs/known-issues.md](docs/known-issues.md), items 8 and
+> 12.
+
 ## Quick Start
 
 1.  **Add the package**: `dotnet add package AutoMappic`
@@ -116,10 +165,19 @@ AutoMappic achieves performance parity with manual hand-written C# by shifting a
 | **Throughput (1k List)**| 30.19 μs | **20.89 μs** | **1.45x Faster** |
 | **Memory usage** | ~120MB | **~24MB** | **5x Lower** |
 
+*This table compares two different deployment models as well as two libraries, so most of the
+startup and memory difference is attributable to Native AOT rather than to mapping. It is a fair
+description of the end-to-end outcome, not of mapping performance in isolation.*
+
 ## NuGet Packages
 
 *   **AutoMappic**: The main package containing the `IMapper` abstractions and the runtime core.
-*   **AutoMappic.Generator**: The Roslyn incremental source generator. Typically included as a private asset/analyzer.
+*   **AutoMappic.Generator**: The Roslyn incremental source generator.
+
+> Do **not** set `PrivateAssets="all"` on the `AutoMappic` package reference. It suppresses
+> `AutoMappic.Core.dll` as well as the generator, so consuming projects compile successfully and
+> then throw `FileNotFoundException` when mapping first executes. See
+> [docs/known-issues.md](docs/known-issues.md).
 
 ```xml
 <PackageReference Include="AutoMappic" Version="0.7.0" />

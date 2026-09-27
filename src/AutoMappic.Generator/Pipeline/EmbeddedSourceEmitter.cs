@@ -87,6 +87,10 @@ namespace AutoMappic.Generated
         private readonly global::System.Collections.Generic.Dictionary<global::System.ValueTuple<global::System.Type, object>, object>? _tracked;
         public int Depth { get; }
 
+        // Generated code checks this before boxing an entity key, so that identity tracking
+        // costs nothing when it is not switched on.
+        public bool IsTracking => _tracked != null;
+
         public MappingContext() { _tracked = null; Depth = 0; }
         public MappingContext(bool enableTracking) { _tracked = enableTracking ? new() : null; Depth = 0; }
         private MappingContext(global::System.Collections.Generic.Dictionary<global::System.ValueTuple<global::System.Type, object>, object>? tracked, int depth)
