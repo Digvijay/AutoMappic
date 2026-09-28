@@ -14,7 +14,7 @@ var services = new ServiceCollection();
 
 // The Source Generator automatically creates this extension 
 // method based on your assembly name! It registers your Profiles.
-services.AddAutoMappicFromAutoMappic_Samples_HelloWorld(); 
+services.AddAutoMappicFromAutoMappic_Samples_HelloWorld();
 
 var provider = services.BuildServiceProvider();
 var diMapper = provider.GetRequiredService<IMapper>();
@@ -30,10 +30,7 @@ Console.WriteLine("\n>> Approach 2: Zero-DI Instantiation");
 
 // You can explicitly configure exactly what you want without 
 // needing Microsoft.Extensions.DependencyInjection at runtime!
-IMapper standaloneMapper = new MapperConfiguration(cfg =>
-{
-    cfg.AddProfile<UserProfile>();
-}).CreateMapper();
+IMapper standaloneMapper = new MapperConfiguration(cfg => cfg.AddProfile<UserProfile>()).CreateMapper();
 
 var dto2 = standaloneMapper.Map<UserDto>(sourceUser);
 Console.WriteLine($"Mapped without DI: {dto2.FullName}");

@@ -10,7 +10,7 @@ public sealed class DiagnosticTests
     [Fact]
     public void Generator_ReportAM0001_WhenPropertyIsUnmapped()
     {
-        var source = @"
+        string source = @"
 using AutoMappic;
 
 public class S { public int Id { get; set; } }
@@ -32,7 +32,7 @@ public class MyProfile : Profile
     [Fact]
     public void Generator_ReportAM0002_WhenMappingIsAmbiguous()
     {
-        var source = @"
+        string source = @"
 using AutoMappic;
 
 public class Info { public string Name { get; set; } }
@@ -55,7 +55,7 @@ public class MyProfile : Profile
     [Fact]
     public void Generator_ReportAM0005_WhenConstructorIsMissing()
     {
-        var source = @"
+        string source = @"
 using AutoMappic;
 using System;
 
@@ -78,7 +78,7 @@ public class MyProfile : Profile
     [Fact]
     public void Generator_ReportAM0012_WhenNoPropertiesMapped()
     {
-        var source = @"
+        string source = @"
 using AutoMappic;
 
 public class S { public int Id { get; set; } }
@@ -100,7 +100,7 @@ public class MyProfile : Profile
     [Fact]
     public void Generator_ReportAM0014_WhenSourcePrimaryKeyIsMissing()
     {
-        var source = @"
+        string source = @"
 using AutoMappic;
 using System.Collections.Generic;
 
@@ -126,7 +126,7 @@ public class MyProfile : Profile
     [Fact]
     public void Generator_ReportAM0015_WhenPropertyCloselyMatches()
     {
-        var source = @"
+        string source = @"
 using AutoMappic;
 
 public class S { public string FullName { get; set; } }
@@ -148,7 +148,7 @@ public class MyProfile : Profile
     [Fact]
     public void Generator_ReportAM0016_WhenCustomResolverUsedInCollection()
     {
-        var source = @"
+        string source = @"
 using AutoMappic;
 using System.Collections.Generic;
 using System.Linq;
@@ -176,7 +176,7 @@ public class MyProfile : Profile
     [Fact]
     public void Generator_ReportAM0017_WhenEntityHasAmbiguousId()
     {
-        var source = @"
+        string source = @"
 using AutoMappic;
 using System.Collections.Generic;
 
@@ -206,7 +206,7 @@ public class MyProfile : Profile
     [Fact]
     public void Generator_DoNotReportAM0014_WhenSourceHasMatchingKey()
     {
-        var source = @"
+        string source = @"
 using AutoMappic;
 using System.Collections.Generic;
 
@@ -231,7 +231,7 @@ public class MyProfile : Profile
     [Fact]
     public void Generator_DoNotReportAM0015_WhenNamesAreUnrelated()
     {
-        var source = @"
+        string source = @"
 using AutoMappic;
 
 public class S { public string Apple { get; set; } }
@@ -252,7 +252,7 @@ public class MyProfile : Profile
     [Fact]
     public void Generator_DoNotReportAM0015_WhenNamesMatchExactly()
     {
-        var source = @"
+        string source = @"
 using AutoMappic;
 
 public class S { public string Name { get; set; } }
@@ -273,7 +273,7 @@ public class MyProfile : Profile
     [Fact]
     public void Generator_DoNotReportAM0015_WhenScoreBelowConfiguredThreshold()
     {
-        var source = @"
+        string source = @"
 using AutoMappic;
 
 public class S { public string FullName { get; set; } }
@@ -295,7 +295,7 @@ public class MyProfile : Profile
     [Fact]
     public void Generator_ReportAM0015_WhenScoreAboveConfiguredThreshold()
     {
-        var source = @"
+        string source = @"
 using AutoMappic;
 
 public class S { public string FullName { get; set; } }
@@ -317,7 +317,7 @@ public class MyProfile : Profile
     [Fact]
     public void Generator_DoNotReportAM0016_WhenSelectUsedOnNonCollection()
     {
-        var source = @"
+        string source = @"
 using AutoMappic;
 
 public class S { public string Raw { get; set; } }
@@ -342,7 +342,7 @@ public class MyProfile : Profile
     [Fact]
     public void Generator_DoNotReportAM0017_WhenEntityHasClearId()
     {
-        var source = @"
+        string source = @"
 using AutoMappic;
 using System.Collections.Generic;
 
@@ -371,7 +371,7 @@ public class MyProfile : Profile
     [Fact]
     public void Generator_AM0015_ContainsScoreInProperties()
     {
-        var source = @"
+        string source = @"
 using AutoMappic;
 
 public class S { public string FullName { get; set; } }
@@ -396,7 +396,7 @@ public class MyProfile : Profile
     [Fact]
     public void Generator_AM0014_MessageIncludesTypeNames()
     {
-        var source = @"
+        string source = @"
 using AutoMappic;
 using System.Collections.Generic;
 
@@ -423,7 +423,7 @@ public class MyProfile : Profile
     [Fact]
     public void Generator_ReportAM0018_WhenAutoMapClassIsNonPartial()
     {
-        var source = @"
+        string source = @"
 using AutoMappic;
 
 public class S { public int Id { get; set; } }
@@ -442,7 +442,7 @@ public class NonPartialD { public int Id { get; set; } }
     [Fact]
     public void Generator_AnchorsProfileDiagnosticsToCreateMapCall()
     {
-        var source = @"
+        string source = @"
 using AutoMappic;
 
 public class S { public int Id { get; set; } }

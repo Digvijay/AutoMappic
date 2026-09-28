@@ -18,7 +18,7 @@ namespace AutoMappic.Generator.CodeFixes
     [ExportCodeFixProvider(LanguageNames.CSharp, Name = nameof(SmartMatchCodeFixProvider)), Shared]
     internal sealed class SmartMatchCodeFixProvider : CodeFixProvider
     {
-        public override ImmutableArray<string> FixableDiagnosticIds => ImmutableArray.Create("AM0015");
+        public override ImmutableArray<string> FixableDiagnosticIds => ["AM0015"];
 
         public override FixAllProvider GetFixAllProvider() => WellKnownFixAllProviders.BatchFixer;
 
@@ -31,7 +31,7 @@ namespace AutoMappic.Generator.CodeFixes
             var diagnosticSpan = diagnostic.Location.SourceSpan;
 
             // Read from diagnostic properties
-            if (!diagnostic.Properties.TryGetValue("SuggestedName", out var suggestedName) || string.IsNullOrEmpty(suggestedName))
+            if (!diagnostic.Properties.TryGetValue("SuggestedName", out string? suggestedName) || string.IsNullOrEmpty(suggestedName))
                 return;
 
             // Find the identifying node.
@@ -53,7 +53,7 @@ namespace AutoMappic.Generator.CodeFixes
 
             // 2. Profile CreateMap Call - Chain .ForMember()
             var invocation = node?.AncestorsAndSelf().OfType<InvocationExpressionSyntax>().FirstOrDefault();
-            if (invocation != null && diagnostic.Properties.TryGetValue("TargetProperty", out var targetProp))
+            if (invocation != null && diagnostic.Properties.TryGetValue("TargetProperty", out string? targetProp))
             {
                 context.RegisterCodeFix(
                     CodeAction.Create(

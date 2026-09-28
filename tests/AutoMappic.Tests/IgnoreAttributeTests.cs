@@ -52,7 +52,7 @@ namespace AutoMappic.Tests
         {
             var config = new MapperConfiguration(cfg => cfg.AddProfile<UnmappedIgnoreProfile>());
             var mapper = config.CreateMapper();
-            var source = new object();
+            object source = new();
             var result = mapper.Map<UnmappedDest>(source);
             Assert.Equal("", result.RequiredButIgnored);
         }

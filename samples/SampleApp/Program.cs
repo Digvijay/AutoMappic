@@ -22,7 +22,7 @@ var service = new UserService(mapper);
 var orderService = new OrderService(mapper);
 
 var userDto = service.GetUser(1);
-var orderDto = orderService.GetOrder(42);
+var _ = orderService.GetOrder(42);
 
 Console.WriteLine("=== AutoMappic v0.7.0 \"The Ultimate\" Sample ===");
 Console.WriteLine();
@@ -128,30 +128,24 @@ public partial class ProfileDto
 
 public static class MockDatabase
 {
-    public static List<User> Users = new()
-    {
+    public static List<User> Users =
+    [
         new User { Id = 1, Username = "alice", Email = "alice@example.com", Address = new Address { City = "Stockholm" } },
         new User { Id = 2, Username = "bob", Email = "bob@oslo.no", Address = new Address { City = "Oslo" } },
         new User { Id = 3, Username = "charlie", Email = "charlie@denmark.dk", Address = new Address { City = "Copenhagen" } }
-    };
+    ];
 }
 
 // ─── Profiles ─────────────────────────────────────────────────────────────────
 
 public sealed class UserMappingProfile : Profile
 {
-    public UserMappingProfile()
-    {
-        CreateMap<User, UserDto>();
-    }
+    public UserMappingProfile() => CreateMap<User, UserDto>();
 }
 
 public sealed class OrderMappingProfile : Profile
 {
-    public OrderMappingProfile()
-    {
-        CreateMap<Order, OrderDto>();
-    }
+    public OrderMappingProfile() => CreateMap<Order, OrderDto>();
 }
 
 // ─── Services ─────────────────────────────────────────────────────────────────

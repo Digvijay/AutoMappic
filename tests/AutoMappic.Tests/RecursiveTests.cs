@@ -24,10 +24,7 @@ public sealed class CircularReferenceTests
 {
     private sealed class NodeProfile : Profile
     {
-        public NodeProfile()
-        {
-            CreateMap<Node, NodeDto>().ForMemberIgnore(d => d.Parent);
-        }
+        public NodeProfile() => CreateMap<Node, NodeDto>().ForMemberIgnore(d => d.Parent);
     }
 
     /// <summary> Verify that the mapper safely handles objects with potential circular references without stack overflow </summary>
@@ -67,7 +64,7 @@ public sealed class CircularReferenceTests
             var mapperType = typeof(global::AutoMappic.IMapper);
             var mapMethod = mapperType.GetMethods().First(m => m.Name == "MapAsync" && m.GetGenericArguments().Length == 2 && m.GetParameters().Length == 2);
             mapMethod = mapMethod.MakeGenericMethod(typeof(Node), typeof(NodeDto));
-            var task = (System.Threading.Tasks.Task<NodeDto>)mapMethod.Invoke(mapper, new[] { (object)node, (object)global::System.Threading.CancellationToken.None })!;
+            var task = (System.Threading.Tasks.Task<NodeDto>)mapMethod.Invoke(mapper, [(object)node, (object)global::System.Threading.CancellationToken.None])!;
             await task;
             Assert.Fail("Should have thrown AutoMappicException due to circular reference");
         }
@@ -79,11 +76,10 @@ public sealed class CircularReferenceTests
 
     private sealed class UnsafeProfile : Profile
     {
-        public UnsafeProfile()
-        {
+        public UnsafeProfile() =>
 #pragma warning disable AM0006
             CreateMap<Node, NodeDto>();
 #pragma warning restore AM0006
-        }
+
     }
 }

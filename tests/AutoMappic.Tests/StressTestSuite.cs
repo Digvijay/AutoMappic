@@ -217,10 +217,7 @@ public class LargeDto
 
 public class StressProfile : Profile
 {
-    public StressProfile()
-    {
-        CreateMap<LargeSource, LargeDto>();
-    }
+    public StressProfile() => CreateMap<LargeSource, LargeDto>();
 }
 
 public class StressTestSuite

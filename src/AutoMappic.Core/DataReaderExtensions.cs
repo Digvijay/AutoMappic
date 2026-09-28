@@ -17,10 +17,7 @@ public static class DataReaderExtensions
     /// <param name="reader">The native ADO.NET data reader to project.</param>
     /// <returns>A deferred sequence of instances bound from the reader.</returns>
     /// <exception cref="AutoMappicException">Thrown if executed natively outside the source generator.</exception>
-    public static IEnumerable<TDestination> Map<TDestination>(this IDataReader reader)
-    {
-        throw new AutoMappicException("IDataReader.Map<TDestination>() must be intercepted by the AutoMappic source generator.");
-    }
+    public static IEnumerable<TDestination> Map<TDestination>(this IDataReader reader) => throw new AutoMappicException("IDataReader.Map<TDestination>() must be intercepted by the AutoMappic source generator.");
 
     /// <summary>
     ///   Asynchronously maps a database reader's output straight to a list of strongly-typed objects using ReadAsync.
@@ -31,8 +28,5 @@ public static class DataReaderExtensions
     /// <param name="cancellationToken">Cancellation token.</param>
     /// <returns>An asynchronous sequence of strongly-typed instances bound from the reader.</returns>
     /// <exception cref="AutoMappicException">Thrown if executed natively outside the source generator.</exception>
-    public static global::System.Collections.Generic.IAsyncEnumerable<TDestination> MapAsync<TDestination>(this global::System.Data.Common.DbDataReader reader, global::System.Threading.CancellationToken cancellationToken = default)
-    {
-        throw new AutoMappicException("DbDataReader.MapAsync<TDestination>() must be intercepted by the AutoMappic source generator.");
-    }
+    public static global::System.Collections.Generic.IAsyncEnumerable<TDestination> MapAsync<TDestination>(this global::System.Data.Common.DbDataReader reader, global::System.Threading.CancellationToken cancellationToken = default) => throw new AutoMappicException("DbDataReader.MapAsync<TDestination>() must be intercepted by the AutoMappic source generator.");
 }

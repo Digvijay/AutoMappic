@@ -13,14 +13,14 @@ namespace AutoMappic.Tests
     {
         public int Id { get; set; }
         public string Name { get; set; } = "";
-        public List<ChildDto> Children { get; set; } = new();
+        public List<ChildDto> Children { get; set; } = [];
     }
 
     public class SourceDto
     {
         public int Id { get; set; }
         public string Name { get; set; } = "";
-        public List<SourceChild> Children { get; set; } = new();
+        public List<SourceChild> Children { get; set; } = [];
     }
 
     [AutoMap(typeof(SourceChild), ReverseMap = true)]
@@ -79,15 +79,15 @@ namespace AutoMappic.Tests
         {
             var source = new SourceDto
             {
-                Children = new List<SourceChild> { new() { Id = 1, Val = "A" } }
+                Children = [new() { Id = 1, Val = "A" }]
             };
 
             var dest = new DestinationDto
             {
-                Children = new List<ChildDto> {
+                Children = [
                     new() { Id = 1, Val = "Old" },
                     new() { Id = 2, Val = "Gone" }
-                }
+                ]
             };
 
             var mapper = GetMapper();
@@ -103,11 +103,10 @@ namespace AutoMappic.Tests
         public void ProjectTo_Uses_Static_Expression()
         {
             var data = new List<SourceDto> {
-                new SourceDto { Id = 1, Name = "A" },
-                new SourceDto { Id = 2, Name = "B" }
+                new() { Id = 1, Name = "A" },
+                new() { Id = 2, Name = "B" }
             }.AsQueryable();
-
-            var mapper = GetMapper();
+            _ = GetMapper();
             var projected = data.ProjectTo<DestinationDto>().ToList();
 
             Assert.Equal(2, projected.Count);

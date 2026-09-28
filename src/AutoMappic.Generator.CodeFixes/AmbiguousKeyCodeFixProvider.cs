@@ -18,7 +18,7 @@ namespace AutoMappic.Generator.CodeFixes
     [ExportCodeFixProvider(LanguageNames.CSharp, Name = nameof(AmbiguousKeyCodeFixProvider)), Shared]
     internal sealed class AmbiguousKeyCodeFixProvider : CodeFixProvider
     {
-        public override ImmutableArray<string> FixableDiagnosticIds => ImmutableArray.Create("AM0017");
+        public override ImmutableArray<string> FixableDiagnosticIds => ["AM0017"];
 
         public override FixAllProvider GetFixAllProvider() => WellKnownFixAllProviders.BatchFixer;
 
@@ -34,7 +34,7 @@ namespace AutoMappic.Generator.CodeFixes
             var semanticModel = await context.Document.GetSemanticModelAsync(context.CancellationToken).ConfigureAwait(false);
             if (semanticModel == null) return;
 
-            if (!diagnostic.Properties.TryGetValue("ItemTypeName", out var itemTypeName) || string.IsNullOrEmpty(itemTypeName))
+            if (!diagnostic.Properties.TryGetValue("ItemTypeName", out string? itemTypeName) || string.IsNullOrEmpty(itemTypeName))
                 return;
 
             // For now, let's just use the current document's symbols to find the type.
@@ -68,9 +68,8 @@ namespace AutoMappic.Generator.CodeFixes
         {
             var document = solution.GetDocument(syntaxRef.SyntaxTree)!;
             var root = await syntaxRef.SyntaxTree.GetRootAsync(cancellationToken).ConfigureAwait(false);
-            var node = root.FindNode(syntaxRef.Span) as PropertyDeclarationSyntax;
 
-            if (node == null) return solution;
+            if (root.FindNode(syntaxRef.Span) is not PropertyDeclarationSyntax node) return solution;
 
             var editor = await DocumentEditor.CreateAsync(document, cancellationToken).ConfigureAwait(false);
 

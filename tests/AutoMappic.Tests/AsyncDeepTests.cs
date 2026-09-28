@@ -18,7 +18,7 @@ public sealed class AsyncDeepTests
     public async Task MapAsync_CollectionOfAsyncObjects_Works()
     {
         var mapper = CreateMapper<DeepAsyncCollProfile>();
-        var source = new CollParentSource { Children = new List<ChildAsyncSource> { new() { Val = "a" }, new() { Val = "b" } } };
+        var source = new CollParentSource { Children = [new() { Val = "a" }, new() { Val = "b" }] };
 
         var result = await mapper.MapAsync<CollParentSource, CollParentDest>(source);
 
@@ -27,9 +27,9 @@ public sealed class AsyncDeepTests
         Assert.Equal("B-B", result.Children[1].Val);
     }
 
-    public class CollParentSource { public List<ChildAsyncSource> Children { get; set; } = new(); }
+    public class CollParentSource { public List<ChildAsyncSource> Children { get; set; } = []; }
     public class ChildAsyncSource { public string Val { get; set; } = ""; }
-    public class CollParentDest { public List<ChildDest> Children { get; set; } = new(); }
+    public class CollParentDest { public List<ChildDest> Children { get; set; } = []; }
     public class ChildDest { public string Val { get; set; } = ""; }
 
 
@@ -45,9 +45,6 @@ public sealed class AsyncDeepTests
 
     public class ValDoubleResolver : IAsyncValueResolver<ChildAsyncSource, string>
     {
-        public Task<string> ResolveAsync(ChildAsyncSource source)
-        {
-            return Task.FromResult(source.Val.ToUpperInvariant() + "-" + source.Val.ToUpperInvariant());
-        }
+        public Task<string> ResolveAsync(ChildAsyncSource source) => Task.FromResult(source.Val.ToUpperInvariant() + "-" + source.Val.ToUpperInvariant());
     }
 }

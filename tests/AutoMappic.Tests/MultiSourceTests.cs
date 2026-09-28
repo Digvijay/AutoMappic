@@ -12,10 +12,7 @@ namespace AutoMappic.Tests
 
         public class MultiSourceProfile : Profile
         {
-            public MultiSourceProfile()
-            {
-                CreateMap<(User u, Preferences p), ProfileDto>();
-            }
+            public MultiSourceProfile() => CreateMap<(User u, Preferences p), ProfileDto>();
         }
 
         [Fact]
@@ -43,10 +40,7 @@ namespace AutoMappic.Tests
 
         public class NestedTupleProfile : Profile
         {
-            public NestedTupleProfile()
-            {
-                CreateMap<(SourceA a, SourceB b), NestedDest>();
-            }
+            public NestedTupleProfile() => CreateMap<(SourceA a, SourceB b), NestedDest>();
         }
 
         [Fact]

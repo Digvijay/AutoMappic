@@ -12,27 +12,27 @@ namespace AutoMappic.Tests;
 public class InterfaceCollSource
 {
     public IReadOnlyList<int> List { get; set; } = new List<int> { 1, 2, 3 };
-    public HashSet<string> Names { get; set; } = new() { "A", "B" };
+    public HashSet<string> Names { get; set; } = ["A", "B"];
     public Stack<int> Numbers { get; set; } = new(new[] { 10, 20 });
     public Queue<string> Commands { get; set; } = new(new[] { "Cmd1", "Cmd2" });
 }
 
 public class InterfaceCollDto
 {
-    public List<int> List { get; set; } = new();
+    public List<int> List { get; set; } = [];
     public IReadOnlyList<string> Names { get; set; } = new List<string>();
-    public List<int> Numbers { get; set; } = new();
-    public List<string> Commands { get; set; } = new();
+    public List<int> Numbers { get; set; } = [];
+    public List<string> Commands { get; set; } = [];
 }
 
 public class SpecializedContainerSource
 {
-    public List<int> Values { get; set; } = new() { 1, 1, 2, 2 };
+    public List<int> Values { get; set; } = [1, 1, 2, 2];
 }
 
 public class SpecializedContainerDto
 {
-    public HashSet<int> Values { get; set; } = new();
+    public HashSet<int> Values { get; set; } = [];
 }
 
 public class StackToQueueSource { public Stack<int> Data { get; set; } = new(new[] { 1, 2, 3 }); }

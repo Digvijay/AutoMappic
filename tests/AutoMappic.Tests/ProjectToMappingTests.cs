@@ -11,7 +11,7 @@ public class ProjectToDest { public int Id { get; set; } public string Name { ge
 
 public class ProjectToProfile : Profile
 {
-    public ProjectToProfile() { CreateMap<ProjectToSource, ProjectToDest>(); }
+    public ProjectToProfile() => CreateMap<ProjectToSource, ProjectToDest>();
 }
 
 public class ProjectToMappingTests
@@ -22,8 +22,8 @@ public class ProjectToMappingTests
     {
         var sourceList = new List<ProjectToSource>
         {
-            new ProjectToSource { Id = 1, Name = "A" },
-            new ProjectToSource { Id = 2, Name = "B" }
+            new() { Id = 1, Name = "A" },
+            new() { Id = 2, Name = "B" }
         }.AsQueryable();
 
         // ProjectTo is an extension on IQueryable

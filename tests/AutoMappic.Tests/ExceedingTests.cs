@@ -20,12 +20,12 @@ public class SnakeDto
 
 public class NestedCollSource
 {
-    public List<List<int>> Matrix { get; set; } = new();
+    public List<List<int>> Matrix { get; set; } = [];
 }
 
 public class NestedCollDto
 {
-    public List<List<int>> Matrix { get; set; } = new();
+    public List<List<int>> Matrix { get; set; } = [];
 }
 
 public sealed class ExceedingTests
@@ -65,11 +65,11 @@ public sealed class ExceedingTests
     {
         var source = new NestedCollSource
         {
-            Matrix = new List<List<int>>
-            {
+            Matrix =
+            [
                 new List<int> { 1, 2 },
                 new List<int> { 3, 4 }
-            }
+            ]
         };
 
         var dto = _mapper.Map<NestedCollSource, NestedCollDto>(source);

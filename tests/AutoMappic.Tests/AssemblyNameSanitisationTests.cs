@@ -54,7 +54,7 @@ public class MyProfile : Profile
 
         Assert.NotNull(registration.SourceText);
 
-        var generated = registration.SourceText!.ToString();
+        string generated = registration.SourceText!.ToString();
 
         // The sanitised name must be a valid identifier, so the raw assembly name -- which is not --
         // must never appear verbatim in the generated code.

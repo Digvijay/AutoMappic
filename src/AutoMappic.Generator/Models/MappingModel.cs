@@ -23,10 +23,7 @@ internal sealed record DiagnosticInfo(
             descriptor.DefaultSeverity);
     }
 
-    public static DiagnosticInfo Create(Microsoft.CodeAnalysis.DiagnosticDescriptor descriptor, Microsoft.CodeAnalysis.Location loc, params object[] messageArgs)
-    {
-        return Create(descriptor, loc, global::System.Collections.Immutable.ImmutableDictionary<string, string?>.Empty, messageArgs);
-    }
+    public static DiagnosticInfo Create(Microsoft.CodeAnalysis.DiagnosticDescriptor descriptor, Microsoft.CodeAnalysis.Location loc, params object[] messageArgs) => Create(descriptor, loc, global::System.Collections.Immutable.ImmutableDictionary<string, string?>.Empty, messageArgs);
 
     public string GetMessage(global::System.Globalization.CultureInfo? culture = null)
     {

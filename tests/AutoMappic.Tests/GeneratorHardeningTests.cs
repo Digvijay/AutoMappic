@@ -10,7 +10,7 @@ public class GeneratorHardeningTests
     [Fact]
     public void Generator_Hardening_NamingConventions_Variations()
     {
-        var source = @"
+        string source = @"
 using AutoMappic;
 
 public class MyProfile : Profile
@@ -31,7 +31,7 @@ public class NVSource { public string UserName { get; set; } }
 public class NVDest { public string UserName { get; set; } }
 ";
         var result = GeneratorTestHelper.RunGenerator(source);
-        var mapSource = result.Sources.First(f => f.HintName.Contains("NVSource") && f.HintName.Contains("NVDest")).SourceText.ToString();
+        string mapSource = result.Sources.First(f => f.HintName.Contains("NVSource") && f.HintName.Contains("NVDest")).SourceText.ToString();
 
         // If detection fails, it defaults to Pascal anyway, so we check if the flag is set in model metadata (not directly visible in source, but we can check if it compiles)
         Assert.True(result.Diagnostics.Count() == 0, "Expected no diagnostics for naming convention variations");
@@ -42,7 +42,7 @@ public class NVDest { public string UserName { get; set; } }
     [Fact]
     public void Generator_Hardening_MapFrom_VariableNameCollision()
     {
-        var source = @"
+        string source = @"
 using AutoMappic;
 
 public class Profile1 : Profile
@@ -61,7 +61,7 @@ public class CVSource { public string Name { get; set; } }
 public class CVDest { public string Name { get; set; } }
 ";
         var result = GeneratorTestHelper.RunGenerator(source);
-        var mapSource = result.Sources.First(f => f.HintName.Contains("CVSource") && f.HintName.Contains("CVDest")).SourceText.ToString();
+        string mapSource = result.Sources.First(f => f.HintName.Contains("CVSource") && f.HintName.Contains("CVDest")).SourceText.ToString();
 
         Assert.Contains("source.Name + s_other", mapSource);
         Assert.DoesNotContain("source_other", mapSource);
@@ -71,7 +71,7 @@ public class CVDest { public string Name { get; set; } }
     [Fact]
     public void Generator_Hardening_EntitySync_ThisPrefix()
     {
-        var source = @"
+        string source = @"
 using AutoMappic;
 
 public class Profile1 : Profile
@@ -87,7 +87,7 @@ public class ESPSource { public int Id { get; set; } }
 public class ESPDest { public int Id { get; set; } }
 ";
         var result = GeneratorTestHelper.RunGenerator(source);
-        var mapSource = result.Sources.First(f => f.HintName.Contains("ESPSource") && f.HintName.Contains("ESPDest")).SourceText.ToString();
+        string mapSource = result.Sources.First(f => f.HintName.Contains("ESPSource") && f.HintName.Contains("ESPDest")).SourceText.ToString();
 
         Assert.Contains("// EnableEntitySync=True", mapSource);
     }
@@ -95,7 +95,7 @@ public class ESPDest { public int Id { get; set; } }
     [Fact]
     public void Generator_Hardening_NamingConventions_ComplexAssignments()
     {
-        var source = @"
+        string source = @"
 using AutoMappic;
 
 public class Profile1 : Profile
@@ -112,7 +112,7 @@ public class CASource { public int src_Id { get; set; } }
 public class CADest { public int Id { get; set; } }
 ";
         var result = GeneratorTestHelper.RunGenerator(source);
-        var mapSource = result.Sources.First(f => f.HintName.Contains("CASource") && f.HintName.Contains("CADest")).SourceText.ToString();
+        string mapSource = result.Sources.First(f => f.HintName.Contains("CASource") && f.HintName.Contains("CADest")).SourceText.ToString();
 
         // If conventions are detected correctly, it should map src_Id to Id
         Assert.Contains("source.src_Id", mapSource);
@@ -121,7 +121,7 @@ public class CADest { public int Id { get; set; } }
     [Fact]
     public void Generator_Hardening_MapFrom_VariableShadowing()
     {
-        var source = @"
+        string source = @"
 using AutoMappic;
 
 public class Profile1 : Profile
@@ -138,7 +138,7 @@ public class Source { public int Id { get; set; } }
 public class Dest { public int Id { get; set; } }
 ";
         var result = GeneratorTestHelper.RunGenerator(source);
-        var mapSource = result.Sources.First(f => f.HintName.Contains("S") && f.HintName.Contains("D")).SourceText.ToString();
+        string mapSource = result.Sources.First(f => f.HintName.Contains("S") && f.HintName.Contains("D")).SourceText.ToString();
 
         // Regex would replace sOutside -> sourceOutside if oldParam was 's'
         // Syntactic rewriter should not.

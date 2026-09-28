@@ -14,7 +14,7 @@ public class IncrementalGeneratorTests
     [Description("0.6.0 Hardening: Verify the incremental generator correctly caches results when non-structural changes occur.")]
     public void Incremental_Generator_Caches_Models_On_MetadataChanges()
     {
-        var source = @"
+        string source = @"
 using AutoMappic;
 
 public class User { public int Id { get; set; } public string Name { get; set; } }
@@ -50,7 +50,7 @@ public class MyProfile : Profile
         var res1 = run1.GetRunResult().Results[0];
 
         // 2. Structural identity change (comment)
-        var newSource = source + "\n// This is a comment that doesn't change anything structural.";
+        string newSource = source + "\n// This is a comment that doesn't change anything structural.";
         var newTree = CSharpSyntaxTree.ParseText(newSource);
         var newCompilation = compilation.ReplaceSyntaxTree(syntaxTree, newTree);
 

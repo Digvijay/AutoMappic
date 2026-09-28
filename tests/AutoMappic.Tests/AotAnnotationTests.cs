@@ -88,7 +88,7 @@ public sealed class AotAnnotationTests
     [Fact]
     public void MapCoreEntryPoints_DeclareBothRequirements()
     {
-        foreach (var name in new[] { "MapCore", "MapCoreAsync" })
+        foreach (string? name in new[] { "MapCore", "MapCoreAsync" })
         {
             var method = typeof(Mapper).GetMethod(name, BindingFlags.Public | BindingFlags.Instance);
             Assert.NotNull(method);
@@ -114,7 +114,7 @@ public sealed class AotAnnotationTests
         Assert.NotNull(xml);
 
         using var reader = new StreamReader(xml!);
-        var content = reader.ReadToEnd();
+        string content = reader.ReadToEnd();
 
         Assert.Contains("AutoMappic.AutoMappicFeatures", content);
         Assert.Contains("get_IsReflectionFallbackEnabled", content);

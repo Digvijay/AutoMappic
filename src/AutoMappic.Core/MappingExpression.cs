@@ -15,39 +15,28 @@ namespace AutoMappic;
 /// </remarks>
 internal sealed class MappingExpression<
     [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicProperties | DynamicallyAccessedMemberTypes.PublicMethods | DynamicallyAccessedMemberTypes.PublicParameterlessConstructor)] TSource,
-    [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicProperties | DynamicallyAccessedMemberTypes.PublicMethods | DynamicallyAccessedMemberTypes.PublicParameterlessConstructor)] TDestination> :
+    [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicProperties | DynamicallyAccessedMemberTypes.PublicMethods | DynamicallyAccessedMemberTypes.PublicParameterlessConstructor)] TDestination>(Profile? profile = null) :
     IMappingExpression<TSource, TDestination>
 {
     // Keyed by destination member name.
     internal readonly Dictionary<string, string?> ExplicitMaps = new(StringComparer.Ordinal);
     internal readonly Dictionary<string, Func<object, object?>> RuntimeMaps = new(StringComparer.Ordinal);
     private readonly HashSet<string> _ignoredMembers = new(StringComparer.Ordinal);
-    private readonly Profile? _profile;
-    [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicParameterlessConstructor | DynamicallyAccessedMemberTypes.PublicMethods)]
-    private Type? _converterType;
+    private readonly Profile? _profile = profile;
     private Action<TSource, TDestination>? _beforeMap;
     private Action<TSource, TDestination>? _afterMap;
     private Func<TSource, TDestination, Task>? _beforeMapAsync;
     private Func<TSource, TDestination, Task>? _afterMapAsync;
-    private Func<TSource, TDestination>? _constructionFactory;
     private readonly Dictionary<string, Func<TSource, TDestination, bool>> _memberConditions = new(StringComparer.Ordinal);
-    private INamingConvention? _sourceNaming;
-    private INamingConvention? _destNaming;
-    private bool _suppressUnmapped;
-
-    public MappingExpression(Profile? profile = null)
-    {
-        _profile = profile;
-    }
 
     /// <inheritdoc />
-    public INamingConvention? SourceNaming => _sourceNaming ?? _profile?.SourceNamingConvention;
+    public INamingConvention? SourceNaming { get => field ?? _profile?.SourceNamingConvention; private set; }
 
     /// <inheritdoc />
-    public INamingConvention? DestinationNaming => _destNaming ?? _profile?.DestinationNamingConvention;
+    public INamingConvention? DestinationNaming { get => field ?? _profile?.DestinationNamingConvention; private set; }
 
     /// <inheritdoc />
-    public bool SuppressUnmapped => _suppressUnmapped;
+    public bool SuppressUnmapped { get; private set; }
 
     /// <inheritdoc />
     [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicProperties | DynamicallyAccessedMemberTypes.PublicMethods)]
@@ -67,8 +56,9 @@ internal sealed class MappingExpression<
     IReadOnlyDictionary<string, Func<object, object?>> IMappingExpression.RuntimeMaps => RuntimeMaps;
 
     /// <inheritdoc />
+    [field: DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicParameterlessConstructor | DynamicallyAccessedMemberTypes.PublicMethods)]
     [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicParameterlessConstructor | DynamicallyAccessedMemberTypes.PublicMethods)]
-    public Type? ConverterType => _converterType;
+    public Type? ConverterType { get; private set; }
 
     /// <inheritdoc />
     public string? ConstructionExpression => null; // Only available at compile-time via source gen
@@ -76,11 +66,11 @@ internal sealed class MappingExpression<
     /// <inheritdoc />
     public IReadOnlyDictionary<string, string> MemberConditions => new Dictionary<string, string>(); // Only available at compile-time
 
-    Delegate? IMappingExpression.ConstructionFactory => _constructionFactory;
+    Delegate? IMappingExpression.ConstructionFactory => ConstructionFactory;
 
     IReadOnlyDictionary<string, Delegate> IMappingExpression.RuntimeConditions => _memberConditions.ToDictionary(k => k.Key, v => (Delegate)v.Value, StringComparer.Ordinal);
 
-    internal Func<TSource, TDestination>? ConstructionFactory => _constructionFactory;
+    internal Func<TSource, TDestination>? ConstructionFactory { get; private set; }
 
     internal IReadOnlyDictionary<string, Func<TSource, TDestination, bool>> RuntimeConditions => _memberConditions;
 
@@ -94,7 +84,7 @@ internal sealed class MappingExpression<
         Expression<Func<TDestination, TMember>> destinationMember,
         Action<IMemberConfigurationExpression<TSource, TDestination, TMember>> memberOptions)
     {
-        var memberName = GetMemberName(destinationMember);
+        string memberName = GetMemberName(destinationMember);
         var config = new MemberConfigurationExpression<TSource, TDestination, TMember>();
         memberOptions(config);
 
@@ -157,7 +147,7 @@ internal sealed class MappingExpression<
     /// <inheritdoc />
     public IMappingExpression<TSource, TDestination> ConvertUsing<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicParameterlessConstructor | DynamicallyAccessedMemberTypes.PublicMethods)] TConverter>() where TConverter : ITypeConverter<TSource, TDestination>, new()
     {
-        _converterType = typeof(TConverter);
+        ConverterType = typeof(TConverter);
         return this;
     }
 
@@ -166,7 +156,7 @@ internal sealed class MappingExpression<
     {
         if (AutoMappicFeatures.IsReflectionFallbackEnabled)
         {
-            _constructionFactory = converter.Compile();
+            ConstructionFactory = converter.Compile();
         }
 
         return this;
@@ -175,7 +165,7 @@ internal sealed class MappingExpression<
     /// <inheritdoc />
     public IMappingExpression ConvertUsing([DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicParameterlessConstructor | DynamicallyAccessedMemberTypes.PublicMethods)] Type converterType)
     {
-        _converterType = converterType;
+        ConverterType = converterType;
         return this;
     }
 
@@ -212,7 +202,7 @@ internal sealed class MappingExpression<
     {
         if (AutoMappicFeatures.IsReflectionFallbackEnabled)
         {
-            _constructionFactory = ctor.Compile();
+            ConstructionFactory = ctor.Compile();
         }
 
         return this;
@@ -243,29 +233,21 @@ internal sealed class MappingExpression<
         if (source is null || destination is null) return;
         ExecuteAfter((TSource)source, (TDestination)destination);
     }
-    Task IMappingExpression.ExecuteBeforeAsync(object source, object destination)
-    {
-        if (source is null || destination is null) return Task.CompletedTask;
-        return ExecuteBeforeAsync((TSource)source, (TDestination)destination);
-    }
-    Task IMappingExpression.ExecuteAfterAsync(object source, object destination)
-    {
-        if (source is null || destination is null) return Task.CompletedTask;
-        return ExecuteAfterAsync((TSource)source, (TDestination)destination);
-    }
+    Task IMappingExpression.ExecuteBeforeAsync(object source, object destination) => source is null || destination is null ? Task.CompletedTask : ExecuteBeforeAsync((TSource)source, (TDestination)destination);
+    Task IMappingExpression.ExecuteAfterAsync(object source, object destination) => source is null || destination is null ? Task.CompletedTask : ExecuteAfterAsync((TSource)source, (TDestination)destination);
 
     /// <inheritdoc />
     public IMappingExpression<TSource, TDestination> WithNamingConvention(INamingConvention sourceNaming, INamingConvention destinationNaming)
     {
-        _sourceNaming = sourceNaming;
-        _destNaming = destinationNaming;
+        SourceNaming = sourceNaming;
+        DestinationNaming = destinationNaming;
         return this;
     }
 
     /// <inheritdoc />
     public IMappingExpression<TSource, TDestination> IgnoreUnmapped()
     {
-        _suppressUnmapped = true;
+        SuppressUnmapped = true;
         return this;
     }
 
@@ -273,12 +255,9 @@ internal sealed class MappingExpression<
 
     private static string GetMemberName<TMember>(Expression<Func<TDestination, TMember>> selector)
     {
-        if (selector.Body is MemberExpression memberExpr)
-        {
-            return memberExpr.Member.Name;
-        }
-
-        throw new ArgumentException(
+        return selector.Body is MemberExpression memberExpr
+            ? memberExpr.Member.Name
+            : throw new ArgumentException(
             $"The selector must be a simple member access expression, e.g. 'dest => dest.{typeof(TMember).Name}'.",
             nameof(selector));
     }
@@ -306,18 +285,13 @@ internal sealed class MemberConfigurationExpression<TSource, TDestination, TMemb
     public void Ignore() => IsIgnored = true;
 
     /// <inheritdoc />
-    public void MapFrom<TResolver>() where TResolver : IValueResolver<TSource, TMember>, new()
-    {
-        MapFromExpression = src => new TResolver().Resolve(src);
-    }
+    public void MapFrom<TResolver>() where TResolver : IValueResolver<TSource, TMember>, new() => MapFromExpression = src => new TResolver().Resolve(src);
 
     /// <inheritdoc />
-    public void MapFromAsync<TResolver>() where TResolver : IAsyncValueResolver<TSource, TMember>, new()
-    {
+    public void MapFromAsync<TResolver>() where TResolver : IAsyncValueResolver<TSource, TMember>, new() =>
         // For runtime fallback, we use Task.Run/Result which is NOT recommended but 
         // this path is only for un-generated fallback/testing.
         MapFromExpression = src => new TResolver().ResolveAsync(src).GetAwaiter().GetResult();
-    }
 
     /// <inheritdoc />
     [global::System.Diagnostics.CodeAnalysis.UnconditionalSuppressMessage(

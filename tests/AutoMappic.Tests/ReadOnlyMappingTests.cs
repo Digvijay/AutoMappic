@@ -9,10 +9,10 @@ public class ReadOnlyMappingTests
 {
     public class S
     {
-        public List<int> Vals { get; set; } = new();
+        public List<int> Vals { get; set; } = [];
         public int Dummy { get; set; }
     }
-    public class D { public List<int> Vals { get; } = new(); }
+    public class D { public List<int> Vals { get; } = []; }
 
     public class ReadOnlyProfile : Profile
     {
@@ -30,7 +30,7 @@ public class ReadOnlyMappingTests
         var config = new MapperConfiguration(cfg => cfg.AddProfile<ReadOnlyProfile>());
         var mapper = config.CreateMapper();
 
-        var source = new S { Vals = new List<int> { 1, 2, 3 } };
+        var source = new S { Vals = [1, 2, 3] };
         var dest = new D();
         // Pre-fill to ensure it's cleared if possible (or at least items are added)
         dest.Vals.Add(99);
@@ -48,7 +48,7 @@ public class ReadOnlyMappingTests
         var config = new MapperConfiguration(cfg => cfg.AddProfile<ReadOnlyProfile>());
         var mapper = config.CreateMapper();
 
-        var source = new S { Vals = new List<int> { 1 } };
+        var source = new S { Vals = [1] };
         var dest = new DNonColl();
 
         mapper.Map(source, dest);

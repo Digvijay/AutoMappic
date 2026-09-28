@@ -97,7 +97,7 @@ internal sealed class Program
                 {
                     issues.Add(new
                     {
-                        Id = diag.Id,
+                        diag.Id,
                         Severity = diag.Severity.ToString(),
                         Message = diag.GetMessage(CultureInfo.InvariantCulture),
                         SourceType = model.SourceTypeFullName,
@@ -164,7 +164,7 @@ internal sealed class Program
                 Console.WriteLine($"    subgraph \"{m.SourceTypeName} to {m.DestinationTypeName}\"");
                 foreach (var p in m.Properties.Where(x => x.Kind != PropertyMapKind.Ignored))
                 {
-                    var sourcePath = p.NestedExpression ?? p.SourceExpression ?? "Explicit";
+                    string sourcePath = p.NestedExpression ?? p.SourceExpression ?? "Explicit";
                     Console.WriteLine($"        {m.SourceTypeName}.{sourcePath} --> {m.DestinationTypeName}.{p.DestinationProperty}");
                 }
                 Console.WriteLine("    end");
@@ -205,13 +205,13 @@ internal sealed class Program
 
         foreach (var tree in comp.SyntaxTrees)
         {
-            var path = tree.FilePath;
+            string path = tree.FilePath;
             if (string.IsNullOrEmpty(path) || path.EndsWith(".g.cs", StringComparison.OrdinalIgnoreCase)) continue;
 
-            var text = (await tree.GetTextAsync()).ToString();
+            string text = (await tree.GetTextAsync()).ToString();
             if (regex.IsMatch(text))
             {
-                var newText = regex.Replace(text, match =>
+                string newText = regex.Replace(text, match =>
                     $"{match.Groups["src"].Value}.MapTo<{match.Groups["type"].Value}>({match.Groups["mapper"].Value})");
 
                 if (text != newText)

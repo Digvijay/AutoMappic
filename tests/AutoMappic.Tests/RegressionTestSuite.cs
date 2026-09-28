@@ -13,7 +13,7 @@ public class ExtremeSource
 {
     public int? NullableInt { get; set; } = null;
     public string? NullableString { get; set; } = "Not Null";
-    public List<int>? NullableList { get; set; } = new List<int> { 1, 2, 3 };
+    public List<int>? NullableList { get; set; } = [1, 2, 3];
     public Dictionary<string, string>? NullableDict { get; set; } = new Dictionary<string, string> { { "Key", "Value" } };
     public SubSource? NestedNulls { get; set; } = null;
     public SubSource InitializedNested { get; set; } = new SubSource { Code = "123" };
@@ -25,8 +25,8 @@ public class ExtremeDestination
 {
     public int NullableInt { get; set; }
     public string NullableString { get; set; } = "";
-    public int[] NullableList { get; set; } = Array.Empty<int>();
-    public Dictionary<string, string> NullableDict { get; set; } = new();
+    public int[] NullableList { get; set; } = [];
+    public Dictionary<string, string> NullableDict { get; set; } = [];
     public SubDestination NestedNulls { get; set; } = new SubDestination();
     public SubDestination InitializedNested { get; set; } = new SubDestination();
     public string Prop1 { get; set; } = "";
@@ -45,7 +45,7 @@ public class SubSource
 public class SubDestination
 {
     public string Code { get; set; } = "";
-    public List<string> Tags { get; set; } = new();
+    public List<string> Tags { get; set; } = [];
 }
 
 public class SelfReferencingNode

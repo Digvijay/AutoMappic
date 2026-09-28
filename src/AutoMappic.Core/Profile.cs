@@ -111,7 +111,7 @@ internal sealed class OpenGenericMappingExpression(
     [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicProperties | DynamicallyAccessedMemberTypes.PublicMethods | DynamicallyAccessedMemberTypes.PublicParameterlessConstructor)]
     public Type DestinationType => d;
 
-    public IReadOnlyCollection<string> IgnoredMembers => Array.Empty<string>();
+    public IReadOnlyCollection<string> IgnoredMembers => [];
     public IReadOnlyDictionary<string, string?> ExplicitMaps => new Dictionary<string, string?>();
     public IReadOnlyDictionary<string, Func<object, object?>> RuntimeMaps => new Dictionary<string, Func<object, object?>>();
 

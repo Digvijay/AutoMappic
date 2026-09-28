@@ -19,7 +19,7 @@ public class IdentityManagementTests
     [Fact]
     public void Generator_IdentityManagement_EmitsMappingContext()
     {
-        var source = @"
+        string source = @"
 using AutoMappic;
 using System.Collections.Generic;
 
@@ -35,7 +35,7 @@ public class MyProfile : Profile
             ["build_property.automappic_enableidentitymanagement"] = "true"
         };
         var result = GeneratorTestHelper.RunGenerator(source, options);
-        var mapSource = result.Sources
+        string mapSource = result.Sources
             .FirstOrDefault(f => f.HintName.Contains("Entity_") && f.HintName.Contains("_To_") && f.HintName.Contains("EntityDto"))
             .SourceText?.ToString() ?? "";
 
@@ -46,7 +46,7 @@ public class MyProfile : Profile
     [Fact]
     public void Generator_WithoutIdentityFlag_NoConditionalPatches()
     {
-        var source = @"
+        string source = @"
 #nullable enable
 using AutoMappic;
 
@@ -58,7 +58,7 @@ public class MyProfile : Profile
     public MyProfile() { CreateMap<S, D>(); }
 }";
         var result = GeneratorTestHelper.RunGenerator(source);
-        var mapSource = result.Sources
+        string mapSource = result.Sources
             .FirstOrDefault(f => f.HintName.Contains("S_") && f.HintName.Contains("_To_") && f.HintName.Contains("_D_"))
             .SourceText?.ToString() ?? "";
 
@@ -75,7 +75,7 @@ public class MyProfile : Profile
     [Fact]
     public void Generator_PatchMode_EmitsNullChecks()
     {
-        var source = @"
+        string source = @"
 #nullable enable
 using AutoMappic;
 
@@ -91,7 +91,7 @@ public class PatchProfile : Profile
             ["build_property.automappic_enableidentitymanagement"] = "true"
         };
         var result = GeneratorTestHelper.RunGenerator(source, options);
-        var mapSource = result.Sources
+        string mapSource = result.Sources
             .FirstOrDefault(f => f.HintName.Contains("PatchSource") && f.HintName.Contains("PatchDest"))
             .SourceText?.ToString() ?? "";
 
@@ -108,7 +108,7 @@ public class PatchProfile : Profile
     [Fact]
     public void Generator_AM0013_WarnsOnRequiredPatchMismatch()
     {
-        var source = @"
+        string source = @"
 #nullable enable
 using AutoMappic;
 
@@ -133,7 +133,7 @@ public class MyProfile : Profile
     [Fact]
     public void Generator_AM0013_NotEmittedWithoutIdentityManagement()
     {
-        var source = @"
+        string source = @"
 #nullable enable
 using AutoMappic;
 
@@ -155,7 +155,7 @@ public class MyProfile : Profile
     [Fact]
     public void Generator_AM0013_NotEmittedForNonRequired()
     {
-        var source = @"
+        string source = @"
 #nullable enable
 using AutoMappic;
 
@@ -185,7 +185,7 @@ public class MyProfile : Profile
     [Fact]
     public void Generator_CollectionSync_InfersKeyProperty()
     {
-        var source = @"
+        string source = @"
 using AutoMappic;
 using System.Collections.Generic;
 
@@ -208,7 +208,7 @@ public class OrderProfile : Profile
             ["build_property.automappic_enableidentitymanagement"] = "true"
         };
         var result = GeneratorTestHelper.RunGenerator(source, options);
-        var mapSource = result.Sources
+        string mapSource = result.Sources
             .FirstOrDefault(f => f.HintName.Contains("Order_") && f.HintName.Contains("OrderDto") && !f.HintName.Contains("Item"))
             .SourceText?.ToString() ?? "";
 
@@ -225,7 +225,7 @@ public class OrderProfile : Profile
     [Fact]
     public void Generator_StaticConverter_AttributeEmitted()
     {
-        var source = @"
+        string source = @"
 using AutoMappic;
 
 public class S { public int Id { get; set; } }
@@ -254,7 +254,7 @@ public class MyProfile : Profile
     [Fact]
     public void Generator_StaticConverter_GeneratesDelegatingMap()
     {
-        var source = @"
+        string source = @"
 using AutoMappic;
 
 public class Money { public decimal Amount { get; set; } public string Currency { get; set; } = """"; }
@@ -289,7 +289,7 @@ public class MyProfile : Profile
     [Fact]
     public void Generator_ShallowClone_SameTypeMapping()
     {
-        var source = @"
+        string source = @"
 using AutoMappic;
 
 public class Entity { public int Id { get; set; } public string Name { get; set; } = """"; }
@@ -299,7 +299,7 @@ public class MyProfile : Profile
     public MyProfile() { CreateMap<Entity, Entity>(); }
 }";
         var result = GeneratorTestHelper.RunGenerator(source);
-        var mapSource = result.Sources
+        string mapSource = result.Sources
             .FirstOrDefault(f => f.HintName.Contains("Entity_") && f.HintName.Contains("_To_") && f.HintName.Contains("Entity_"))
             .SourceText?.ToString() ?? "";
 
@@ -315,10 +315,7 @@ public class MyProfile : Profile
     [Fact]
     public void Runtime_StandardMapping_StillWorks()
     {
-        var config = new MapperConfiguration(cfg =>
-        {
-            cfg.AddProfile<CoreFunctionalityProfile>();
-        });
+        var config = new MapperConfiguration(cfg => cfg.AddProfile<CoreFunctionalityProfile>());
         var mapper = config.CreateMapper();
 
         var source = new SuperComplexSource
@@ -326,7 +323,7 @@ public class MyProfile : Profile
             Id = 42,
             Header = "Test",
             Sub = new SuperSubSource { Detail = "SubVal" },
-            Items = new List<SuperItemSource> { new() { Value = 99 } }
+            Items = [new() { Value = 99 }]
         };
 
         var result = mapper.Map<SuperComplexDto>(source);
@@ -386,11 +383,11 @@ public class MyProfile : Profile
 
         var source = new S
         {
-            Data = new List<List<SChild>>
-            {
-                new List<SChild> { new SChild { Value = 10 }, new SChild { Value = 20 } },
-                new List<SChild> { new SChild { Value = 30 } }
-            }
+            Data =
+            [
+                new List<SChild> { new() { Value = 10 }, new() { Value = 20 } },
+                new List<SChild> { new() { Value = 30 } }
+            ]
         };
 
         var result = mapper.Map<D>(source);

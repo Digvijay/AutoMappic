@@ -10,7 +10,7 @@ public class GeneratorCoverageTests
     [Fact]
     public void Generator_DiagnosticSource_ProducesFiles()
     {
-        var source = @"
+        string source = @"
 using AutoMappic;
 
 public class S { public int Id { get; set; } }
@@ -30,7 +30,7 @@ public class MyProfile : Profile
     [Fact]
     public void Generator_SourceOnly_ProducesEmbeddedFiles()
     {
-        var source = @"
+        string source = @"
 using AutoMappic;
 
 public class S { public int Id { get; set; } }
@@ -52,7 +52,7 @@ public class MyProfile : Profile
     [Fact]
     public void Generator_DeepCoverage_TriggerManyBranches()
     {
-        var source = @"
+        string source = @"
 using AutoMappic;
 using System.Collections.Generic;
 using System.Threading.Tasks;
@@ -108,7 +108,7 @@ public class Program
 ";
         var result = GeneratorTestHelper.RunGenerator(source);
 
-        var allDiags = string.Join("\n", result.Diagnostics.Select(d => $"{d.Id}: {d.GetMessage()}"));
+        string allDiags = string.Join("\n", result.Diagnostics.Select(d => $"{d.Id}: {d.GetMessage()}"));
         var fileNames = result.Sources.Select(s => s.HintName).ToList();
 
         Assert.True(fileNames.Count >= 5, $"Expected many files, got {fileNames.Count}. Files: {string.Join(", ", fileNames)}\nDiags: {allDiags}");
@@ -116,7 +116,7 @@ public class Program
 
         var interceptorResult = result.Sources.FirstOrDefault(f => f.HintName.Contains("Interceptors.g.cs"));
         Assert.NotNull(interceptorResult, "Interceptors.g.cs not found");
-        var interceptors = interceptorResult.SourceText.ToString();
+        string interceptors = interceptorResult.SourceText.ToString();
 
         Assert.True(interceptors.Contains("ProjectTo"), $"Interceptors does not contain ProjectTo. Source:\n{interceptors}\nDiags: {allDiags}");
         Assert.True(interceptors.Contains("MapShim_Map"), $"Interceptors does not contain DataReader Map. Source:\n{interceptors}");
@@ -126,7 +126,7 @@ public class Program
     [Fact]
     public void Generator_DictionaryComplex_TriggerBranches()
     {
-        var source = @"
+        string source = @"
 using AutoMappic;
 using System.Collections.Generic;
 
@@ -164,7 +164,7 @@ public class Program
 }
 ";
         var result = GeneratorTestHelper.RunGenerator(source);
-        var mapSource = result.Sources.First(f => f.HintName.Contains("Source") && f.HintName.Contains("Dest")).SourceText.ToString();
+        string mapSource = result.Sources.First(f => f.HintName.Contains("Source") && f.HintName.Contains("Dest")).SourceText.ToString();
         Assert.Contains("x.Key.MapToglobal_DKey_", mapSource);
         Assert.Contains("x.Value.MapToglobal_DVal_", mapSource);
     }
@@ -173,7 +173,7 @@ public class Program
     [Fact]
     public void Generator_MixedTypes_TriggerNullabilityBranches()
     {
-        var source = @"
+        string source = @"
 #nullable enable
 using AutoMappic;
 
@@ -200,7 +200,7 @@ public class Dest
 }
 ";
         var result = GeneratorTestHelper.RunGenerator(source);
-        var mapSource = result.Sources.First(f => f.HintName.Contains("Source_") && f.HintName.Contains("_To_") && f.HintName.Contains("_Dest")).SourceText.ToString();
+        string mapSource = result.Sources.First(f => f.HintName.Contains("Source_") && f.HintName.Contains("_To_") && f.HintName.Contains("_Dest")).SourceText.ToString();
         Assert.Contains("Value1.GetValueOrDefault()", mapSource);
         Assert.Contains("Value2 ?? \"\"", mapSource);
         Assert.Contains(".ToArray()", mapSource);
@@ -210,7 +210,7 @@ public class Dest
     [Fact]
     public void Generator_Condition_ConstructUsing_TriggerBranches()
     {
-        var source = @"
+        string source = @"
 using AutoMappic;
 
 public class Profile1 : Profile
@@ -230,7 +230,7 @@ public class Dest {
     public int Age { get; set; }
 }";
         var result = GeneratorTestHelper.RunGenerator(source);
-        var mapSource = result.Sources.First(f => f.HintName.Contains("Source_") && f.HintName.Contains("_To_") && f.HintName.Contains("_Dest")).SourceText.ToString();
+        string mapSource = result.Sources.First(f => f.HintName.Contains("Source_") && f.HintName.Contains("_To_") && f.HintName.Contains("_Dest")).SourceText.ToString();
         Assert.Contains("new Dest(source.Name)", mapSource);
         Assert.Contains("if (source.Id > 0)", mapSource);
     }
@@ -239,7 +239,7 @@ public class Dest {
     [Fact]
     public void Generator_AM0008_ProjectTo_WarnsOnRuntimeFeatures()
     {
-        var source = @"
+        string source = @"
 using AutoMappic;
 using System.Linq;
 

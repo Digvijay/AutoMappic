@@ -68,7 +68,7 @@ public class MappingContextParityTests
     [Fact]
     public void Emitted_context_exposes_every_member_of_the_runtime_context()
     {
-        var emitted = EmittedMappingContext();
+        string emitted = EmittedMappingContext();
 
         var members = typeof(AutoMappic.Generated.MappingContext)
             .GetMembers(BindingFlags.Public | BindingFlags.Instance | BindingFlags.DeclaredOnly)

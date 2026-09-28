@@ -52,10 +52,7 @@ public sealed class MethodMappingTests
 {
     private sealed class MethodProfile : Profile
     {
-        public MethodProfile()
-        {
-            CreateMap<User, MethodDto>();
-        }
+        public MethodProfile() => CreateMap<User, MethodDto>();
     }
 
     /// <summary> Confirm that source 'Get' methods are automatically resolved to matching destination properties by convention </summary>

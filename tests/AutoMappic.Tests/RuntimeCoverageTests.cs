@@ -185,7 +185,7 @@ public class RuntimeCoverageTests
             .First(m => m.Name == "ProjectTo" && m.GetGenericArguments().Length == 2)
             .MakeGenericMethod(typeof(User), typeof(UserDto));
         // Calling via reflection avoids interceptor
-        var ex = Assert.Throws<System.Reflection.TargetInvocationException>(() => method.Invoke(null, new object[] { queryable }));
+        var ex = Assert.Throws<System.Reflection.TargetInvocationException>(() => method.Invoke(null, [queryable]));
         Assert.True(ex.InnerException is AutoMappicException);
     }
 
@@ -196,7 +196,7 @@ public class RuntimeCoverageTests
         var reader = new MockDataReader();
         var method = typeof(DataReaderExtensions).GetMethod("Map")!.MakeGenericMethod(typeof(UserDto));
         // Calling via reflection avoids interceptor
-        var ex = Assert.Throws<System.Reflection.TargetInvocationException>(() => method.Invoke(null, new object[] { reader }));
+        var ex = Assert.Throws<System.Reflection.TargetInvocationException>(() => method.Invoke(null, [reader]));
         Assert.True(ex.InnerException is AutoMappicException);
     }
 
@@ -205,10 +205,7 @@ public class RuntimeCoverageTests
     public void GetMemberName_InvalidExpression_Throws()
     {
         var profile = new TestProfile();
-        Assert.Throws<ArgumentException>(() =>
-        {
-            profile.Register<User, UserDto>(opt => opt.ForMember(d => d.ToString(), o => o.Ignore()));
-        });
+        Assert.Throws<ArgumentException>(() => profile.Register<User, UserDto>(opt => opt.ForMember(d => d.ToString(), o => o.Ignore())));
     }
 
     private class MockDataReader : System.Data.IDataReader
@@ -282,7 +279,7 @@ public class RuntimeCoverageTests
 
         var mapper = new MapperConfiguration(p => p.AddProfile(profile)).CreateMapper();
 
-        var source = new ListSource { Items = new List<NestedSource?> { new NestedSource { Id = 1 }, null, new NestedSource { Id = 3 } } };
+        var source = new ListSource { Items = [new NestedSource { Id = 1 }, null, new NestedSource { Id = 3 }] };
         var dest = mapper.Map<ListDest>(source);
 
         Assert.Equal(3, dest.Items.Count);
@@ -300,7 +297,7 @@ public class RuntimeCoverageTests
 
         var mapper = new MapperConfiguration(p => p.AddProfile(profile)).CreateMapper();
 
-        var source = new ListSourceUnreg { Items = new List<object> { new UnregisteredSource() } };
+        var source = new ListSourceUnreg { Items = [new UnregisteredSource()] };
 
         // AutoMappic now throws a clear exception rather than silently skipping unmapped items.
         // Users must register a mapping or exclude the collection.
@@ -321,7 +318,7 @@ public class RuntimeCoverageTests
         var mapper = new MapperConfiguration(p => p.AddProfile(profile)).CreateMapper();
 
         // long.MaxValue to int will overflow in Convert.ChangeType
-        var val = long.MaxValue;
+        long val = long.MaxValue;
         // Should fall through to registered maps or throw if no map
         try
         {
@@ -330,25 +327,25 @@ public class RuntimeCoverageTests
         catch (AutoMappicException) { /* Expected fallthrough if no registered map */ }
     }
 
-    private class DictDestStringVal { public Dictionary<string, string> Items { get; set; } = new(); }
-    private class DictSourceLong { public Dictionary<long, long> Items { get; set; } = new(); }
-    private class DictDestInt { public Dictionary<int, int> Items { get; set; } = new(); }
+    private class DictDestStringVal { public Dictionary<string, string> Items { get; set; } = []; }
+    private class DictSourceLong { public Dictionary<long, long> Items { get; set; } = []; }
+    private class DictDestInt { public Dictionary<int, int> Items { get; set; } = []; }
 
-    private class DictSourceIntVal { public Dictionary<string, int> Items { get; set; } = new(); }
-    private class DictDestLongVal { public Dictionary<string, long> Items { get; set; } = new(); }
+    private class DictSourceIntVal { public Dictionary<string, int> Items { get; set; } = []; }
+    private class DictDestLongVal { public Dictionary<string, long> Items { get; set; } = []; }
 
     private class SkippedMapSource { public UnregisteredSource Item { get; set; } = new(); }
     private class SkippedMapDest { public UnregisteredDest? Item { get; set; } }
 
-    private class ListSource { public List<NestedSource?> Items { get; set; } = new(); }
-    private class ListDest { public List<NestedDest> Items { get; set; } = new(); }
-    private class ListSourceUnreg { public List<object> Items { get; set; } = new(); }
-    private class ListDestUnreg { public List<UnregisteredDest> Items { get; set; } = new(); }
+    private class ListSource { public List<NestedSource?> Items { get; set; } = []; }
+    private class ListDest { public List<NestedDest> Items { get; set; } = []; }
+    private class ListSourceUnreg { public List<object> Items { get; set; } = []; }
+    private class ListDestUnreg { public List<UnregisteredDest> Items { get; set; } = []; }
 
     private class NestedSource { public int Id { get; set; } }
     private class NestedDest { public int Id { get; set; } }
-    private class DictSourceNested { public Dictionary<int, NestedSource> Items { get; set; } = new(); }
-    private class DictDestNested { public Dictionary<string, NestedDest> Items { get; set; } = new(); }
+    private class DictSourceNested { public Dictionary<int, NestedSource> Items { get; set; } = []; }
+    private class DictDestNested { public Dictionary<string, NestedDest> Items { get; set; } = []; }
 
     private class UnregisteredSource { public int Id { get; set; } }
     private class UnregisteredDest { public int Id { get; set; } }
@@ -364,8 +361,8 @@ public class RuntimeCoverageTests
     private class SourceWithBadType { public object Value { get; set; } = new(); }
     private class DestWithGoodType { public int Value { get; set; } }
 
-    private class DictSource { public Dictionary<int, int> Items { get; set; } = new(); }
-    private class DictDest { public Dictionary<string, string> Items { get; set; } = new(); }
+    private class DictSource { public Dictionary<int, int> Items { get; set; } = []; }
+    private class DictDest { public Dictionary<string, string> Items { get; set; } = []; }
 
     private class SnakeSource { public string first_name { get; set; } = ""; }
     private class PascalDest { public string FirstName { get; set; } = ""; }

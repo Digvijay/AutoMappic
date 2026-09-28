@@ -22,10 +22,7 @@ public sealed class MapperConfigurationTests
 
     /// <summary> Verify that the mapper configuration factory returns a valid IMapper instance </summary>
     [Fact]
-    public void CreateMapper_ReturnsNonNullMapper()
-    {
-        Assert.NotNull(_mapper);
-    }
+    public void CreateMapper_ReturnsNonNullMapper() => Assert.NotNull(_mapper);
 
     /// <summary> Confirm that basic property-to-property mapping works on the runtime fallback mapper </summary>
     [Fact]
@@ -42,17 +39,11 @@ public sealed class MapperConfigurationTests
 
     /// <summary> Ensure that passing null as a source to the generic Map method throws the appropriate exception </summary>
     [Fact]
-    public void Map_WithNullSource_ThrowsArgumentNullException()
-    {
-        Assert.Throws<ArgumentNullException>(() => _mapper.Map<User, UserDto>(null!));
-    }
+    public void Map_WithNullSource_ThrowsArgumentNullException() => Assert.Throws<ArgumentNullException>(() => _mapper.Map<User, UserDto>(null!));
 
     /// <summary> Verify that attempting to map between types without a valid Profile registration throws a configuration exception </summary>
     [Fact]
-    public void Map_UnregisteredTypePair_ThrowsAutoMappicException()
-    {
-        Assert.Throws<AutoMappicException>(() => _mapper.Map<User, OrderDto>(new User()));
-    }
+    public void Map_UnregisteredTypePair_ThrowsAutoMappicException() => Assert.Throws<AutoMappicException>(() => _mapper.Map<User, OrderDto>(new User()));
 
     /// <summary> Validate that the mapper can correctly update an existing object instance rather than creating a new one </summary>
     [Fact]
@@ -129,8 +120,5 @@ public sealed class AutoMappicExceptionTests
 
     /// <summary> Sanity check to confirm the library exception properly inherits from the base System.Exception class </summary>
     [Fact]
-    public void AutoMappicException_IsException()
-    {
-        Assert.True(typeof(AutoMappicException).IsSubclassOf(typeof(Exception)));
-    }
+    public void AutoMappicException_IsException() => Assert.True(typeof(AutoMappicException).IsSubclassOf(typeof(Exception)));
 }

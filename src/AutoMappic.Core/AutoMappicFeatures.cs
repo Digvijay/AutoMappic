@@ -48,5 +48,5 @@ internal static class AutoMappicFeatures
     ///   keep; anything more complex would not be substitutable at all.
     /// </remarks>
     internal static bool IsReflectionFallbackEnabled =>
-        !AppContext.TryGetSwitch("AutoMappic.IsReflectionFallbackEnabled", out var enabled) || enabled;
+        !AppContext.TryGetSwitch("AutoMappic.IsReflectionFallbackEnabled", out bool enabled) || enabled;
 }

@@ -4,14 +4,14 @@ using Assert = Prova.Assertions.Assert;
 
 namespace AutoMappic.Tests;
 
-public class CollWrapper { public HashSet<User> Items { get; set; } = new(); }
-public class CollWrapperDto { public List<UserSummaryDto> Items { get; set; } = new(); }
+public class CollWrapper { public HashSet<User> Items { get; set; } = []; }
+public class CollWrapperDto { public List<UserSummaryDto> Items { get; set; } = []; }
 
-public class DictWrapper { public Dictionary<int, User> Dict { get; set; } = new(); }
-public class DictWrapperDto { public Dictionary<string, UserSummaryDto> Dict { get; set; } = new(); }
+public class DictWrapper { public Dictionary<int, User> Dict { get; set; } = []; }
+public class DictWrapperDto { public Dictionary<string, UserSummaryDto> Dict { get; set; } = []; }
 
-public class NestedOrderWrapper { public List<Order> Orders { get; set; } = new(); }
-public class NestedOrderWrapperDto { public List<OrderDto> Orders { get; set; } = new(); }
+public class NestedOrderWrapper { public List<Order> Orders { get; set; } = []; }
+public class NestedOrderWrapperDto { public List<OrderDto> Orders { get; set; } = []; }
 
 public sealed class AdvancedCollectionMappingTests
 {
@@ -34,7 +34,7 @@ public sealed class AdvancedCollectionMappingTests
         var mapper = new MapperConfiguration(cfg => cfg.AddProfile<AdvCollProfile>())
             .CreateMapper();
 
-        var source = new CollWrapper { Items = new HashSet<User> { new User { Username = "alice" } } };
+        var source = new CollWrapper { Items = [new User { Username = "alice" }] };
         var dto = mapper.Map<CollWrapper, CollWrapperDto>(source);
 
         Assert.Single(dto.Items);
@@ -66,10 +66,10 @@ public sealed class AdvancedCollectionMappingTests
 
         var source = new NestedOrderWrapper
         {
-            Orders = new List<Order> {
+            Orders = [
                 new Order { Id = 1, Customer = null },
                 new Order { Id = 2, Customer = new Customer { Name = "X" } }
-            }
+            ]
         };
 
         var dto = mapper.Map<NestedOrderWrapper, NestedOrderWrapperDto>(source);

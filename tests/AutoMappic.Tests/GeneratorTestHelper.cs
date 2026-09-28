@@ -59,20 +59,19 @@ public static class GeneratorTestHelper
         return new GeneratorResult(runResult.Diagnostics, sources, runResult);
     }
 
-    private class TestOptionsProvider : AnalyzerConfigOptionsProvider
+    private class TestOptionsProvider(IReadOnlyDictionary<string, string> options) : AnalyzerConfigOptionsProvider
     {
-        private readonly TestOptions _options;
-        public TestOptionsProvider(IReadOnlyDictionary<string, string> options) => _options = new TestOptions(options);
+        private readonly TestOptions _options = new(options);
+
         public override AnalyzerConfigOptions GlobalOptions => _options;
         public override AnalyzerConfigOptions GetOptions(SyntaxTree tree) => _options;
         public override AnalyzerConfigOptions GetOptions(AdditionalText textFile) => _options;
     }
 
-    private class TestOptions : AnalyzerConfigOptions
+    private class TestOptions(IReadOnlyDictionary<string, string> options) : AnalyzerConfigOptions
     {
-        private readonly IReadOnlyDictionary<string, string> _options;
-        public TestOptions(IReadOnlyDictionary<string, string> options)
-            => _options = new Dictionary<string, string>(options, StringComparer.OrdinalIgnoreCase);
+        private readonly IReadOnlyDictionary<string, string> _options = new Dictionary<string, string>(options, StringComparer.OrdinalIgnoreCase);
+
         public override bool TryGetValue(string key, [System.Diagnostics.CodeAnalysis.NotNullWhen(true)] out string? value) => _options.TryGetValue(key, out value);
     }
 }

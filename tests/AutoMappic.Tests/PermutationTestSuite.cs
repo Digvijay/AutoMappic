@@ -39,8 +39,8 @@ public class EnumDto { public PermutationDestEnum Value { get; set; } }
 public class NullableSource { public int? Val1 { get; set; } public int Val2 { get; set; } }
 public class NullableDto { public int Val1 { get; set; } public int? Val2 { get; set; } }
 
-public class CollectionPermutationSource { public Dictionary<string, List<int>> Data { get; set; } = new(); }
-public class CollectionPermutationDto { public Dictionary<string, int[]> Data { get; set; } = new(); }
+public class CollectionPermutationSource { public Dictionary<string, List<int>> Data { get; set; } = []; }
+public class CollectionPermutationDto { public Dictionary<string, int[]> Data { get; set; } = []; }
 
 public class MultiEnumSource { public PermutationSourceEnum E1 { get; set; } public PermutationSourceEnum E2 { get; set; } }
 public class MultiEnumDto { public PermutationDestEnum E1 { get; set; } public PermutationDestEnum E2 { get; set; } }

@@ -43,7 +43,7 @@ public sealed class AotAnnotationParityTests
                     continue;
                 }
 
-                for (var i = 0; i < map.InterfaceMethods.Length; i++)
+                for (int i = 0; i < map.InterfaceMethods.Length; i++)
                 {
                     yield return (type, map.InterfaceMethods[i], map.TargetMethods[i]);
                 }

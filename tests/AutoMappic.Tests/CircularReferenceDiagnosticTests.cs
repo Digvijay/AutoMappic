@@ -10,7 +10,7 @@ public sealed class CircularReferenceDiagnosticTests
     [Fact]
     public void Generator_ReportAM0006_WhenSelfReferencingModelIsDetected()
     {
-        var source = @"
+        string source = @"
 using AutoMappic;
 
 public class Employee 
@@ -41,7 +41,7 @@ public class MyProfile : Profile
 
         // V0.6.0 ANCHOR CHECK: Verify it's on property 'Manager' in 'EmployeeDto'
         // In the 'source' string below, 'Manager' is on the 12th line (0-indexed).
-        var line = am006.Location.GetLineSpan().StartLinePosition.Line;
+        int line = am006.Location.GetLineSpan().StartLinePosition.Line;
         Assert.True(line >= 11 && line <= 13, $"Expected line near 12, but got {line}");
     }
 
@@ -49,7 +49,7 @@ public class MyProfile : Profile
     [Fact]
     public void Generator_ReportAM0006_WhenIndirectCircularReferenceIsDetected()
     {
-        var source = @"
+        string source = @"
 using AutoMappic;
 
 public class A { public B B { get; set; } }
@@ -74,7 +74,7 @@ public class MyProfile : Profile
         Assert.Contains("Circular reference detected", am006!.GetMessage());
 
         // V0.6.0 ANCHOR CHECK: Verify it's on property B in ADto (Line 6 or 7 relative)
-        var line = am006.Location.GetLineSpan().StartLinePosition.Line;
+        int line = am006.Location.GetLineSpan().StartLinePosition.Line;
         Assert.True(line >= 5 && line <= 8, $"Expected line near 6, but got {line}");
     }
 }

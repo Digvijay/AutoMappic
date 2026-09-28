@@ -79,12 +79,11 @@ public class NamingConventionTests
 
 public class CycleProfile : Profile
 {
-    public CycleProfile()
-    {
+    public CycleProfile() =>
 #pragma warning disable AM0006
         CreateMap<CycleNode, CycleNode>();
 #pragma warning restore AM0006
-    }
+
 }
 
 public class CycleNode

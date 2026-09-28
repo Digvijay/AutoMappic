@@ -42,7 +42,7 @@ public class MyProfile : Profile
     [Description("Generated projection for a flattened non-nullable value type must compile (regression: CS0019/CS8715).")]
     public void Projection_For_Flattened_ValueType_Compiles()
     {
-        var errors = CompileWithGenerator(FlattenedValueTypeSource);
+        string[] errors = CompileWithGenerator(FlattenedValueTypeSource);
 
         Assert.True(
             errors.Length == 0,
@@ -54,7 +54,7 @@ public class MyProfile : Profile
     public void Projection_Does_Not_Emit_Duplicate_Null_Suppression()
     {
         var result = GeneratorTestHelper.RunGenerator(FlattenedValueTypeSource);
-        var text = string.Join("\n", result.Sources.Select(s => s.SourceText.ToString()));
+        string text = string.Join("\n", result.Sources.Select(s => s.SourceText.ToString()));
 
         Assert.False(text.Contains("!)!"), "Emitted source contains a doubled null-suppression operator.");
     }
@@ -63,7 +63,7 @@ public class MyProfile : Profile
     [Description("A flattened reference-type path keeps its string fallback, which stays valid after '?.' is stripped.")]
     public void Projection_For_Flattened_ReferenceType_Keeps_Fallback()
     {
-        var expr = Generator.Pipeline.SourceEmitter.ToProjectionExpression("Metadata?.Note ?? \"\"");
+        string expr = Generator.Pipeline.SourceEmitter.ToProjectionExpression("Metadata?.Note ?? \"\"");
 
         Assert.Equal("Metadata.Note ?? \"\"!", expr);
     }
@@ -72,7 +72,7 @@ public class MyProfile : Profile
     [Description("A flattened value-type path drops the '?? (default!)' guard that '?.' removal invalidates.")]
     public void Projection_For_Flattened_ValueType_Drops_Guard()
     {
-        var expr = Generator.Pipeline.SourceEmitter.ToProjectionExpression("Metadata?.LastLogin ?? (default!)");
+        string expr = Generator.Pipeline.SourceEmitter.ToProjectionExpression("Metadata?.LastLogin ?? (default!)");
 
         Assert.Equal("Metadata.LastLogin!", expr);
     }
@@ -89,7 +89,7 @@ public class MyProfile : Profile
             .Concat(result.Sources.Select(s => CSharpSyntaxTree.ParseText(s.SourceText.ToString())))
             .ToArray();
 
-        var runtimeDir = System.IO.Path.GetDirectoryName(typeof(object).Assembly.Location)!;
+        string runtimeDir = System.IO.Path.GetDirectoryName(typeof(object).Assembly.Location)!;
         var trusted = (AppContext.GetData("TRUSTED_PLATFORM_ASSEMBLIES") as string ?? string.Empty)
             .Split(System.IO.Path.PathSeparator)
             .Where(p => p.Length > 0 && System.IO.File.Exists(p));
@@ -111,9 +111,8 @@ public class MyProfile : Profile
             references,
             new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary));
 
-        return compilation.GetDiagnostics()
+        return [.. compilation.GetDiagnostics()
             .Where(d => d.Severity == DiagnosticSeverity.Error)
-            .Select(d => d.Id + " " + d.GetMessage())
-            .ToArray();
+            .Select(d => d.Id + " " + d.GetMessage())];
     }
 }

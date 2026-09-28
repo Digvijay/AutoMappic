@@ -18,7 +18,7 @@ namespace AutoMappic.Generator.CodeFixes
     [ExportCodeFixProvider(LanguageNames.CSharp, Name = nameof(PartialClassCodeFixProvider)), Shared]
     internal sealed class PartialClassCodeFixProvider : CodeFixProvider
     {
-        public override ImmutableArray<string> FixableDiagnosticIds => ImmutableArray.Create("AM0018");
+        public override ImmutableArray<string> FixableDiagnosticIds => ["AM0018"];
 
         public override FixAllProvider GetFixAllProvider() => WellKnownFixAllProviders.BatchFixer;
 

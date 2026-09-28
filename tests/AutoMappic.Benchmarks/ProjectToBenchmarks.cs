@@ -23,18 +23,12 @@ public class ProjectToDest
 
 public class ProjectToProfile : AutoMappic.Profile
 {
-    public ProjectToProfile()
-    {
-        CreateMap<ProjectToSource, ProjectToDest>();
-    }
+    public ProjectToProfile() => CreateMap<ProjectToSource, ProjectToDest>();
 }
 
 public class ProjectToAutoMapperProfile : global::AutoMapper.Profile
 {
-    public ProjectToAutoMapperProfile()
-    {
-        CreateMap<ProjectToSource, ProjectToDest>();
-    }
+    public ProjectToAutoMapperProfile() => CreateMap<ProjectToSource, ProjectToDest>();
 }
 
 [MemoryDiagnoser]
@@ -63,16 +57,12 @@ public class ProjectToBenchmarks
     }
 
     [Benchmark(Baseline = true)]
-    public List<ProjectToDest> AutoMapper_ProjectTo()
-    {
+    public List<ProjectToDest> AutoMapper_ProjectTo() =>
         // AutoMapper ProjectTo uses reflection to build the expression tree at runtime
-        return _dataSource.ProjectTo<ProjectToDest>(_autoMapper.ConfigurationProvider).ToList();
-    }
+        [.. _dataSource.ProjectTo<ProjectToDest>(_autoMapper.ConfigurationProvider)];
 
     [Benchmark]
-    public List<ProjectToDest> AutoMappic_ProjectTo()
-    {
+    public List<ProjectToDest> AutoMappic_ProjectTo() =>
         // AutoMappic ProjectTo uses the source-generated static 'Projection' field
-        return _dataSource.ProjectTo<ProjectToDest>().ToList();
-    }
+        [.. _dataSource.ProjectTo<ProjectToDest>()];
 }
