@@ -4,8 +4,6 @@ using System.Reflection;
 
 namespace AutoMappic;
 
-#nullable enable
-
 /// <summary>
 ///   Runtime fallback implementation of <see cref="IMapper" />.
 /// </summary>
