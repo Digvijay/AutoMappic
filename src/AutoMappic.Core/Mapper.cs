@@ -15,7 +15,7 @@ namespace AutoMappic;
 public sealed class Mapper : IMapper, IDisposable
 {
     // Signatures take (mapper, source, destination) -> result
-    private readonly Dictionary<(Type Source, Type Destination), (IMappingExpression Mapping, Func<Mapper, object, object?, global::System.Threading.Tasks.Task<object>> Delegate)> _maps
+    private readonly Dictionary<(Type Source, Type Destination), (IMappingExpression Mapping, Func<Mapper, object, object?, global::System.Threading.Tasks.Task<object>>? Delegate)> _maps
         = new();
     // Per-async-context stack to detect circular references in runtime fallback
     private readonly global::System.Threading.AsyncLocal<HashSet<object>> _mappingStack = new();
@@ -26,6 +26,15 @@ public sealed class Mapper : IMapper, IDisposable
     /// <summary>
     ///   Initialises the mapper from a collection of <see cref="Profile" /> instances and global configuration.
     /// </summary>
+    [global::System.Diagnostics.CodeAnalysis.UnconditionalSuppressMessage(
+        "TrimAnalysis", "IL2026:RequiresUnreferencedCode",
+        Justification = "The call to BuildFallbackDelegate is guarded by a feature switch that "
+            + "ILLink.Substitutions.xml stubs to false, so the trimmer folds the branch away and removes the "
+            + "reflective engine. This is what stops a generated-only application from rooting reflection.")]
+    [global::System.Diagnostics.CodeAnalysis.UnconditionalSuppressMessage(
+        "AotAnalysis", "IL3050:RequiresDynamicCode",
+        Justification = "Same feature switch: Native AOT publishing implies trimming, so the branch is removed "
+            + "before ILC analyses the application.")]
     internal Mapper(IEnumerable<Profile> profiles, IConfigurationProvider config)
     {
         ConfigurationProvider = config;
@@ -34,7 +43,13 @@ public sealed class Mapper : IMapper, IDisposable
             foreach (var mapping in profile.Mappings)
             {
                 var key = (mapping.SourceType, mapping.DestinationType);
-                _maps[key] = (mapping, BuildFallbackDelegate(mapping));
+
+                // Guarded so that a trimmed or Native AOT application drops the reflective engine
+                // entirely: ILLink.Substitutions.xml stubs the switch to false, the trimmer folds
+                // this branch away, and BuildFallbackDelegate becomes unreachable and is removed.
+                _maps[key] = AutoMappicFeatures.IsReflectionFallbackEnabled
+                    ? (mapping, BuildFallbackDelegate(mapping))
+                    : (mapping, null);
             }
         }
     }
@@ -49,42 +64,34 @@ public sealed class Mapper : IMapper, IDisposable
     }
 
     /// <inheritdoc />
-    [RequiresUnreferencedCode("Object mapping via runtime Mapper requires reflection.")]
-    [RequiresDynamicCode("Object mapping via runtime Mapper requires dynamic code generation.")]
     public TDestination Map<TDestination>(object source)
     {
         if (source is null) return default!;
-        return (TDestination)MapCore(source.GetType(), typeof(TDestination), source, null);
+        return (TDestination)ReflectiveMap(source.GetType(), typeof(TDestination), source, null);
     }
 
     /// <inheritdoc />
-    [RequiresUnreferencedCode("Object mapping via runtime Mapper requires reflection.")]
-    [RequiresDynamicCode("Object mapping via runtime Mapper requires dynamic code generation.")]
     public TDestination Map<TSource, TDestination>(TSource source)
     {
         if (source is null) return default!;
-        return (TDestination)MapCore(typeof(TSource), typeof(TDestination), source, null);
+        return (TDestination)ReflectiveMap(typeof(TSource), typeof(TDestination), source, null);
     }
 
     /// <inheritdoc />
-    [RequiresUnreferencedCode("Object mapping via runtime Mapper requires reflection.")]
-    [RequiresDynamicCode("Object mapping via runtime Mapper requires dynamic code generation.")]
     public TDestination Map<TSource, TDestination>(TSource source, TDestination destination)
     {
         ArgumentNullException.ThrowIfNull(source);
         ArgumentNullException.ThrowIfNull(destination);
-        return (TDestination)MapCore(typeof(TSource), typeof(TDestination), source, destination);
+        return (TDestination)ReflectiveMap(typeof(TSource), typeof(TDestination), source, destination);
     }
 
     /// <inheritdoc />
-    [RequiresUnreferencedCode("Object mapping via runtime Mapper requires reflection.")]
-    [RequiresDynamicCode("Object mapping via runtime Mapper requires dynamic code generation.")]
     public async global::System.Threading.Tasks.Task<TDestination> MapAsync<TDestination>(object source, global::System.Threading.CancellationToken ct = default)
     {
         try
         {
             if (source is null) return default!;
-            return (TDestination)await MapCoreAsync(source.GetType(), typeof(TDestination), source, null).ConfigureAwait(false);
+            return (TDestination)await ReflectiveMapAsync(source.GetType(), typeof(TDestination), source, null).ConfigureAwait(false);
         }
         catch (global::System.Exception ex)
         {
@@ -93,14 +100,12 @@ public sealed class Mapper : IMapper, IDisposable
     }
 
     /// <inheritdoc />
-    [RequiresUnreferencedCode("Object mapping via runtime Mapper requires reflection.")]
-    [RequiresDynamicCode("Object mapping via runtime Mapper requires dynamic code generation.")]
     public async global::System.Threading.Tasks.Task<TDestination> MapAsync<TSource, TDestination>(TSource source, global::System.Threading.CancellationToken ct = default)
     {
         try
         {
             if (source is null) return default!;
-            return (TDestination)await MapCoreAsync(typeof(TSource), typeof(TDestination), source, null).ConfigureAwait(false);
+            return (TDestination)await ReflectiveMapAsync(typeof(TSource), typeof(TDestination), source, null).ConfigureAwait(false);
         }
         catch (global::System.Exception ex)
         {
@@ -109,15 +114,13 @@ public sealed class Mapper : IMapper, IDisposable
     }
 
     /// <inheritdoc />
-    [RequiresUnreferencedCode("Object mapping via runtime Mapper requires reflection.")]
-    [RequiresDynamicCode("Object mapping via runtime Mapper requires dynamic code generation.")]
     public async global::System.Threading.Tasks.Task<TDestination> MapAsync<TSource, TDestination>(TSource source, TDestination destination, global::System.Threading.CancellationToken ct = default)
     {
         try
         {
             ArgumentNullException.ThrowIfNull(source);
             ArgumentNullException.ThrowIfNull(destination);
-            return (TDestination)await MapCoreAsync(typeof(TSource), typeof(TDestination), source, destination).ConfigureAwait(false);
+            return (TDestination)await ReflectiveMapAsync(typeof(TSource), typeof(TDestination), source, destination).ConfigureAwait(false);
         }
         catch (global::System.Exception ex)
         {
@@ -125,9 +128,75 @@ public sealed class Mapper : IMapper, IDisposable
         }
     }
 
+    /// <summary>
+    ///   Single entry point from the public mapping surface into the reflective engine.
+    /// </summary>
+    /// <remarks>
+    ///   <para>
+    ///     The guard is what makes the public surface trim-safe. When
+    ///     <c>ILLink.Substitutions.xml</c> stubs
+    ///     <see cref="AutoMappicFeatures.IsReflectionFallbackEnabled" /> to
+    ///     <see langword="false" />, the trimmer constant-folds this method down to the throw,
+    ///     the call to <see cref="MapCore" /> disappears, and the entire reflective engine
+    ///     becomes unreachable and is removed. Nothing is left for trim analysis to complain
+    ///     about, which is why <see cref="IMapper" /> no longer has to declare requirements its
+    ///     consumers cannot satisfy.
+    ///   </para>
+    ///   <para>
+    ///     Reaching this method in a trimmed application means the call site was not intercepted,
+    ///     so the mapping was never generated. Throwing is the correct outcome: the alternative
+    ///     is reflecting over members the trimmer has already removed and failing later with an
+    ///     error that names neither the mapping nor the cause.
+    ///   </para>
+    /// </remarks>
+    [global::System.Diagnostics.CodeAnalysis.UnconditionalSuppressMessage(
+        "TrimAnalysis", "IL2026:RequiresUnreferencedCode",
+        Justification = "The call is guarded by a feature switch that ILLink.Substitutions.xml stubs to false, "
+            + "so the trimmer removes this branch and the reflective engine with it. In an application that is "
+            + "not trimmed the branch runs, and there is no trimming for it to be unsafe with respect to.")]
+    [global::System.Diagnostics.CodeAnalysis.UnconditionalSuppressMessage(
+        "AotAnalysis", "IL3050:RequiresDynamicCode",
+        Justification = "Same feature switch: Native AOT publishing implies trimming, so this branch is removed "
+            + "before ILC analyses the application.")]
+    private object ReflectiveMap(Type sourceType, Type destType, object source, object? destination)
+    {
+        if (!AutoMappicFeatures.IsReflectionFallbackEnabled)
+        {
+            throw ReflectionFallbackTrimmed(sourceType, destType);
+        }
+
+        return MapCore(sourceType, destType, source, destination);
+    }
+
+    /// <summary>Asynchronous counterpart to <see cref="ReflectiveMap" />.</summary>
+    [global::System.Diagnostics.CodeAnalysis.UnconditionalSuppressMessage(
+        "TrimAnalysis", "IL2026:RequiresUnreferencedCode",
+        Justification = "See ReflectiveMap: the call is removed by the trimmer via a substituted feature switch.")]
+    [global::System.Diagnostics.CodeAnalysis.UnconditionalSuppressMessage(
+        "AotAnalysis", "IL3050:RequiresDynamicCode",
+        Justification = "See ReflectiveMap: the call is removed by the trimmer via a substituted feature switch.")]
+    private global::System.Threading.Tasks.Task<object> ReflectiveMapAsync(Type sourceType, Type destType, object source, object? destination)
+    {
+        if (!AutoMappicFeatures.IsReflectionFallbackEnabled)
+        {
+            throw ReflectionFallbackTrimmed(sourceType, destType);
+        }
+
+        return MapCoreAsync(sourceType, destType, source, destination);
+    }
+
+    /// <summary>Builds the error raised when a mapping was not generated and the fallback is gone.</summary>
+    private static AutoMappicException ReflectionFallbackTrimmed(Type sourceType, Type destType) =>
+        new($"AutoMappic: No generated mapping from '{sourceType.FullName}' to '{destType.FullName}' was available, "
+            + "and the reflective fallback has been trimmed out of this application. That is the intended "
+            + "behaviour for a trimmed or Native AOT build - mappings are meant to be generated at compile time. "
+            + $"Declare CreateMap<{sourceType.Name}, {destType.Name}>() in a Profile so the generator emits it, "
+            + "or re-enable the fallback with <RuntimeHostConfigurationOption "
+            + "Include=\"AutoMappic.IsReflectionFallbackEnabled\" Value=\"true\" />.");
+
     /// <summary>Internal core mapping logic used for recursive resolution and fallback mapping.</summary>
     [RequiresUnreferencedCode("Object mapping via runtime Mapper requires reflection.")]
-    [RequiresDynamicCode("Object mapping via runtime Mapper requires dynamic code generation.")]
+    [RequiresDynamicCode("Building a destination collection needs the array or generic type for the runtime item type.")]
     public object MapCore(Type sourceType, Type destType, object source, object? destination)
     {
         return MapCoreAsync(sourceType, destType, source, destination).GetAwaiter().GetResult();
@@ -135,7 +204,7 @@ public sealed class Mapper : IMapper, IDisposable
 
     /// <summary>Asynchronous core mapping logic.</summary>
     [RequiresUnreferencedCode("Object mapping via runtime Mapper requires reflection.")]
-    [RequiresDynamicCode("Object mapping via runtime Mapper requires dynamic code generation.")]
+    [RequiresDynamicCode("Building a destination collection needs the array or generic type for the runtime item type.")]
     public async global::System.Threading.Tasks.Task<object> MapCoreAsync(Type sourceType, Type destType, object source, object? destination)
     {
         if (destType.IsAssignableFrom(sourceType))
@@ -159,26 +228,31 @@ public sealed class Mapper : IMapper, IDisposable
         if (IsCollection(destType, out var destItemType) && IsCollection(sourceType, out var sourceItemType))
         {
             var sourceList = (System.Collections.IEnumerable)source!;
-            var resultList = (System.Collections.IList)Activator.CreateInstance(typeof(List<>).MakeGenericType(destItemType!))!;
+
+            // Staged in a non-generic list so that no closed generic type has to be constructed
+            // at runtime. Building List<destItemType> via MakeGenericType would require dynamic
+            // code whenever destItemType is a value type, which Native AOT cannot provide - and
+            // the destination type is already closed here, so it was never necessary.
+            var staged = new List<object?>();
 
             foreach (var item in sourceList!)
             {
                 if (item is null)
                 {
-                    resultList.Add(null);
+                    staged.Add(null);
                     continue;
                 }
 
                 if (destItemType.IsAssignableFrom(item.GetType()))
                 {
-                    resultList.Add(item);
+                    staged.Add(item);
                 }
                 else
                 {
                     try
                     {
                         var mapped = MapCore(item.GetType(), destItemType, item, null);
-                        resultList.Add(mapped);
+                        staged.Add(mapped);
                     }
                     catch (AutoMappicException ex)
                     {
@@ -189,13 +263,32 @@ public sealed class Mapper : IMapper, IDisposable
                 }
             }
 
-            if (destType.IsArray)
+            // An array satisfies IEnumerable<T>, IReadOnlyList<T>, IList<T> and ICollection<T>,
+            // so it serves every interface-typed destination as well as an explicit array.
+            if (destType.IsArray || destType.IsInterface)
             {
-                var array = Array.CreateInstance(destItemType, resultList.Count);
-                resultList.CopyTo(array, 0);
+                var array = Array.CreateInstance(destItemType, staged.Count);
+                for (var i = 0; i < staged.Count; i++)
+                {
+                    array.SetValue(staged[i], i);
+                }
                 return array;
             }
-            return resultList;
+
+            if (Activator.CreateInstance(destType) is not System.Collections.IList concrete)
+            {
+                throw new AutoMappicException(
+                    $"AutoMappic: Cannot populate the collection type '{destType.Name}' in the runtime fallback, "
+                    + "because it does not implement IList. Declare the mapping in a Profile so the source generator "
+                    + $"emits it at compile time, or type the destination as {destItemType.Name}[], "
+                    + $"List<{destItemType.Name}> or one of the collection interfaces.");
+            }
+
+            foreach (var item in staged)
+            {
+                concrete.Add(item);
+            }
+            return concrete;
         }
 
         var key = (sourceType, destType);
@@ -226,6 +319,18 @@ public sealed class Mapper : IMapper, IDisposable
                 $"and the generator has run, or register the mapping explicitly.");
         }
 
+        if (entry.Delegate is null)
+        {
+            throw new AutoMappicException(
+                $"A mapping from '{sourceType.FullName}' to '{destType.FullName}' is registered, but the "
+                + "reflective fallback that would execute it has been trimmed out of this application. "
+                + "That is the intended behaviour for a trimmed or Native AOT build: mappings are meant to be "
+                + "generated at compile time. This mapping was not, which usually means the call site could not "
+                + "be intercepted or the mapping was closed from an open generic at runtime. Declare the "
+                + "concrete mapping in a Profile so the generator emits it, or re-enable the fallback with "
+                + "<RuntimeHostConfigurationOption Include=\"AutoMappic.IsReflectionFallbackEnabled\" Value=\"true\" />.");
+        }
+
         var currentStack = _mappingStack.Value;
         if (currentStack == null)
         {
@@ -249,6 +354,57 @@ public sealed class Mapper : IMapper, IDisposable
             _mappingStack.Value?.Remove(source!);
         }
     }
+
+    /// <summary>
+    ///   Creates a dictionary instance assignable to <paramref name="dictType" /> without
+    ///   constructing a closed generic type at runtime wherever that can be avoided.
+    /// </summary>
+    /// <remarks>
+    ///   When the destination is a concrete type it is already closed, so it can simply be
+    ///   activated. Only an interface-typed destination needs <c>Dictionary&lt;,&gt;</c> to be
+    ///   closed here. That is safe under Native AOT for reference type arguments, because the
+    ///   runtime shares one canonical instantiation for all of them; a value type argument
+    ///   genuinely needs code that AOT cannot generate, so it is detected up front and reported
+    ///   with an actionable message rather than failing obscurely deep inside the runtime.
+    /// </remarks>
+    private static System.Collections.IDictionary CreateDictionary(
+        [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicParameterlessConstructor)] Type dictType,
+        Type keyType,
+        Type valueType)
+    {
+        if (!dictType.IsInterface && !dictType.IsAbstract)
+        {
+            return (System.Collections.IDictionary)Activator.CreateInstance(dictType)!;
+        }
+
+        if (!global::System.Runtime.CompilerServices.RuntimeFeature.IsDynamicCodeSupported
+            && (keyType.IsValueType || valueType.IsValueType))
+        {
+            throw new AutoMappicException(
+                $"AutoMappic: Cannot build a Dictionary<{keyType.Name}, {valueType.Name}> for the interface-typed "
+                + $"destination '{dictType.Name}' in a Native AOT application, because a generic instantiation over a "
+                + "value type cannot be created at runtime. Declare the mapping in a Profile so the source generator "
+                + "emits it at compile time, or type the destination property as a concrete Dictionary<,>.");
+        }
+
+        return (System.Collections.IDictionary)Activator.CreateInstance(MakeDictionaryType(keyType, valueType))!;
+    }
+
+    [global::System.Diagnostics.CodeAnalysis.UnconditionalSuppressMessage(
+        "AotAnalysis", "IL3050:RequiresDynamicCode",
+        Justification = "CreateDictionary rejects value type arguments up front when dynamic code is unavailable. "
+            + "Reference type arguments share a canonical instantiation, which Native AOT already provides.")]
+    [global::System.Diagnostics.CodeAnalysis.UnconditionalSuppressMessage(
+        "TrimAnalysis", "IL2055:MakeGenericType",
+        Justification = "Dictionary<,> is referenced statically by this assembly, so the trimmer keeps it and its "
+            + "public parameterless constructor.")]
+    [return: DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicParameterlessConstructor)]
+    private static Type MakeDictionaryType(Type keyType, Type valueType)
+        => typeof(Dictionary<,>).MakeGenericType(keyType, valueType);
+
+    [RequiresUnreferencedCode("The runtime fallback reflects over members of types only known at runtime.")]
+
+    [RequiresDynamicCode("The runtime fallback builds destination collections for runtime item types.")]
 
     private static Func<Mapper, object, object?, global::System.Threading.Tasks.Task<object>> BuildFallbackDelegate(IMappingExpression mapping)
     {
@@ -378,7 +534,7 @@ public sealed class Mapper : IMapper, IDisposable
                     else if (IsDictionary(destProp.PropertyType, out var dK, out var dV) && IsDictionary(srcProp.PropertyType, out var sK, out var sV))
                     {
                         var sourceDict = (System.Collections.IDictionary)val;
-                        var resultDict = (System.Collections.IDictionary)Activator.CreateInstance(typeof(Dictionary<,>).MakeGenericType(dK, dV))!;
+                        var resultDict = CreateDictionary(destProp.PropertyType, dK, dV);
 
                         foreach (System.Collections.DictionaryEntry entry in sourceDict)
                         {
@@ -460,6 +616,8 @@ public sealed class Mapper : IMapper, IDisposable
         };
     }
 
+    [RequiresUnreferencedCode("Flattening resolves properties on the runtime type of each value.")]
+
     private static object? ResolveFlattenedValue(object source, string destName, INamingConvention? sourceNaming, INamingConvention? destNaming)
     {
         var props = source.GetType().GetProperties(BindingFlags.Public | BindingFlags.Instance);
@@ -489,7 +647,7 @@ public sealed class Mapper : IMapper, IDisposable
         return null;
     }
 
-    private static bool IsDictionary(Type type, out Type keyType, out Type valueType)
+    private static bool IsDictionary([DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.Interfaces)] Type type, out Type keyType, out Type valueType)
     {
         keyType = null!;
         valueType = null!;
@@ -516,7 +674,7 @@ public sealed class Mapper : IMapper, IDisposable
         return false;
     }
 
-    private static bool IsCollection(Type type, out Type itemType)
+    private static bool IsCollection([DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.Interfaces)] Type type, out Type itemType)
     {
         itemType = null!;
         if (type.IsArray)
@@ -557,3 +715,5 @@ public sealed class Mapper : IMapper, IDisposable
         return string.Concat(conv.Split(name));
     }
 }
+
+

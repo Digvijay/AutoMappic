@@ -27,6 +27,22 @@
     <PackageVersion Include="Riok.Mapperly" Version="4.3.1" />
     <!-- CLI & Tools -->
     <PackageVersion Include="System.CommandLine" Version="2.0.12" />
+    <!--
+      Security floor. The MSBuild packages that AutoMappic.Cli depends on drag in
+      System.Security.Cryptography.Xml transitively, and 9.0.0 carried nine known
+      high-severity advisories. 10.0.0 is vulnerable to all nine as well; 10.0.10 is the first
+      10.x release patched for every one of them. 10.0.12 is pinned because it is the first
+      such release available, and it matches the 10.0.12 BCL packages already in use here.
+      Nothing in AutoMappic calls this package.
+
+      Do not lower this without re-checking the advisories. A local vulnerability audit run
+      against a mirror can report clean while the package is still vulnerable, because the
+      mirror does not carry nuget.org's advisory data - that is exactly how 10.0.0 was chosen
+      the first time. Trust the CI audit.
+
+      Remove this pin once the MSBuild packages float to a patched version on their own.
+    -->
+    <PackageVersion Include="System.Security.Cryptography.Xml" Version="10.0.12" />
     <PackageVersion Include="Microsoft.Build.Locator" Version="1.11.2" />
     <!-- Compile-time only; the real MSBuild comes from the instance MSBuildLocator registers. Kept at the floor Microsoft.CodeAnalysis.Workspaces.MSBuild resolves to. -->
     <PackageVersion Include="Microsoft.Build" Version="17.7.2" />
@@ -54,6 +70,7 @@
     <PackageVersion Include="System.Composition.TypedParts" Version="10.0.12" />
   </ItemGroup>
 </Project>
+
 
 
 

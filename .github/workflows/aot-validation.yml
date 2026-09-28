@@ -1,0 +1,98 @@
+name: Native AOT validation
+
+# Proves the Native AOT claim instead of asserting it: publishes a real consumer
+# with PublishAot=true, then executes the produced native binary.
+
+permissions:
+  contents: read
+
+on:
+  push:
+    branches: [ "main", "master" ]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  aot-publish-and-run:
+    name: AOT publish and run (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ ubuntu-latest, windows-latest ]
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+
+      - name: Install AOT native toolchain (Linux)
+        if: runner.os == 'Linux'
+        run: sudo apt-get update && sudo apt-get install -y clang zlib1g-dev
+
+      - name: Publish with Native AOT
+        run: >
+          dotnet publish samples/AotBenchmark/AotBenchmark.csproj
+          --configuration Release
+          --framework net10.0
+          -p:TreatWarningsAsErrors=true
+          -p:TrimmerSingleWarn=false
+          --output ./aot-output
+
+      - name: Execute the native binary
+        shell: bash
+        run: |
+          set -e
+          binary=$(find ./aot-output -maxdepth 1 -type f \( -perm -u+x -o -name '*.exe' \) ! -name '*.pdb' ! -name '*.json' ! -name '*.dbg' | head -n 1)
+          if [ -z "$binary" ]; then
+            echo "::error::No native executable was produced."
+            ls -R ./aot-output
+            exit 1
+          fi
+          echo "Running $binary"
+          "$binary"
+
+      - name: Report native binary size
+        shell: bash
+        run: |
+          echo "### Native AOT output (${{ matrix.os }})" >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+          ls -lh ./aot-output | head -n 25 >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+
+  trim-analysis:
+    name: Trimming and AOT analyzers
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+
+      - name: Build with AOT and trim analyzers as errors
+        # Scoped to AutoMappic.Core, the shipped library. Running this over the solution gated
+        # the result on AutoMappic.Tests, which contributed 2562 of the 2672 errors: the tests
+        # exercise the reflective fallback on purpose, so every call correctly reports the
+        # RequiresUnreferencedCode and RequiresDynamicCode the fallback declares. That is the
+        # annotations working, not a defect. The samples, benchmarks and CLI are the same story.
+        # The two generator projects target netstandard2.0, where these analysers are not
+        # supported at all and only produce NETSDK1210.
+        #
+        # The %3B is an escaped semicolon and has to stay escaped: the dotnet CLI splits a -p:
+        # value on semicolons, so a plain list fails with MSB1006 before compiling anything.
+        run: >
+          dotnet build src/AutoMappic.Core/AutoMappic.Core.csproj
+          --configuration Release
+          -p:EnableAotAnalyzer=true
+          -p:EnableTrimAnalyzer=true
+          -p:EnableSingleFileAnalyzer=true
+          -p:WarningsAsErrors=IL2026%3BIL2046%3BIL2062%3BIL2067%3BIL2070%3BIL2072%3BIL2075%3BIL2087%3BIL2091%3BIL3050%3BIL3051%3BIL3052%3BIL3053

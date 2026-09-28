@@ -167,7 +167,7 @@ internal static class SourceEmitter
             // We only suppress warnings for the projection expression because it is not executed as C# but translated to SQL.
             sb.AppendLine("    #pragma warning disable CS8602, CS8603, CS8604");
             var ctorCall = model.ProjectionConstructorArguments.Any(c => c.Kind != PropertyMapKind.Suggested)
-                ? $"new {destTypeNameFixed}({string.Join(", ", model.ProjectionConstructorArguments.Where(c => c.Kind != PropertyMapKind.Suggested).Select(c => c.SourceExpression?.Replace("?.", ".").Replace("(context)", "()").Replace(", context)", ")").TrimEnd('!') + "!"))})"
+                ? $"new {destTypeNameFixed}({string.Join(", ", model.ProjectionConstructorArguments.Where(c => c.Kind != PropertyMapKind.Suggested).Select(c => ToProjectionExpression(c.SourceExpression)))})"
                 : $"new {destTypeNameFixed}()";
 
             sb.AppendLine($"    public static readonly global::System.Linq.Expressions.Expression<global::System.Func<{sourceTypeNameFixed}, {destTypeNameFixed}>> Projection = source => {ctorCall}");
@@ -178,7 +178,7 @@ internal static class SourceEmitter
                 {
                     if (!string.IsNullOrEmpty(prop.SourceExpression))
                     {
-                        var expr = prop.SourceExpression!.Replace("?.", ".").Replace("(context)", "()").Replace(", context)", ")").TrimEnd('!') + "!";
+                        var expr = ToProjectionExpression(prop.SourceExpression);
                         sb.AppendLine($"        {prop.DestinationProperty} = {expr},");
                     }
                 }
@@ -198,9 +198,13 @@ internal static class SourceEmitter
     {
         var keyProp = model.Properties.FirstOrDefault(p => p.IsKey && p.Kind != PropertyMapKind.Ignored && p.Kind != PropertyMapKind.Suggested);
 
-        if (true && keyProp != null && keyProp.SourceExpression != null)
+        if (keyProp != null && keyProp.SourceExpression != null)
         {
-            sb.AppendLine($"        var __keyVal = (object?){keyProp.SourceExpression};");
+            // The key is boxed to object so it can be used in the identity map. Boxing is
+            // deferred behind IsTracking: identity tracking is off for the overwhelming
+            // majority of maps, and an unconditional cast allocated on every single call
+            // to support a feature that was not enabled.
+            sb.AppendLine($"        var __keyVal = context.IsTracking ? (object?){keyProp.SourceExpression} : null;");
             sb.AppendLine($"        if (__keyVal != null)");
             sb.AppendLine("        {");
             sb.AppendLine($"            if (context.TryGetEntity<{destTypeNameFixed}>(__keyVal, out var existing)) return existing;");
@@ -355,9 +359,10 @@ internal static class SourceEmitter
 
         var keyProp = model.Properties.FirstOrDefault(p => p.IsKey && p.Kind != PropertyMapKind.Ignored && p.Kind != PropertyMapKind.Suggested);
 
-        if (true && keyProp != null && keyProp.SourceExpression != null)
+        if (keyProp != null && keyProp.SourceExpression != null)
         {
-            sb.AppendLine($"        var __keyVal = (object?){keyProp.SourceExpression};");
+            // See EmitMappingBody: the key is only boxed when identity tracking is active.
+            sb.AppendLine($"        var __keyVal = context.IsTracking ? (object?){keyProp.SourceExpression} : null;");
             sb.AppendLine("        if (__keyVal != null)");
             sb.AppendLine("        {");
             sb.AppendLine($"            context.Register<{destTypeNameFixed}>(__keyVal, destination);");
@@ -1074,7 +1079,11 @@ internal static class SourceEmitter
         sb.AppendLine($"    internal sealed class Marker_{sanitized} {{ }}");
         sb.AppendLine();
         sb.AppendLine($"    [global::System.ComponentModel.EditorBrowsable(global::System.ComponentModel.EditorBrowsableState.Never)]");
-        sb.AppendLine($"    internal static class {sanitized}_Registration");
+        // Must be public, not internal. A referencing assembly's generated registration calls
+        // <Assembly>_Registration.AddProfiles on every assembly it references, so an internal type
+        // here produces CS0122 at the call site and forces consumers to add InternalsVisibleTo.
+        // EditorBrowsable(Never) keeps it out of IntelliSense despite being public.
+        sb.AppendLine($"    public static class {sanitized}_Registration");
         sb.AppendLine("    {");
         sb.AppendLine("        public static void AddProfiles(global::Microsoft.Extensions.DependencyInjection.IServiceCollection services)");
         sb.AppendLine("        {");
@@ -1147,6 +1156,42 @@ internal static class SourceEmitter
         return prefix + new string(',', commas) + ">";
     }
 
+    /// <summary>
+    /// Rewrites a mapping source expression into one that is valid inside a projection
+    /// expression tree.
+    /// </summary>
+    /// <remarks>
+    /// Projections strip the null-propagating <c>?.</c> because EF cannot translate it. That
+    /// has two consequences the previous inline rewrite did not handle, both of which emitted
+    /// C# that failed to compile in the consumer's build:
+    /// <list type="number">
+    /// <item>A flattened path carries a <c>?? (default!)</c> guard sized for the nullable
+    /// <c>?.</c> chain. Once the chain is non-nullable the guard is invalid whenever the member
+    /// is a non-nullable value type, producing CS0019 (for example <c>DateTime ?? default</c>).
+    /// It is also redundant: a null navigation projects to SQL NULL rather than throwing.</item>
+    /// <item><c>TrimEnd('!')</c> cannot see a <c>!</c> inside a parenthesised fallback such as
+    /// <c>(default!)</c>, so unconditionally appending <c>!</c> produced <c>(default!)!</c>
+    /// and CS8715.</item>
+    /// </list>
+    /// </remarks>
+    internal static string ToProjectionExpression(string? sourceExpression)
+    {
+        if (string.IsNullOrEmpty(sourceExpression)) return string.Empty;
+
+        var expr = sourceExpression!
+            .Replace("?.", ".")
+            .Replace("(context)", "()")
+            .Replace(", context)", ")");
+
+        const string valueFallback = " ?? (default!)";
+        if (expr.EndsWith(valueFallback, StringComparison.Ordinal))
+        {
+            expr = expr.Substring(0, expr.Length - valueFallback.Length);
+        }
+
+        return expr.EndsWith("!", StringComparison.Ordinal) ? expr : expr + "!";
+    }
+
     public static string Sanitise(string? name, bool includeHash = true)
     {
         if (string.IsNullOrEmpty(name)) return "Default";
@@ -1168,15 +1213,24 @@ internal static class SourceEmitter
             .Replace("!", "_")
             .Replace("*", "_");
 
-        if (!includeHash) return structural;
-
-        // 2. Character-by-character cleaning for hint names
+        // 2. Character-by-character cleaning.
+        // This must run on BOTH paths. The structural pass above only replaces a fixed list of
+        // characters, so anything outside it survives verbatim -- most importantly '-', which is
+        // legal in an assembly name but not in a C# identifier. Assembly names such as "my-app" or
+        // BenchmarkDotNet's generated host "VikingAir.Benchmarks-DefaultJob-1" previously emitted
+        // "class AutoMappic_Extension_VikingAir_Benchmarks-DefaultJob-1", which the compiler parsed
+        // as a subtraction expression and reported as CS0116/CS1106/CS0548.
         var res = new StringBuilder();
         foreach (var c in structural)
         {
             if (char.IsLetterOrDigit(c)) res.Append(c);
             else res.Append('_');
         }
+
+        // An identifier may not begin with a digit.
+        if (res.Length > 0 && char.IsDigit(res[0])) res.Insert(0, '_');
+
+        if (!includeHash) return res.ToString();
 
         var hash = GetStableHash(name!);
         return $"{res}_{hash:X}";

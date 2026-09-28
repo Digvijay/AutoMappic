@@ -16,12 +16,13 @@ public static class GeneratorTestHelper
 
     public static GeneratorResult RunGenerator(
         string source,
-        IReadOnlyDictionary<string, string>? options = null)
+        IReadOnlyDictionary<string, string>? options = null,
+        string assemblyName = "TestAssembly")
     {
         var syntaxTree = CSharpSyntaxTree.ParseText(source);
 
         var compilation = CSharpCompilation.Create(
-            assemblyName: "TestAssembly",
+            assemblyName: assemblyName,
             syntaxTrees: new[] { syntaxTree },
             references: new[]
             {

@@ -60,9 +60,25 @@ public abstract class Profile
     ///   A fluent <see cref="IMappingExpression{TSource, TDestination}" /> that lets you
     ///   override conventions with explicit <c>ForMember</c> calls.
     /// </returns>
-    [RequiresUnreferencedCode("Runtime mapping configuration requires reflection.")]
-    [RequiresDynamicCode("Runtime mapping configuration requires dynamic code generation.")]
-    protected internal IMappingExpression<TSource, TDestination> CreateMap<TSource, TDestination>()
+    /// <remarks>
+    ///   This method itself contains no dynamic code: it allocates
+    ///   <c>MappingExpression&lt;TSource, TDestination&gt;</c> over two statically known type
+    ///   arguments. It is therefore <em>not</em> annotated with
+    ///   <see cref="RequiresDynamicCodeAttribute" />.
+    /// </remarks>
+    /// <remarks>
+    ///   It is no longer annotated with <see cref="RequiresUnreferencedCodeAttribute" /> either.
+    ///   That annotation made the library's own advertised path unusable under trimming: this is
+    ///   the declarative API the source generator reads, so every correct consumer - including
+    ///   one that only ever executes generated code - got a trim warning for merely declaring a
+    ///   profile. The requirement belongs to the runtime fallback, not to the declaration, so the
+    ///   type parameters now carry <see cref="DynamicallyAccessedMembersAttribute" /> instead.
+    ///   The trimmer preserves exactly the members the fallback would reflect over, which makes
+    ///   the fallback genuinely safe rather than merely warned about.
+    /// </remarks>
+    protected internal IMappingExpression<TSource, TDestination> CreateMap<
+        [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicProperties | DynamicallyAccessedMemberTypes.PublicMethods)] TSource,
+        [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicProperties | DynamicallyAccessedMemberTypes.PublicMethods | DynamicallyAccessedMemberTypes.PublicParameterlessConstructor)] TDestination>()
     {
         var expression = new MappingExpression<TSource, TDestination>(this);
         _mappings.Add(expression);
@@ -85,13 +101,22 @@ public abstract class Profile
     }
 }
 
-internal sealed class OpenGenericMappingExpression(Type s, Type d) : IMappingExpression
+internal sealed class OpenGenericMappingExpression(
+    [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicProperties | DynamicallyAccessedMemberTypes.PublicMethods)] Type s,
+    [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicProperties | DynamicallyAccessedMemberTypes.PublicMethods | DynamicallyAccessedMemberTypes.PublicParameterlessConstructor)] Type d) : IMappingExpression
 {
+    [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicProperties | DynamicallyAccessedMemberTypes.PublicMethods)]
     public Type SourceType => s;
+
+    [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicProperties | DynamicallyAccessedMemberTypes.PublicMethods | DynamicallyAccessedMemberTypes.PublicParameterlessConstructor)]
     public Type DestinationType => d;
+
     public IReadOnlyCollection<string> IgnoredMembers => Array.Empty<string>();
     public IReadOnlyDictionary<string, string?> ExplicitMaps => new Dictionary<string, string?>();
     public IReadOnlyDictionary<string, Func<object, object?>> RuntimeMaps => new Dictionary<string, Func<object, object?>>();
+
+    [field: DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicParameterlessConstructor | DynamicallyAccessedMemberTypes.PublicMethods)]
+    [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicParameterlessConstructor | DynamicallyAccessedMemberTypes.PublicMethods)]
     public Type? ConverterType { get; private set; }
     public string? ConstructionExpression => null;
     public IReadOnlyDictionary<string, string> MemberConditions => new Dictionary<string, string>();
@@ -101,6 +126,8 @@ internal sealed class OpenGenericMappingExpression(Type s, Type d) : IMappingExp
     public INamingConvention? DestinationNaming => null;
     public bool SuppressUnmapped { get; private set; }
 
+    [RequiresUnreferencedCode("Runtime mapping configuration requires reflection.")]
+    [RequiresDynamicCode("Runtime mapping configuration requires dynamic code generation.")]
     public IMappingExpression ConvertUsing(Type converterType)
     {
         ConverterType = converterType;

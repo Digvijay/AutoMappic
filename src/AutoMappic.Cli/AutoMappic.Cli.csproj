@@ -26,6 +26,8 @@
 
   <ItemGroup>
     <PackageReference Include="System.CommandLine" />
+    <!-- Transitive security pin; see the note in Directory.Packages.props. -->
+    <PackageReference Include="System.Security.Cryptography.Xml" />
     <PackageReference Include="Microsoft.CodeAnalysis.CSharp" />
     <PackageReference Include="Microsoft.Build.Locator" />
     <!-- MSBuildLocator loads MSBuild from the SDK instance it registers at

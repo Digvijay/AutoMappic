@@ -14,8 +14,22 @@
     <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
     <IsTrimmable>true</IsTrimmable>
     <IsAotCompatible>true</IsAotCompatible>
-    <NoWarn>$(NoWarn);IL2026;IL2046;IL2070;IL2072;IL2075;IL3050;IL3051</NoWarn>
+    <!-- These are deliberately NOT suppressed. This project sets IsTrimmable and
+         IsAotCompatible, and the repository runs a gate that promotes these codes
+         to errors, so silencing them here would have made both claims unverifiable
+         while still advertising them to consumers. Any genuine requirement is
+         expressed with DynamicallyAccessedMembers, a documented
+         UnconditionalSuppressMessage, or a feature switch in
+         ILLink.Substitutions.xml that removes the code instead of hiding it. -->
   </PropertyGroup>
+
+  <ItemGroup>
+    <!-- Removes the reflective fallback from trimmed and Native AOT applications.
+         Must be embedded with this exact LogicalName for the trimmer to find it. -->
+    <EmbeddedResource Include="ILLink.Substitutions.xml">
+      <LogicalName>ILLink.Substitutions.xml</LogicalName>
+    </EmbeddedResource>
+  </ItemGroup>
 
   <PropertyGroup>
     <AssemblyName>AutoMappic.Core</AssemblyName>

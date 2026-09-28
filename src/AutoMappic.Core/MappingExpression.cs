@@ -1,3 +1,4 @@
+using System.Diagnostics.CodeAnalysis;
 using System.Linq.Expressions;
 using System.Threading.Tasks;
 
@@ -12,7 +13,9 @@ namespace AutoMappic;
 ///   reads <c>CreateMap&lt;TSource, TDestination&gt;()</c> calls from the Roslyn syntax tree
 ///   and does not instantiate this class.
 /// </remarks>
-internal sealed class MappingExpression<TSource, TDestination> :
+internal sealed class MappingExpression<
+    [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicProperties | DynamicallyAccessedMemberTypes.PublicMethods)] TSource,
+    [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicProperties | DynamicallyAccessedMemberTypes.PublicMethods | DynamicallyAccessedMemberTypes.PublicParameterlessConstructor)] TDestination> :
     IMappingExpression<TSource, TDestination>
 {
     // Keyed by destination member name.
@@ -20,6 +23,7 @@ internal sealed class MappingExpression<TSource, TDestination> :
     internal readonly Dictionary<string, Func<object, object?>> RuntimeMaps = new(StringComparer.Ordinal);
     private readonly HashSet<string> _ignoredMembers = new(StringComparer.Ordinal);
     private readonly Profile? _profile;
+    [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicParameterlessConstructor | DynamicallyAccessedMemberTypes.PublicMethods)]
     private Type? _converterType;
     private Action<TSource, TDestination>? _beforeMap;
     private Action<TSource, TDestination>? _afterMap;
@@ -46,9 +50,11 @@ internal sealed class MappingExpression<TSource, TDestination> :
     public bool SuppressUnmapped => _suppressUnmapped;
 
     /// <inheritdoc />
+    [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicProperties | DynamicallyAccessedMemberTypes.PublicMethods)]
     public Type SourceType => typeof(TSource);
 
     /// <inheritdoc />
+    [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicProperties | DynamicallyAccessedMemberTypes.PublicMethods | DynamicallyAccessedMemberTypes.PublicParameterlessConstructor)]
     public Type DestinationType => typeof(TDestination);
 
     /// <inheritdoc />
@@ -61,6 +67,7 @@ internal sealed class MappingExpression<TSource, TDestination> :
     IReadOnlyDictionary<string, Func<object, object?>> IMappingExpression.RuntimeMaps => RuntimeMaps;
 
     /// <inheritdoc />
+    [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicParameterlessConstructor | DynamicallyAccessedMemberTypes.PublicMethods)]
     public Type? ConverterType => _converterType;
 
     /// <inheritdoc />
@@ -78,6 +85,8 @@ internal sealed class MappingExpression<TSource, TDestination> :
     internal IReadOnlyDictionary<string, Func<TSource, TDestination, bool>> RuntimeConditions => _memberConditions;
 
     /// <inheritdoc />
+    [RequiresUnreferencedCode("Runtime mapping configuration requires reflection.")]
+    [RequiresDynamicCode("Runtime mapping configuration requires dynamic code generation.")]
     public IMappingExpression<TSource, TDestination> ForMember<TMember>(
         Expression<Func<TDestination, TMember>> destinationMember,
         Action<IMemberConfigurationExpression<TSource, TDestination, TMember>> memberOptions)
@@ -108,6 +117,8 @@ internal sealed class MappingExpression<TSource, TDestination> :
     }
 
     /// <inheritdoc />
+    [RequiresUnreferencedCode("Runtime mapping configuration requires reflection.")]
+    [RequiresDynamicCode("Runtime mapping configuration requires dynamic code generation.")]
     public IMappingExpression<TSource, TDestination> ForMemberIgnore<TMember>(
         Expression<Func<TDestination, TMember>> destinationMember)
     {
@@ -116,6 +127,8 @@ internal sealed class MappingExpression<TSource, TDestination> :
     }
 
     /// <inheritdoc />
+    [RequiresUnreferencedCode("Runtime mapping configuration requires reflection.")]
+    [RequiresDynamicCode("Runtime mapping configuration requires dynamic code generation.")]
     public IMappingExpression<TDestination, TSource> ReverseMap()
     {
         var reverse = new MappingExpression<TDestination, TSource>(_profile);
@@ -124,6 +137,8 @@ internal sealed class MappingExpression<TSource, TDestination> :
     }
 
     /// <inheritdoc />
+    [RequiresUnreferencedCode("Runtime mapping configuration requires reflection.")]
+    [RequiresDynamicCode("Runtime mapping configuration requires dynamic code generation.")]
     public IMappingExpression<TSource, TDestination> ConvertUsing<TConverter>() where TConverter : ITypeConverter<TSource, TDestination>, new()
     {
         _converterType = typeof(TConverter);
@@ -131,6 +146,8 @@ internal sealed class MappingExpression<TSource, TDestination> :
     }
 
     /// <inheritdoc />
+    [RequiresUnreferencedCode("Runtime mapping configuration requires reflection.")]
+    [RequiresDynamicCode("Runtime mapping configuration requires dynamic code generation.")]
     public IMappingExpression<TSource, TDestination> ConvertUsing(Expression<Func<TSource, TDestination>> converter)
     {
         _constructionFactory = converter.Compile();
@@ -138,6 +155,8 @@ internal sealed class MappingExpression<TSource, TDestination> :
     }
 
     /// <inheritdoc />
+    [RequiresUnreferencedCode("Runtime mapping configuration requires reflection.")]
+    [RequiresDynamicCode("Runtime mapping configuration requires dynamic code generation.")]
     public IMappingExpression ConvertUsing(Type converterType)
     {
         _converterType = converterType;
@@ -173,6 +192,8 @@ internal sealed class MappingExpression<TSource, TDestination> :
     }
 
     /// <inheritdoc />
+    [RequiresUnreferencedCode("Runtime mapping configuration requires reflection.")]
+    [RequiresDynamicCode("Runtime mapping configuration requires dynamic code generation.")]
     public IMappingExpression<TSource, TDestination> ConstructUsing(Expression<Func<TSource, TDestination>> ctor)
     {
         _constructionFactory = ctor.Compile();
@@ -253,6 +274,8 @@ internal sealed class MemberConfigurationExpression<TSource, TDestination, TMemb
     internal Func<TSource, TDestination, bool>? ConditionPredicate { get; private set; }
 
     /// <inheritdoc />
+    [RequiresUnreferencedCode("Runtime mapping configuration requires reflection.")]
+    [RequiresDynamicCode("Runtime mapping configuration requires dynamic code generation.")]
     public void MapFrom<TResult>(Expression<Func<TSource, TResult>> mapExpression)
     {
         // The generated code stitches the raw lambda body; we keep the compiled delegate
@@ -264,12 +287,16 @@ internal sealed class MemberConfigurationExpression<TSource, TDestination, TMemb
     public void Ignore() => IsIgnored = true;
 
     /// <inheritdoc />
+    [RequiresUnreferencedCode("Runtime mapping configuration requires reflection.")]
+    [RequiresDynamicCode("Runtime mapping configuration requires dynamic code generation.")]
     public void MapFrom<TResolver>() where TResolver : IValueResolver<TSource, TMember>, new()
     {
         MapFromExpression = src => new TResolver().Resolve(src);
     }
 
     /// <inheritdoc />
+    [RequiresUnreferencedCode("Runtime mapping configuration requires reflection.")]
+    [RequiresDynamicCode("Runtime mapping configuration requires dynamic code generation.")]
     public void MapFromAsync<TResolver>() where TResolver : IAsyncValueResolver<TSource, TMember>, new()
     {
         // For runtime fallback, we use Task.Run/Result which is NOT recommended but 
@@ -278,14 +305,19 @@ internal sealed class MemberConfigurationExpression<TSource, TDestination, TMemb
     }
 
     /// <inheritdoc />
+    [RequiresUnreferencedCode("Runtime mapping configuration requires reflection.")]
+    [RequiresDynamicCode("Runtime mapping configuration requires dynamic code generation.")]
     public void Condition(Expression<Func<TSource, TDestination, bool>> condition)
     {
         ConditionPredicate = condition.Compile();
     }
 
     /// <inheritdoc />
+    [RequiresUnreferencedCode("Runtime mapping configuration requires reflection.")]
+    [RequiresDynamicCode("Runtime mapping configuration requires dynamic code generation.")]
     public void ConvertUsing<TConverter, TSourceMember>(Expression<Func<TSource, TSourceMember>> sourceMember) where TConverter : IValueConverter<TSourceMember, TMember>, new()
     {
         MapFromExpression = src => new TConverter().Convert(sourceMember.Compile()(src));
     }
 }
+

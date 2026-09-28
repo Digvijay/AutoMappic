@@ -11,6 +11,16 @@ namespace AutoMappic.Generated
         /// <summary>The current recursion depth.</summary>
         public int Depth { get; }
 
+        /// <summary>
+        ///   Whether identity tracking is active for this mapping operation.
+        /// </summary>
+        /// <remarks>
+        ///   Generated code checks this before boxing an entity key. Tracking is off for the
+        ///   overwhelming majority of maps, and boxing a key unconditionally allocated on every
+        ///   call to support a feature that was not switched on.
+        /// </remarks>
+        public bool IsTracking => _tracked != null;
+
         /// <summary>Initializes a new context without tracking.</summary>
         public MappingContext() { _tracked = null; Depth = 0; }
         

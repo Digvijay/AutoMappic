@@ -1,58 +1,66 @@
 # Security Policy
 
-## Reporting Security Vulnerabilities
+AutoMappic provides object mapping without runtime reflection. This document describes how to report a vulnerability
+and what response to expect.
 
-If you discover a security vulnerability in AutoMappic, please report it responsibly by emailing **security @ digvijay dot dev**.
+## Reporting a vulnerability
 
-**Please do NOT report security vulnerabilities through public GitHub issues, discussions, or pull requests.**
+**Do not report security vulnerabilities through public GitHub issues, discussions, or pull requests.**
 
-### What to Include in Your Report
+Report vulnerabilities privately through either of the following channels:
 
-To help us respond effectively, please include:
+- [GitHub private vulnerability reporting](https://github.com/Digvijay/AutoMappic/security/advisories/new) (preferred)
+- Email the maintainer at `security@digvijay.dev`
 
-- A clear description of the vulnerability
-- Steps to reproduce the issue
-- Potential impact and severity
-- Any suggested fixes (optional)
-- Your contact information for follow-up
+Please include as much of the following as you can provide:
 
-### Response Timeline
+- The type of issue and the affected component or package
+- Full paths of the source files related to the issue
+- The affected version, commit, or package version
+- Step-by-step instructions to reproduce
+- Proof-of-concept or exploit code, if available
+- The impact of the issue, including how an attacker might exploit it
 
-We will acknowledge receipt of your report within 48 hours and provide a more detailed response within 7 days indicating our next steps.
-We will keep you informed about our progress throughout the process of fixing the vulnerability.
+### If this project is transferred to Microsoft
 
-## Supported Versions
+This repository is prepared for review by the Microsoft Open Source Programs Office.
+If ownership transfers to Microsoft, security reporting moves to the Microsoft Security
+Response Center (MSRC) and this policy will be replaced by the standard MSRC policy:
 
-We actively support the following versions with security updates:
+- Report at [https://msrc.microsoft.com/create-report](https://aka.ms/opensource/security/create-report)
+- Email [secure@microsoft.com](mailto:secure@microsoft.com), optionally encrypted with the
+  [MSRC PGP key](https://aka.ms/opensource/security/pgpkey)
+- See the [Microsoft vulnerability disclosure policy](https://aka.ms/opensource/security/cvd)
 
-| Version | Supported          |
-| ------- | ------------------ |
-| 1.x.x   | :white_check_mark: |
-| 0.x.x   | :white_check_mark: |
+Until such a transfer occurs, use the maintainer channels above. Do not send reports for this
+project to MSRC, because MSRC does not currently own this code.
 
-## Disclosure Policy
+## Response targets
 
-- We follow a coordinated disclosure process
-- Vulnerabilities will be disclosed publicly only after a fix has been released
-- We will credit researchers who report vulnerabilities
-- We aim to release fixes within 90 days of receiving a report
+| Stage | Target |
+| --- | --- |
+| Acknowledgement of report | 3 business days |
+| Initial assessment and severity triage | 10 business days |
+| Fix or documented mitigation for High/Critical | 90 days from triage |
 
-## Security Best Practices for AutoMappic Users
+These are best-effort targets for an independently maintained project, not a contractual
+service-level agreement. See [SUPPORT.md](SUPPORT.md) for the support model.
 
-Since AutoMappic generates C# code at compile-time, there are no runtime `System.Reflection.Emit` operations, meaning AutoMappic eliminates many reflection-based injection vectors right out of the box.
+## Supported versions
 
-However, when mapping User Input/DTOs directly to Database Entities, you should still ensure you do not map sensitive properties arbitrarily.
+Security fixes are applied to the latest released minor version. Older versions are not
+patched. See [SUPPORT.md](SUPPORT.md) for the full support and lifecycle statement.
 
-```csharp
-// GOOD: Explicitly ignore sensitive ID overrides
-CreateMap<UserDto, User>()
-    .ForMemberIgnore(dest => dest.AdminRoleId);
-```
+## Disclosure policy
 
-### Contact
+This project follows coordinated disclosure. Issues are disclosed publicly through a GitHub
+Security Advisory once a fix or documented mitigation is available. Reporters are credited
+unless they ask not to be.
 
-For security-related questions or concerns:
-- **Email:** security @ digvijay dot dev
-- **GitHub Issues:** For non-sensitive security improvements and questions
+## Security considerations for users
 
-Thank you for helping keep AutoMappic and its users secure!
+AutoMappic generates mapping code at compile time. Review generated mappings so that untrusted input DTOs cannot silently overwrite privileged destination members (for example identity, role, or audit fields). Use explicit ignore configuration for sensitive members.
+
+Build-time code generation is part of this project's design. Source generators execute inside
+the compiler process during build. Only build code you trust, and review generated output when
+it participates in a security decision.

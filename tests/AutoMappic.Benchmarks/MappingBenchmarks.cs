@@ -77,11 +77,18 @@ public static class ManualMapper
 ///   Head-to-head comparison of AutoMapper, Mapperly, AutoMappic, and manual mapping.
 /// </summary>
 /// <remarks>
-///   Run with: <c>dotnet run -c Release</c>
-///   Expected result: AutoMappic ≈ Mapperly ≈ Manual (all ≪ AutoMapper).
+///   <para>
+///     The project targets net10.0, so the job measures net10.0: <c>dotnet run -c Release</c>.
+///     A figure may only be quoted for the framework it was actually measured on.
+///   </para>
+///   <para>Expected result: AutoMappic ≈ Mapperly ≈ Manual (all ≪ AutoMapper).</para>
 /// </remarks>
 [MemoryDiagnoser]
-[SimpleJob(BenchmarkDotNet.Jobs.RuntimeMoniker.Net90, iterationCount: 30, warmupCount: 10)]
+// No RuntimeMoniker: the job follows the project's TargetFramework. A pinned moniker is a
+// hardcoded runtime that drifts away from what is actually shipped, which is how these
+// benchmarks came to quote .NET 10 while measuring .NET 9 -- a runtime this repository no
+// longer targets at all.
+[SimpleJob(iterationCount: 30, warmupCount: 10)]
 public class MappingBenchmarks
 {
     private global::AutoMapper.IMapper _autoMapper = null!;

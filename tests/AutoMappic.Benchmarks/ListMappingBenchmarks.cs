@@ -5,7 +5,10 @@ using BenchmarkDotNet.Running;
 namespace AutoMappic.Benchmarks;
 
 [MemoryDiagnoser]
-[SimpleJob(BenchmarkDotNet.Jobs.RuntimeMoniker.Net90, iterationCount: 30, warmupCount: 10)]
+// No RuntimeMoniker: the job follows the project's TargetFramework. Pinning a moniker here
+// silently measured a runtime other than the one the project ships, and the published
+// numbers then cited a framework the benchmark had never run on.
+[SimpleJob(iterationCount: 30, warmupCount: 10)]
 public class ListMappingBenchmarks
 {
     private global::AutoMapper.IMapper _autoMapper = null!;

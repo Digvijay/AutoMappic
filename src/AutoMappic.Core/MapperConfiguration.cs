@@ -1,3 +1,5 @@
+using System.Diagnostics.CodeAnalysis;
+
 namespace AutoMappic;
 
 /// <summary>
@@ -48,10 +50,17 @@ public interface IMapperConfigurationExpression
     void AddProfile(Profile profile);
 
     /// <summary>Registers profiles from assemblies.</summary>
+    /// <remarks>See the remarks on <see cref="MapperConfigurationExpression.AddMaps" />.</remarks>
+    [RequiresUnreferencedCode(
+        "Scans assemblies for Profile types by reflection; the trimmer cannot see them. "
+        + "Use AddProfile<TProfile>() instead when trimming or publishing Native AOT.")]
     void AddMaps(params System.Reflection.Assembly[] assemblies);
 
     /// <summary>Creates a new mapping configuration directly on the expression.</summary>
-    IMappingExpression<TSource, TDestination> CreateMap<TSource, TDestination>();
+    /// <remarks>See the remarks on <see cref="Profile.CreateMap{TSource, TDestination}" />.</remarks>
+    IMappingExpression<TSource, TDestination> CreateMap<
+        [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicProperties | DynamicallyAccessedMemberTypes.PublicMethods)] TSource,
+        [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicProperties | DynamicallyAccessedMemberTypes.PublicMethods | DynamicallyAccessedMemberTypes.PublicParameterlessConstructor)] TDestination>();
 }
 
 /// <summary>Empty marker interface for AutoMapper compatibility.</summary>
@@ -73,6 +82,15 @@ internal sealed class MapperConfigurationExpression : IMapperConfigurationExpres
         Profiles.Add(profile);
     }
 
+    /// <remarks>
+    ///   Assembly scanning is inherently not trim-safe: the profile types are discovered by
+    ///   reflection, so a trimmer has no way to know they must be kept. Consumers targeting
+    ///   trimming or Native AOT should register profiles explicitly with
+    ///   <see cref="AddProfile{TProfile}" />, which the trimmer can follow.
+    /// </remarks>
+    [RequiresUnreferencedCode(
+        "Scans assemblies for Profile types by reflection; the trimmer cannot see them. "
+        + "Use AddProfile<TProfile>() instead when trimming or publishing Native AOT.")]
     public void AddMaps(params System.Reflection.Assembly[] assemblies)
     {
         // For runtime fallback, we might need real scanning, but for source-gen test 
@@ -87,7 +105,10 @@ internal sealed class MapperConfigurationExpression : IMapperConfigurationExpres
         }
     }
 
-    public IMappingExpression<TSource, TDestination> CreateMap<TSource, TDestination>()
+    /// <remarks>See the remarks on <see cref="Profile.CreateMap{TSource, TDestination}" />.</remarks>
+    public IMappingExpression<TSource, TDestination> CreateMap<
+        [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicProperties | DynamicallyAccessedMemberTypes.PublicMethods)] TSource,
+        [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicProperties | DynamicallyAccessedMemberTypes.PublicMethods | DynamicallyAccessedMemberTypes.PublicParameterlessConstructor)] TDestination>()
         => _adHoc.CreateMap<TSource, TDestination>();
 
     private sealed class AdHocProfile : Profile { }

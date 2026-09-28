@@ -5,6 +5,56 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+The next release is **0.8.0**. `version.json` still said 0.7.0, which is already published, so
+the first build on `main` would have produced a second, different 0.7.0.
+
+### Fixed — found by running CI on GitHub-hosted x64 runners for the first time
+- **The AOT validation workflow had never run to completion.** It passed `-p:PublishAot=true` on
+  the command line, which creates a *global* property that MSBuild propagates into every
+  `ProjectReference` — including the `netstandard2.0` generator, which cannot be AOT-compiled
+  (`NETSDK1207`). The flag was also redundant: the target project already declares `PublishAot`.
+  Removed; AOT stays configured in the project file, where it does not flow across references.
+- **The trim and AOT warnings-as-errors list was never enforced.** It was passed as
+  `-p:WarningsAsErrors=IL2026,IL2046,...`, and the dotnet CLI splits `-p:` values on commas, so
+  every code after the first was parsed as a separate switch and the run failed with
+  `MSB1006: Property is not valid. Switch: IL2046` before compiling anything. The codes are now
+  joined with `%3B`, the escaped semicolon.
+- **`dotnet publish` on a multi-targeted project needs an explicit framework** (`NETSDK1129`). The
+  publish step now passes `--framework net10.0` — and only the publish step, because passing it to
+  a solution-wide build breaks the `netstandard2.0` generator.
+
+### Fixed
+- **The CI coverage step could not run.** It passed the VSTest-only `--collect` switch to test
+  projects running on Microsoft.Testing.Platform, which exits with code 5 after running zero tests.
+  It now uses `--coverage`, which also needed a fix in Prova to register the coverage extension.
+- **Generated code did not compile when the assembly name contained a hyphen.** Identifier
+  sanitisation only replaced a hardcoded list of characters that did not include `-`, which is
+  legal in an assembly name and illegal in a C# identifier. A project named `my-app` emitted
+  `public static class AutoMappic_Extension_my-app`, which the compiler parsed as a subtraction
+  expression (CS0116 / CS1106 / CS0548). Because BenchmarkDotNet names its generated host assembly
+  `<Project>-<Job>-<N>`, this broke *every* BenchmarkDotNet project that referenced AutoMappic.
+  Sanitisation now guarantees a valid identifier and prefixes a leading digit.
+- **Interceptors were silently disabled for transitive consumers.** `AutoMappic.targets` is now
+  packed to `buildTransitive/` as well as `build/`, and sets `InterceptorsNamespaces` on
+  .NET 9+ versus `InterceptorsPreviewNamespaces` on .NET 8 -- setting both is a CS9137 error.
+- **Generated `<Assembly>_Registration` was `internal`**, producing CS0122 in referencing
+  assemblies and forcing consumers to add `InternalsVisibleTo`. It is now `public` and marked
+  `[EditorBrowsable(Never)]`.
+- **The test suite could not run at all on the .NET 10 SDK** (the legacy VSTest bridge is no longer
+  supported for Microsoft.Testing.Platform projects). Opted in via `global.json`.
+- **The test suite was locale-dependent** and failed on any culture with a non-US decimal
+  separator. Test value converters now format with `InvariantCulture`.
+
+### Changed
+- Multi-targets `net8.0` (LTS) and `net10.0` (current); `net8.0` was previously skipped
+  entirely. `net11.0` is validated in CI behind an opt-in switch.
+- Removed a redundant `Microsoft.SourceLink.GitHub` reference carrying GHSA-23fw-v26w-5fgq.
+
+### Added
+- Regression tests covering assembly names that are not valid C# identifiers.
+
 ## [0.7.0] - 2026-04-11
 
 ### Added
