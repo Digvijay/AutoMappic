@@ -14,7 +14,7 @@ namespace AutoMappic;
 ///   and does not instantiate this class.
 /// </remarks>
 internal sealed class MappingExpression<
-    [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicProperties | DynamicallyAccessedMemberTypes.PublicMethods)] TSource,
+    [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicProperties | DynamicallyAccessedMemberTypes.PublicMethods | DynamicallyAccessedMemberTypes.PublicParameterlessConstructor)] TSource,
     [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicProperties | DynamicallyAccessedMemberTypes.PublicMethods | DynamicallyAccessedMemberTypes.PublicParameterlessConstructor)] TDestination> :
     IMappingExpression<TSource, TDestination>
 {
@@ -85,8 +85,11 @@ internal sealed class MappingExpression<
     internal IReadOnlyDictionary<string, Func<TSource, TDestination, bool>> RuntimeConditions => _memberConditions;
 
     /// <inheritdoc />
-    [RequiresUnreferencedCode("Runtime mapping configuration requires reflection.")]
-    [RequiresDynamicCode("Runtime mapping configuration requires dynamic code generation.")]
+    [global::System.Diagnostics.CodeAnalysis.UnconditionalSuppressMessage(
+        "AotAnalysis", "IL3050:RequiresDynamicCode",
+        Justification = "Guarded by AutoMappicFeatures.IsReflectionFallbackEnabled, which "
+            + "ILLink.Substitutions.xml stubs to false. When trimming or publishing Native AOT the "
+            + "branch is folded away before analysis, so the expression compile is not reachable.")]
     public IMappingExpression<TSource, TDestination> ForMember<TMember>(
         Expression<Func<TDestination, TMember>> destinationMember,
         Action<IMemberConfigurationExpression<TSource, TDestination, TMember>> memberOptions)
@@ -104,8 +107,16 @@ internal sealed class MappingExpression<
             // Store the compiled delegate for runtime fallback.
             ExplicitMaps[memberName] = null; // Placeholder; generator reads the text.
 
-            var compiled = config.MapFromExpression.Compile();
-            RuntimeMaps[memberName] = src => compiled((TSource)src);
+            // Compiling is what makes this method need runtime code generation, and in a
+            // generated application the delegate can never run: the generator reads the
+            // expression at compile time and emits the member assignment directly. Gating the
+            // compile behind the feature switch lets the trimmer remove it - and with it the
+            // whole Expression.Compile dependency - instead of forcing every consumer of the
+            // declarative API to declare a requirement they do not have.
+            if (AutoMappicFeatures.IsReflectionFallbackEnabled)
+            {
+                RuntimeMaps[memberName] = BuildRuntimeMap(config.MapFromExpression);
+            }
         }
 
         if (config.ConditionPredicate is not null)
@@ -116,9 +127,18 @@ internal sealed class MappingExpression<
         return this;
     }
 
+    /// <summary>
+    ///   Isolates the <c>Expression.Compile()</c> so the trimmer sees a single reference
+    ///   to it, reachable only from the feature-switched branch above.
+    /// </summary>
+    [RequiresDynamicCode("Compiling an expression tree needs runtime code generation.")]
+    private static Func<object, object?> BuildRuntimeMap(Expression<Func<TSource, object?>> mapFrom)
+    {
+        var compiled = mapFrom.Compile();
+        return src => compiled((TSource)src);
+    }
+
     /// <inheritdoc />
-    [RequiresUnreferencedCode("Runtime mapping configuration requires reflection.")]
-    [RequiresDynamicCode("Runtime mapping configuration requires dynamic code generation.")]
     public IMappingExpression<TSource, TDestination> ForMemberIgnore<TMember>(
         Expression<Func<TDestination, TMember>> destinationMember)
     {
@@ -127,8 +147,6 @@ internal sealed class MappingExpression<
     }
 
     /// <inheritdoc />
-    [RequiresUnreferencedCode("Runtime mapping configuration requires reflection.")]
-    [RequiresDynamicCode("Runtime mapping configuration requires dynamic code generation.")]
     public IMappingExpression<TDestination, TSource> ReverseMap()
     {
         var reverse = new MappingExpression<TDestination, TSource>(_profile);
@@ -137,27 +155,25 @@ internal sealed class MappingExpression<
     }
 
     /// <inheritdoc />
-    [RequiresUnreferencedCode("Runtime mapping configuration requires reflection.")]
-    [RequiresDynamicCode("Runtime mapping configuration requires dynamic code generation.")]
-    public IMappingExpression<TSource, TDestination> ConvertUsing<TConverter>() where TConverter : ITypeConverter<TSource, TDestination>, new()
+    public IMappingExpression<TSource, TDestination> ConvertUsing<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicParameterlessConstructor | DynamicallyAccessedMemberTypes.PublicMethods)] TConverter>() where TConverter : ITypeConverter<TSource, TDestination>, new()
     {
         _converterType = typeof(TConverter);
         return this;
     }
 
     /// <inheritdoc />
-    [RequiresUnreferencedCode("Runtime mapping configuration requires reflection.")]
-    [RequiresDynamicCode("Runtime mapping configuration requires dynamic code generation.")]
     public IMappingExpression<TSource, TDestination> ConvertUsing(Expression<Func<TSource, TDestination>> converter)
     {
-        _constructionFactory = converter.Compile();
+        if (AutoMappicFeatures.IsReflectionFallbackEnabled)
+        {
+            _constructionFactory = converter.Compile();
+        }
+
         return this;
     }
 
     /// <inheritdoc />
-    [RequiresUnreferencedCode("Runtime mapping configuration requires reflection.")]
-    [RequiresDynamicCode("Runtime mapping configuration requires dynamic code generation.")]
-    public IMappingExpression ConvertUsing(Type converterType)
+    public IMappingExpression ConvertUsing([DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicParameterlessConstructor | DynamicallyAccessedMemberTypes.PublicMethods)] Type converterType)
     {
         _converterType = converterType;
         return this;
@@ -192,11 +208,13 @@ internal sealed class MappingExpression<
     }
 
     /// <inheritdoc />
-    [RequiresUnreferencedCode("Runtime mapping configuration requires reflection.")]
-    [RequiresDynamicCode("Runtime mapping configuration requires dynamic code generation.")]
     public IMappingExpression<TSource, TDestination> ConstructUsing(Expression<Func<TSource, TDestination>> ctor)
     {
-        _constructionFactory = ctor.Compile();
+        if (AutoMappicFeatures.IsReflectionFallbackEnabled)
+        {
+            _constructionFactory = ctor.Compile();
+        }
+
         return this;
     }
 
@@ -274,29 +292,26 @@ internal sealed class MemberConfigurationExpression<TSource, TDestination, TMemb
     internal Func<TSource, TDestination, bool>? ConditionPredicate { get; private set; }
 
     /// <inheritdoc />
-    [RequiresUnreferencedCode("Runtime mapping configuration requires reflection.")]
-    [RequiresDynamicCode("Runtime mapping configuration requires dynamic code generation.")]
     public void MapFrom<TResult>(Expression<Func<TSource, TResult>> mapExpression)
     {
-        // The generated code stitches the raw lambda body; we keep the compiled delegate
-        // only for the runtime fallback path.
-        MapFromExpression = src => mapExpression.Compile()(src)!;
+        // The generated code stitches the raw lambda body; the compiled delegate exists only
+        // for the runtime fallback, so it is built only when that fallback is reachable.
+        if (AutoMappicFeatures.IsReflectionFallbackEnabled)
+        {
+            MapFromExpression = src => mapExpression.Compile()(src)!;
+        }
     }
 
     /// <inheritdoc />
     public void Ignore() => IsIgnored = true;
 
     /// <inheritdoc />
-    [RequiresUnreferencedCode("Runtime mapping configuration requires reflection.")]
-    [RequiresDynamicCode("Runtime mapping configuration requires dynamic code generation.")]
     public void MapFrom<TResolver>() where TResolver : IValueResolver<TSource, TMember>, new()
     {
         MapFromExpression = src => new TResolver().Resolve(src);
     }
 
     /// <inheritdoc />
-    [RequiresUnreferencedCode("Runtime mapping configuration requires reflection.")]
-    [RequiresDynamicCode("Runtime mapping configuration requires dynamic code generation.")]
     public void MapFromAsync<TResolver>() where TResolver : IAsyncValueResolver<TSource, TMember>, new()
     {
         // For runtime fallback, we use Task.Run/Result which is NOT recommended but 
@@ -305,19 +320,41 @@ internal sealed class MemberConfigurationExpression<TSource, TDestination, TMemb
     }
 
     /// <inheritdoc />
-    [RequiresUnreferencedCode("Runtime mapping configuration requires reflection.")]
-    [RequiresDynamicCode("Runtime mapping configuration requires dynamic code generation.")]
+    [global::System.Diagnostics.CodeAnalysis.UnconditionalSuppressMessage(
+        "AotAnalysis", "IL3050:RequiresDynamicCode",
+        Justification = "Guarded by AutoMappicFeatures.IsReflectionFallbackEnabled, which "
+            + "ILLink.Substitutions.xml stubs to false. When trimming or publishing Native AOT the "
+            + "branch is folded away before analysis, so the expression compile is not reachable.")]
     public void Condition(Expression<Func<TSource, TDestination, bool>> condition)
     {
-        ConditionPredicate = condition.Compile();
+        if (AutoMappicFeatures.IsReflectionFallbackEnabled)
+        {
+            ConditionPredicate = CompileCondition(condition);
+        }
     }
 
     /// <inheritdoc />
-    [RequiresUnreferencedCode("Runtime mapping configuration requires reflection.")]
-    [RequiresDynamicCode("Runtime mapping configuration requires dynamic code generation.")]
     public void ConvertUsing<TConverter, TSourceMember>(Expression<Func<TSource, TSourceMember>> sourceMember) where TConverter : IValueConverter<TSourceMember, TMember>, new()
     {
-        MapFromExpression = src => new TConverter().Convert(sourceMember.Compile()(src));
+        if (AutoMappicFeatures.IsReflectionFallbackEnabled)
+        {
+            MapFromExpression = src => new TConverter().Convert(sourceMember.Compile()(src));
+        }
     }
+
+    /// <summary>
+    ///   Isolates the one <c>Expression.Compile()</c> that runs during configuration, so
+    ///   the trimmer sees a single reference reachable only from the feature-switched branch.
+    /// </summary>
+    /// <remarks>
+    ///   The other compiles on this type sit inside expression-tree bodies and only run if the
+    ///   fallback actually evaluates them; this one is a direct call, so it needs isolating.
+    /// </remarks>
+    [RequiresDynamicCode("Compiling an expression tree needs runtime code generation.")]
+    private static Func<TSource, TDestination, bool> CompileCondition(Expression<Func<TSource, TDestination, bool>> condition) =>
+        condition.Compile();
 }
+
+
+
 

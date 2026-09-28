@@ -90,17 +90,50 @@ public class ProfileAotAnnotationTests
             "TDestination must preserve its parameterless constructor; the fallback activates it.");
     }
 
-    /// <summary>The open-generic overload resolves types at runtime and genuinely needs both.</summary>
-    [Fact]
-    public void Type_based_CreateMap_remains_fully_annotated()
-    {
-        var method = typeof(Profile)
-            .GetMethods(BindingFlags.Instance | BindingFlags.NonPublic | BindingFlags.Public)
-            .Single(m => m.Name == "CreateMap" && !m.IsGenericMethodDefinition);
+    /// <summary>
+        ///   The Type-based overload names its requirements with DAM on the parameters rather than
+        ///   declaring a blanket trimming or AOT requirement.
+        /// </summary>
+        /// <remarks>
+        ///   The method itself does nothing reflective: it records the two types on an
+        ///   <c>OpenGenericMappingExpression</c>. The reflection happens later, in the fallback
+        ///   engine, which is now behind the feature switch and annotated where it lives.
+        ///
+        ///   What the method does need is for those two types to keep their members, so DAM says so
+        ///   precisely: public methods and properties on both, plus the parameterless constructor on
+        ///   the destination, which the fallback activates. That is an obligation a caller can
+        ///   actually satisfy, unlike RequiresUnreferencedCode, which only propagates upward until
+        ///   someone suppresses it.
+        /// </remarks>
+        [Fact]
+        public void Type_based_CreateMap_names_its_requirements_with_DAM()
+        {
+            var method = typeof(Profile)
+                .GetMethods(BindingFlags.Instance | BindingFlags.NonPublic | BindingFlags.Public)
+                .Single(m => m.Name == "CreateMap" && !m.IsGenericMethodDefinition);
 
-        Assert.NotNull(method.GetCustomAttribute<RequiresDynamicCodeAttribute>());
-        Assert.NotNull(method.GetCustomAttribute<RequiresUnreferencedCodeAttribute>());
-    }
+            Assert.Null(method.GetCustomAttribute<RequiresDynamicCodeAttribute>());
+            Assert.Null(method.GetCustomAttribute<RequiresUnreferencedCodeAttribute>());
+
+            var parameters = method.GetParameters();
+            foreach (var parameter in parameters)
+            {
+                var dam = parameter.GetCustomAttribute<DynamicallyAccessedMembersAttribute>();
+                Assert.NotNull(dam);
+                Assert.True(
+                    dam!.MemberTypes.HasFlag(DynamicallyAccessedMemberTypes.PublicProperties),
+                    parameter.Name + " must preserve public properties for the runtime fallback.");
+                Assert.True(
+                    dam.MemberTypes.HasFlag(DynamicallyAccessedMemberTypes.PublicMethods),
+                    parameter.Name + " must preserve public methods for the runtime fallback.");
+            }
+
+            var destination = parameters.Single(p => p.Name == "destinationType");
+            Assert.True(
+                destination.GetCustomAttribute<DynamicallyAccessedMembersAttribute>()!
+                    .MemberTypes.HasFlag(DynamicallyAccessedMemberTypes.PublicParameterlessConstructor),
+                "destinationType must preserve its parameterless constructor; the fallback activates it.");
+        }
 
     /// <summary>
     ///   <see cref="IMapper" />'s mapping methods declare no trimming or AOT requirement, and

@@ -729,4 +729,57 @@ release.
 Security-relevant issues should follow [SECURITY.md](../SECURITY.md) rather than being filed as
 public issues.
 
+---
 
+## 27. The same defect on the configuration API, found by the integration demo
+
+Issue 26 fixed the eager fallback in `Mapper`'s constructor. The identical defect was still
+present on the configuration API, and it took the viking-air integration demo to surface it.
+
+`ForMember`, `ConvertUsing`, `ConstructUsing`, `MapFrom`, `Condition` and the value-converter
+overloads each called `Expression.Compile()` eagerly to populate the runtime fallback - whether
+or not that fallback could ever run. So `[RequiresDynamicCode]` on those methods was *honest*:
+the compile really was there. The problem was the compile, not the annotation.
+
+The cost was paid by consumers. Of viking-air's ILC errors, **72 were reported against its own
+`VikingAir.Core.BookingProfile`** - an entirely ordinary profile whose call sites the generator
+had already intercepted. Nothing in viking-air could fix them, and nothing in viking-air had
+caused them.
+
+Fixed the same way as issue 26: every compile is now guarded by
+`AutoMappicFeatures.IsReflectionFallbackEnabled`, so the trimmer folds the branch away and
+removes the expression-compilation dependency. With the hazard gone, the annotations came off the
+declarative surface - interface and implementation together, since they must agree.
+
+Removing the blanket annotations exposed DAM obligations they had been masking, all now stated
+precisely rather than waived: `ConvertUsing<TConverter>` and `ConvertUsing(Type)` need
+`PublicParameterlessConstructor | PublicMethods`; `TSource` needs
+`PublicParameterlessConstructor` because `ReverseMap()` puts it in the destination position; and
+`Profile.CreateMap(Type, Type)` annotates both parameters instead of declaring a blanket
+requirement. These are obligations a caller can actually satisfy - unlike
+`RequiresUnreferencedCode`, which only propagates upward until somebody suppresses it.
+
+A documentation claim was corrected at the same time. `IMappingExpression` stated that "no
+`Expression.Compile()` is ever executed at runtime". That was false when written. It is true now
+for trimmed and AOT applications, and the remark says exactly that rather than the flattering
+version.
+
+### A flaky test, caught and removed rather than shipped
+
+The first version of `DeclarativeSurfaceAnnotationTests` flipped the `AppContext` switch off to
+assert the delegate was skipped. `AppContext` switches are process-global and this suite has no
+parallelism controls, so it opened a window where other tests saw a mapper with no fallback: 14
+unrelated tests failed on one target framework and not the other. Its restore logic was also
+wrong - it put an unset switch back as `false`, and "unset" means *enabled*.
+
+The test was removed rather than repaired. The disabled path is already covered by
+`aot-publish-and-run`, which publishes with `PublishAot=true` so ILLink.Substitutions.xml is
+applied for real, and then executes the native binary. That is stronger evidence than an
+`AppContext` flip, because it proves the substitution works instead of simulating its effect.
+
+### What this leaves in viking-air
+
+Removing these 72 does not make viking-air green. Around 60 ILC errors remain, all from
+third-party packages - MemoryPack and `Microsoft.Extensions.Caching.Hybrid`/`System.Text.Json` -
+which no change to this codebase can clear. That is tracked separately and should not be closed
+by suppressing it here.
