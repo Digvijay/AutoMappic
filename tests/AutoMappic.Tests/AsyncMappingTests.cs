@@ -1,4 +1,3 @@
-using System.Threading.Tasks;
 using Prova;
 using Assert = Prova.Assertions.Assert;
 
@@ -10,13 +9,13 @@ public sealed class AsyncMappingTests
     [Fact]
     public async Task MapAsync_ToNewInstance_MapsCorrectly()
     {
-        var mapper = new MapperConfiguration(cfg => cfg.AddProfile<AsyncProfile>())
+        IMapper mapper = new MapperConfiguration(cfg => cfg.AddProfile<AsyncProfile>())
             .CreateMapper();
 
         var source = new User { Id = 1, Name = "Alice" };
 
         // This will be intercepted and use the generated MapToUserDto()
-        var dto = await mapper.MapAsync<User, UserDto>(source);
+        UserDto dto = await mapper.MapAsync<User, UserDto>(source);
 
         Assert.NotNull(dto);
         Assert.Equal(1, dto.Id);
@@ -27,13 +26,13 @@ public sealed class AsyncMappingTests
     [Fact]
     public async Task MapAsync_NonGeneric_MapsCorrectly()
     {
-        var mapper = new MapperConfiguration(cfg => cfg.AddProfile<AsyncProfile>())
+        IMapper mapper = new MapperConfiguration(cfg => cfg.AddProfile<AsyncProfile>())
             .CreateMapper();
 
         var source = new User { Id = 2, Name = "Bob" };
 
         // This uses the object-based overload
-        var dto = await mapper.MapAsync<UserDto>(source);
+        UserDto dto = await mapper.MapAsync<UserDto>(source);
 
         Assert.NotNull(dto);
         Assert.Equal(2, dto.Id);
@@ -67,11 +66,11 @@ public sealed class AsyncMappingTests
     [Fact]
     public async Task MapAsync_WithAsyncResolver_Works()
     {
-        var mapper = new MapperConfiguration(cfg => cfg.AddProfile<AsyncProfile>())
+        IMapper mapper = new MapperConfiguration(cfg => cfg.AddProfile<AsyncProfile>())
             .CreateMapper();
 
         var source = new AsyncSource { Name = "Digvijay" };
-        var dest = await mapper.MapAsync<AsyncSource, AsyncDest>(source);
+        AsyncDest dest = await mapper.MapAsync<AsyncSource, AsyncDest>(source);
 
         Assert.Equal("DIGVIJAY", dest.Name);
     }
@@ -80,7 +79,7 @@ public sealed class AsyncMappingTests
     [Fact]
     public async Task MapAsync_InPlace_Works()
     {
-        var mapper = new MapperConfiguration(cfg => cfg.AddProfile<AsyncProfile>())
+        IMapper mapper = new MapperConfiguration(cfg => cfg.AddProfile<AsyncProfile>())
             .CreateMapper();
 
         var source = new AsyncSource { Name = "Digvijay" };

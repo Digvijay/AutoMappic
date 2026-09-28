@@ -20,7 +20,7 @@ public class MyProfile : Profile
 {
     public MyProfile() { CreateMap<S, D>(); }
 }";
-        var result = GeneratorTestHelper.RunGenerator(source);
+        GeneratorTestHelper.GeneratorResult result = GeneratorTestHelper.RunGenerator(source);
         var fileNames = result.Sources.Select(s => s.HintName).ToList();
 
         Assert.True(fileNames.Count > 0, $"Expected files, got 0. Diagnostics: {string.Join(", ", result.Diagnostics.Select(d => d.Id))}");
@@ -41,7 +41,7 @@ public class MyProfile : Profile
     public MyProfile() { CreateMap<S, D>(); }
 }";
         var options = new Dictionary<string, string> { ["automappic_sourceonly"] = "true" };
-        var result = GeneratorTestHelper.RunGenerator(source, options);
+        GeneratorTestHelper.GeneratorResult result = GeneratorTestHelper.RunGenerator(source, options);
 
         var fileNames = result.Sources.Select(s => s.HintName).ToList();
         Assert.True(fileNames.Count > 0, $"Expected embedded files, got 0. Diagnostics: {string.Join(", ", result.Diagnostics.Select(d => d.Id))}");
@@ -106,7 +106,7 @@ public class Program
     }
 }
 ";
-        var result = GeneratorTestHelper.RunGenerator(source);
+        GeneratorTestHelper.GeneratorResult result = GeneratorTestHelper.RunGenerator(source);
 
         string allDiags = string.Join("\n", result.Diagnostics.Select(d => $"{d.Id}: {d.GetMessage()}"));
         var fileNames = result.Sources.Select(s => s.HintName).ToList();
@@ -114,7 +114,7 @@ public class Program
         Assert.True(fileNames.Count >= 5, $"Expected many files, got {fileNames.Count}. Files: {string.Join(", ", fileNames)}\nDiags: {allDiags}");
         Assert.True(fileNames.Any(f => f.Contains("Interceptors.g.cs")), "Interceptors should be generated");
 
-        var interceptorResult = result.Sources.FirstOrDefault(f => f.HintName.Contains("Interceptors.g.cs"));
+        GeneratedSourceResult interceptorResult = result.Sources.FirstOrDefault(f => f.HintName.Contains("Interceptors.g.cs"));
         Assert.NotNull(interceptorResult, "Interceptors.g.cs not found");
         string interceptors = interceptorResult.SourceText.ToString();
 
@@ -163,7 +163,7 @@ public class Program
     }
 }
 ";
-        var result = GeneratorTestHelper.RunGenerator(source);
+        GeneratorTestHelper.GeneratorResult result = GeneratorTestHelper.RunGenerator(source);
         string mapSource = result.Sources.First(f => f.HintName.Contains("Source") && f.HintName.Contains("Dest")).SourceText.ToString();
         Assert.Contains("x.Key.MapToglobal_DKey_", mapSource);
         Assert.Contains("x.Value.MapToglobal_DVal_", mapSource);
@@ -199,7 +199,7 @@ public class Dest
     public int[] Value3 { get; set; } = new int[0];
 }
 ";
-        var result = GeneratorTestHelper.RunGenerator(source);
+        GeneratorTestHelper.GeneratorResult result = GeneratorTestHelper.RunGenerator(source);
         string mapSource = result.Sources.First(f => f.HintName.Contains("Source_") && f.HintName.Contains("_To_") && f.HintName.Contains("_Dest")).SourceText.ToString();
         Assert.Contains("Value1.GetValueOrDefault()", mapSource);
         Assert.Contains("Value2 ?? \"\"", mapSource);
@@ -229,7 +229,7 @@ public class Dest {
     public string Name { get; set; }
     public int Age { get; set; }
 }";
-        var result = GeneratorTestHelper.RunGenerator(source);
+        GeneratorTestHelper.GeneratorResult result = GeneratorTestHelper.RunGenerator(source);
         string mapSource = result.Sources.First(f => f.HintName.Contains("Source_") && f.HintName.Contains("_To_") && f.HintName.Contains("_Dest")).SourceText.ToString();
         Assert.Contains("new Dest(source.Name)", mapSource);
         Assert.Contains("if (source.Id > 0)", mapSource);
@@ -262,7 +262,7 @@ public class Program
         var result = query.ProjectTo<S, D>();
     }
 }";
-        var result = GeneratorTestHelper.RunGenerator(source);
+        GeneratorTestHelper.GeneratorResult result = GeneratorTestHelper.RunGenerator(source);
         var ids = result.Diagnostics.Select(d => d.Id).ToList();
         Assert.Contains("AM0008", ids);
     }

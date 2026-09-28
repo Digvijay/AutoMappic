@@ -1,4 +1,3 @@
-using AutoMappic;
 using Microsoft.Extensions.DependencyInjection;
 using Prova;
 
@@ -35,11 +34,11 @@ public class ConflictTests
         services.AddSingleton<Profile, Profile2Conflict>();
         services.AddAutoMappic();
 
-        var sp = services.BuildServiceProvider();
-        var mapper = sp.GetRequiredService<IMapper>();
+        ServiceProvider sp = services.BuildServiceProvider();
+        IMapper mapper = sp.GetRequiredService<IMapper>();
 
         var src = new ConflictSource { Name = "Test" };
-        var dest = mapper.Map<ConflictSource, ConflictDest>(src);
+        ConflictDest dest = mapper.Map<ConflictSource, ConflictDest>(src);
 
         Prova.Assertions.Assert.True(dest.Info.Contains("From Profile"), "Should have mapped from a profile");
     }

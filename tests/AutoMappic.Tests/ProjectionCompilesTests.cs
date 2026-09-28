@@ -1,6 +1,3 @@
-using System;
-using System.Linq;
-using AutoMappic.Generator;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 using Prova;
@@ -53,7 +50,7 @@ public class MyProfile : Profile
     [Description("The emitted projection must not contain a doubled null-suppression operator.")]
     public void Projection_Does_Not_Emit_Duplicate_Null_Suppression()
     {
-        var result = GeneratorTestHelper.RunGenerator(FlattenedValueTypeSource);
+        GeneratorTestHelper.GeneratorResult result = GeneratorTestHelper.RunGenerator(FlattenedValueTypeSource);
         string text = string.Join("\n", result.Sources.Select(s => s.SourceText.ToString()));
 
         Assert.False(text.Contains("!)!"), "Emitted source contains a doubled null-suppression operator.");
@@ -83,27 +80,24 @@ public class MyProfile : Profile
     /// </summary>
     private static string[] CompileWithGenerator(string source)
     {
-        var result = GeneratorTestHelper.RunGenerator(source);
+        GeneratorTestHelper.GeneratorResult result = GeneratorTestHelper.RunGenerator(source);
 
-        var trees = new[] { CSharpSyntaxTree.ParseText(source) }
-            .Concat(result.Sources.Select(s => CSharpSyntaxTree.ParseText(s.SourceText.ToString())))
-            .ToArray();
+        SyntaxTree[] trees = [CSharpSyntaxTree.ParseText(source), .. result.Sources.Select(s => CSharpSyntaxTree.ParseText(s.SourceText.ToString()))];
 
         string runtimeDir = System.IO.Path.GetDirectoryName(typeof(object).Assembly.Location)!;
-        var trusted = (AppContext.GetData("TRUSTED_PLATFORM_ASSEMBLIES") as string ?? string.Empty)
+        IEnumerable<string> trusted = (AppContext.GetData("TRUSTED_PLATFORM_ASSEMBLIES") as string ?? string.Empty)
             .Split(System.IO.Path.PathSeparator)
             .Where(p => p.Length > 0 && System.IO.File.Exists(p));
 
-        var references = trusted
+        MetadataReference[] references = [.. trusted
             .Select(p => (MetadataReference)MetadataReference.CreateFromFile(p))
-            .Concat(new[]
-            {
+            .Concat(
+            [
                 MetadataReference.CreateFromFile(System.IO.Path.Combine(runtimeDir, "netstandard.dll")),
                 MetadataReference.CreateFromFile(typeof(Profile).Assembly.Location)
-            })
+            ])
             .GroupBy(r => System.IO.Path.GetFileName(((PortableExecutableReference)r).FilePath))
-            .Select(g => g.First())
-            .ToArray();
+            .Select(g => g.First())];
 
         var compilation = CSharpCompilation.Create(
             "ProjectionCompilationTest",

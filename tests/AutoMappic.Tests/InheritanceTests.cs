@@ -1,4 +1,3 @@
-using AutoMappic.Tests.Fixtures;
 using Prova;
 using Assert = Prova.Assertions.Assert;
 
@@ -38,7 +37,7 @@ public sealed class InheritanceMappingTests
     [Fact]
     public void Map_DerivedType_IncludesBaseProperties()
     {
-        var mapper = new MapperConfiguration(cfg => cfg.AddProfile<EmployeeProfile>())
+        IMapper mapper = new MapperConfiguration(cfg => cfg.AddProfile<EmployeeProfile>())
             .CreateMapper();
 
         var employee = new Employee
@@ -49,7 +48,7 @@ public sealed class InheritanceMappingTests
             Department = "Engineering"
         };
 
-        var dto = mapper.Map<Employee, EmployeeDto>(employee);
+        EmployeeDto dto = mapper.Map<Employee, EmployeeDto>(employee);
 
         Assert.Equal(501, dto.Id);
         Assert.Equal("Alice", dto.Name);

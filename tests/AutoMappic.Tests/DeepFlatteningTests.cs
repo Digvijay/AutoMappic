@@ -37,7 +37,7 @@ public sealed class DeepFlatteningTests
         // Note: The generator intercepts this. The runtime fallback won't flatten.
         // But for diagnostic testing of the Interceptor itself, we rely on build success.
         // Here we test the fallback or generic behavior.
-        var dto = _mapper.Map<Organization, OrganizationDto>(org);
+        OrganizationDto dto = _mapper.Map<Organization, OrganizationDto>(org);
 
         Assert.Equal("OpenAI", dto.Name);
 

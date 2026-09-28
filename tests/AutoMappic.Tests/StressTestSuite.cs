@@ -1,7 +1,3 @@
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using AutoMappic;
 using Prova;
 using Assert = Prova.Assertions.Assert;
 
@@ -227,10 +223,10 @@ public class StressTestSuite
     public void Test_LargeClassMapping_Stress()
     {
         var config = new MapperConfiguration(cfg => cfg.AddProfile<StressProfile>());
-        var mapper = config.CreateMapper();
+        IMapper mapper = config.CreateMapper();
 
         var source = new LargeSource();
-        var result = mapper.Map<LargeDto>(source);
+        LargeDto result = mapper.Map<LargeDto>(source);
 
         Assert.Equal("1", result.P1);
         Assert.Equal("50", result.P50);

@@ -1,12 +1,6 @@
-using System;
-using System.Collections.Generic;
-using System.Collections.Immutable;
 using System.CommandLine;
 using System.Globalization;
-using System.IO;
-using System.Linq;
 using System.Text.Json;
-using System.Threading.Tasks;
 using AutoMappic.Generator.Models;
 using AutoMappic.Generator.Pipeline;
 using Microsoft.Build.Locator;
@@ -68,30 +62,49 @@ internal sealed class Program
     {
         bool isJson = string.Equals(format, "json", StringComparison.OrdinalIgnoreCase);
 
-        if (!isJson) Console.WriteLine($"[INFO] Validating mappings in: {projectPath}...");
+        if (!isJson)
+        {
+            Console.WriteLine($"[INFO] Validating mappings in: {projectPath}...");
+        }
 
-        var compilation = await GetCompilation(projectPath);
+        Compilation? compilation = await GetCompilation(projectPath);
         if (compilation == null)
         {
-            if (isJson) Console.WriteLine("{\"error\": \"Could not load compilation\"}");
+            if (isJson)
+            {
+                Console.WriteLine("{\"error\": \"Could not load compilation\"}");
+            }
+
             return;
         }
 
-        var mappings = ProfileExtractor.ExtractFromCompilation(compilation);
+        IReadOnlyList<(MappingModel Model, EquatableArray<DiagnosticInfo> Diagnostics)> mappings = ProfileExtractor.ExtractFromCompilation(compilation);
         int errorCount = 0;
         int warningCount = 0;
         var issues = new List<object>();
 
-        foreach (var (model, diagnostics) in mappings)
+        foreach ((MappingModel? model, EquatableArray<DiagnosticInfo>? diagnostics) in mappings)
         {
-            if (model == null) continue;
-
-            if (!isJson) Console.WriteLine($"[ANALYZING] {model.SourceTypeFullName} -> {model.DestinationTypeFullName}");
-
-            foreach (var diag in diagnostics)
+            if (model == null)
             {
-                if (diag.Severity == DiagnosticSeverity.Error) errorCount++;
-                else if (diag.Severity == DiagnosticSeverity.Warning) warningCount++;
+                continue;
+            }
+
+            if (!isJson)
+            {
+                Console.WriteLine($"[ANALYZING] {model.SourceTypeFullName} -> {model.DestinationTypeFullName}");
+            }
+
+            foreach (DiagnosticInfo diag in diagnostics)
+            {
+                if (diag.Severity == DiagnosticSeverity.Error)
+                {
+                    errorCount++;
+                }
+                else if (diag.Severity == DiagnosticSeverity.Warning)
+                {
+                    warningCount++;
+                }
 
                 if (isJson)
                 {
@@ -108,7 +121,7 @@ internal sealed class Program
                 }
                 else
                 {
-                    var color = diag.Severity == DiagnosticSeverity.Error ? ConsoleColor.Red : ConsoleColor.Yellow;
+                    ConsoleColor color = diag.Severity == DiagnosticSeverity.Error ? ConsoleColor.Red : ConsoleColor.Yellow;
                     Console.ForegroundColor = color;
                     Console.WriteLine($"  [{diag.Severity.ToString().ToUpper(CultureInfo.InvariantCulture)}] {diag.Id}: {diag.GetMessage(CultureInfo.InvariantCulture)}");
                     Console.ResetColor();
@@ -148,21 +161,27 @@ internal sealed class Program
 
     private static async Task VisualizeProject(string projectPath, string format)
     {
-        var compilation = await GetCompilation(projectPath);
-        if (compilation == null) return;
+        Compilation? compilation = await GetCompilation(projectPath);
+        if (compilation == null)
+        {
+            return;
+        }
 
-        var mappings = ProfileExtractor.ExtractFromCompilation(compilation);
+        IReadOnlyList<(MappingModel Model, EquatableArray<DiagnosticInfo> Diagnostics)> mappings = ProfileExtractor.ExtractFromCompilation(compilation);
         Console.WriteLine($"\n--- AutoMappic Mapping Graph ({format}) ---");
 
         if (string.Equals(format, "mermaid", StringComparison.OrdinalIgnoreCase))
         {
             Console.WriteLine("graph TD");
-            foreach (var (m, _) in mappings)
+            foreach ((MappingModel? m, EquatableArray<DiagnosticInfo> _) in mappings)
             {
-                if (m == null) continue;
+                if (m == null)
+                {
+                    continue;
+                }
 
                 Console.WriteLine($"    subgraph \"{m.SourceTypeName} to {m.DestinationTypeName}\"");
-                foreach (var p in m.Properties.Where(x => x.Kind != PropertyMapKind.Ignored))
+                foreach (PropertyMap? p in m.Properties.Where(x => x.Kind != PropertyMapKind.Ignored))
                 {
                     string sourcePath = p.NestedExpression ?? p.SourceExpression ?? "Explicit";
                     Console.WriteLine($"        {m.SourceTypeName}.{sourcePath} --> {m.DestinationTypeName}.{p.DestinationProperty}");
@@ -182,7 +201,7 @@ internal sealed class Program
         try
         {
             using var workspace = MSBuildWorkspace.Create();
-            var project = await workspace.OpenProjectAsync(projectPath);
+            Project project = await workspace.OpenProjectAsync(projectPath);
             return await project.GetCompilationAsync();
         }
         catch (Exception ex)
@@ -195,18 +214,24 @@ internal sealed class Program
     private static async Task MigrateProject(string projectPath)
     {
         Console.WriteLine($"\n[INFO] Starting experimental migration for: {projectPath}");
-        var comp = await GetCompilation(projectPath);
-        if (comp == null) return;
+        Compilation? comp = await GetCompilation(projectPath);
+        if (comp == null)
+        {
+            return;
+        }
 
         int fileCount = 0;
         int replacements = 0;
 
         var regex = new System.Text.RegularExpressions.Regex(@"\b(?<mapper>[a-zA-Z0-9_]+)\.Map<(?<type>[^>]+)>\((?<src>[^)]+)\)");
 
-        foreach (var tree in comp.SyntaxTrees)
+        foreach (SyntaxTree tree in comp.SyntaxTrees)
         {
             string path = tree.FilePath;
-            if (string.IsNullOrEmpty(path) || path.EndsWith(".g.cs", StringComparison.OrdinalIgnoreCase)) continue;
+            if (string.IsNullOrEmpty(path) || path.EndsWith(".g.cs", StringComparison.OrdinalIgnoreCase))
+            {
+                continue;
+            }
 
             string text = (await tree.GetTextAsync()).ToString();
             if (regex.IsMatch(text))

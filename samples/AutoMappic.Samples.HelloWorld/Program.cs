@@ -16,11 +16,11 @@ var services = new ServiceCollection();
 // method based on your assembly name! It registers your Profiles.
 services.AddAutoMappicFromAutoMappic_Samples_HelloWorld();
 
-var provider = services.BuildServiceProvider();
-var diMapper = provider.GetRequiredService<IMapper>();
+ServiceProvider provider = services.BuildServiceProvider();
+IMapper diMapper = provider.GetRequiredService<IMapper>();
 
 // The mapper.Map call is intercepted at compile time for AOT performance
-var dto1 = diMapper.Map<UserDto>(sourceUser);
+UserDto dto1 = diMapper.Map<UserDto>(sourceUser);
 Console.WriteLine($"Mapped via DI: {dto1.FullName}");
 
 // ---------------------------------------------------------
@@ -32,7 +32,7 @@ Console.WriteLine("\n>> Approach 2: Zero-DI Instantiation");
 // needing Microsoft.Extensions.DependencyInjection at runtime!
 IMapper standaloneMapper = new MapperConfiguration(cfg => cfg.AddProfile<UserProfile>()).CreateMapper();
 
-var dto2 = standaloneMapper.Map<UserDto>(sourceUser);
+UserDto dto2 = standaloneMapper.Map<UserDto>(sourceUser);
 Console.WriteLine($"Mapped without DI: {dto2.FullName}");
 
 

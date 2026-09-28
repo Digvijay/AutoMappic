@@ -176,3 +176,34 @@ dotnet_diagnostic.CA1305.severity = suggestion
 dotnet_diagnostic.CA1307.severity = suggestion
 dotnet_diagnostic.CA1822.severity = suggestion
 dotnet_diagnostic.IDE0055.severity = warning
+
+# ---------------------------------------------------------------------------------------
+# Explicit severities for the code-style rules this repository enforces.
+#
+# Directory.Build.props sets AnalysisLevel=latest with EnforceCodeStyleInBuild and warnings
+# as errors. "latest" floats, so without these lines the set of enforced rules changes with
+# the SDK and code that builds today can fail to build on the next release untouched. That
+# is exactly what happened: a .NET 11 preview SDK reported 283 style errors against code
+# that .NET 10 accepted.
+#
+# Listing them by ID pins the contract to this file instead of to whichever SDK is
+# installed. A new SDK can still add rules - the advisory preview CI leg exists to find
+# them - but it can no longer silently change the meaning of an existing build.
+# ---------------------------------------------------------------------------------------
+[*.cs]
+dotnet_diagnostic.IDE0005.severity = warning
+dotnet_diagnostic.IDE0011.severity = warning
+dotnet_diagnostic.IDE0028.severity = warning
+dotnet_diagnostic.IDE0074.severity = warning
+dotnet_diagnostic.IDE0078.severity = warning
+dotnet_diagnostic.IDE0090.severity = warning
+dotnet_diagnostic.IDE0160.severity = warning
+dotnet_diagnostic.IDE0180.severity = warning
+dotnet_diagnostic.IDE0200.severity = warning
+dotnet_diagnostic.IDE0270.severity = warning
+dotnet_diagnostic.IDE0300.severity = warning
+dotnet_diagnostic.IDE0301.severity = warning
+dotnet_diagnostic.IDE0305.severity = warning
+csharp_prefer_braces = true:warning
+csharp_style_namespace_declarations = file_scoped:warning
+dotnet_style_prefer_collection_expression = when_types_loosely_match:warning

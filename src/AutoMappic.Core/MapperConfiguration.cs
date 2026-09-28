@@ -1,4 +1,5 @@
 using System.Diagnostics.CodeAnalysis;
+using System.Reflection;
 
 namespace AutoMappic;
 
@@ -95,10 +96,10 @@ internal sealed class MapperConfigurationExpression : IMapperConfigurationExpres
     {
         // For runtime fallback, we might need real scanning, but for source-gen test 
         // we just need it to compile. We can add minimal scanning here.
-        foreach (var assembly in assemblies)
+        foreach (Assembly assembly in assemblies)
         {
-            var profileTypes = assembly.GetTypes().Where(t => typeof(Profile).IsAssignableFrom(t) && !t.IsAbstract && t.IsClass);
-            foreach (var type in profileTypes)
+            IEnumerable<Type> profileTypes = assembly.GetTypes().Where(t => typeof(Profile).IsAssignableFrom(t) && !t.IsAbstract && t.IsClass);
+            foreach (Type? type in profileTypes)
             {
                 try { Profiles.Add((Profile)Activator.CreateInstance(type)!); } catch { /* skip */ }
             }

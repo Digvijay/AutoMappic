@@ -1,9 +1,6 @@
-using System;
-using System.Collections.Generic;
+using System.Collections;
 using System.Diagnostics.CodeAnalysis;
-using System.Linq;
 using System.Reflection;
-using System.Text.RegularExpressions;
 
 namespace AutoMappic;
 
@@ -38,11 +35,11 @@ public sealed class Mapper : IMapper, IDisposable
     internal Mapper(IEnumerable<Profile> profiles, IConfigurationProvider config)
     {
         ConfigurationProvider = config;
-        foreach (var profile in profiles)
+        foreach (Profile profile in profiles)
         {
-            foreach (var mapping in profile.Mappings)
+            foreach (IMappingExpression mapping in profile.Mappings)
             {
-                var key = (mapping.SourceType, mapping.DestinationType);
+                (Type SourceType, Type DestinationType) key = (mapping.SourceType, mapping.DestinationType);
 
                 // Guarded so that a trimmed or Native AOT application drops the reflective engine
                 // entirely: ILLink.Substitutions.xml stubs the switch to false, the trimmer folds
@@ -197,8 +194,8 @@ public sealed class Mapper : IMapper, IDisposable
             return source!;
         }
 
-        var sourceUnderlying = Nullable.GetUnderlyingType(sourceType) ?? sourceType;
-        var destUnderlying = Nullable.GetUnderlyingType(destType) ?? destType;
+        Type sourceUnderlying = Nullable.GetUnderlyingType(sourceType) ?? sourceType;
+        Type destUnderlying = Nullable.GetUnderlyingType(destType) ?? destType;
 
         if (destType == typeof(string))
         {
@@ -210,7 +207,7 @@ public sealed class Mapper : IMapper, IDisposable
             try { return Convert.ChangeType(source!, destUnderlying!, System.Globalization.CultureInfo.InvariantCulture)!; } catch { /* Fallthrough */ }
         }
 
-        if (IsCollection(destType, out var destItemType) && IsCollection(sourceType, out var sourceItemType))
+        if (IsCollection(destType, out Type? destItemType) && IsCollection(sourceType, out Type? sourceItemType))
         {
             var sourceList = (System.Collections.IEnumerable)source!;
 
@@ -276,11 +273,11 @@ public sealed class Mapper : IMapper, IDisposable
             return concrete;
         }
 
-        var key = (sourceType, destType);
-        if (!_maps.TryGetValue(key, out var entry))
+        (Type sourceType, Type destType) key = (sourceType, destType);
+        if (!_maps.TryGetValue(key, out (IMappingExpression Mapping, Func<Mapper, object, object?, Task<object>>? Delegate) entry))
         {
             // NEW in v0.7.0: Hot Reload Fallback - check for registered shims
-            if (HotReloadRegistry.TryGetShim(sourceType, destType, out var shim) && shim != null)
+            if (HotReloadRegistry.TryGetShim(sourceType, destType, out Delegate? shim) && shim != null)
             {
                 // Execute the fast shim directly!
                 // Most shims match (mapper, source) or (mapper, source, dest)
@@ -316,7 +313,7 @@ public sealed class Mapper : IMapper, IDisposable
                 + "<RuntimeHostConfigurationOption Include=\"AutoMappic.IsReflectionFallbackEnabled\" Value=\"true\" />.");
         }
 
-        var currentStack = _mappingStack.Value;
+        HashSet<object>? currentStack = _mappingStack.Value;
         if (currentStack == null)
         {
             currentStack = new HashSet<object>(ReferenceEqualityComparer.Instance);
@@ -357,12 +354,9 @@ public sealed class Mapper : IMapper, IDisposable
         Type keyType,
         Type valueType)
     {
-        if (!dictType.IsInterface && !dictType.IsAbstract)
-        {
-            return (System.Collections.IDictionary)Activator.CreateInstance(dictType)!;
-        }
-
-        return !global::System.Runtime.CompilerServices.RuntimeFeature.IsDynamicCodeSupported
+        return !dictType.IsInterface && !dictType.IsAbstract
+            ? (System.Collections.IDictionary)Activator.CreateInstance(dictType)!
+            : !global::System.Runtime.CompilerServices.RuntimeFeature.IsDynamicCodeSupported
             && (keyType.IsValueType || valueType.IsValueType)
             ? throw new AutoMappicException(
                 $"AutoMappic: Cannot build a Dictionary<{keyType.Name}, {valueType.Name}> for the interface-typed "
@@ -393,7 +387,7 @@ public sealed class Mapper : IMapper, IDisposable
         if (mapping.ConverterType != null)
         {
             object? converter = Activator.CreateInstance(mapping.ConverterType);
-            var method = mapping.ConverterType.GetMethod("Convert")!;
+            MethodInfo method = mapping.ConverterType.GetMethod("Convert")!;
             return (mapper, src, dst) => global::System.Threading.Tasks.Task.FromResult(method.Invoke(converter, [src])!);
         }
 
@@ -403,10 +397,9 @@ public sealed class Mapper : IMapper, IDisposable
             .GroupBy(p => p.Name)
             .ToDictionary(g => g.Key, g => g.First(), StringComparer.Ordinal);
 
-        var destProps = mapping.DestinationType
+        PropertyInfo[] destProps = [.. mapping.DestinationType
             .GetProperties(BindingFlags.Public | BindingFlags.Instance)
-            .Where(p => p.CanWrite || IsCollection(p.PropertyType, out _))
-            .ToArray();
+            .Where(p => p.CanWrite || IsCollection(p.PropertyType, out _))];
 
         var sourceMethods = mapping.SourceType
             .GetMethods(BindingFlags.Public | BindingFlags.Instance)
@@ -416,24 +409,21 @@ public sealed class Mapper : IMapper, IDisposable
 
         return async (mapper, src, dst) =>
         {
-            if (dst == null)
-            {
-                dst = mapping.ConstructionFactory != null
+            dst ??= mapping.ConstructionFactory != null
                     ? mapping.ConstructionFactory.DynamicInvoke(src)
                     : Activator.CreateInstance(mapping.DestinationType)
                         ?? throw new AutoMappicException($"Could not create an instance of '{mapping.DestinationType.FullName}'.");
-            }
 
             await mapping.ExecuteBeforeAsync(src!, dst!).ConfigureAwait(false);
 
-            foreach (var destProp in destProps)
+            foreach (PropertyInfo? destProp in destProps)
             {
                 if (mapping.IgnoredMembers.Contains(destProp.Name))
                 {
                     continue;
                 }
 
-                if (mapping.RuntimeConditions.TryGetValue(destProp.Name, out var condition))
+                if (mapping.RuntimeConditions.TryGetValue(destProp.Name, out Delegate? condition))
                 {
                     if (!(bool)condition.DynamicInvoke(src, dst)!)
                     {
@@ -441,14 +431,14 @@ public sealed class Mapper : IMapper, IDisposable
                     }
                 }
 
-                if (mapping.RuntimeMaps.TryGetValue(destProp.Name, out var runtimeMap))
+                if (mapping.RuntimeMaps.TryGetValue(destProp.Name, out Func<object, object?>? runtimeMap))
                 {
                     object? customVal = runtimeMap(src!);
                     destProp.SetValue(dst, customVal);
                     continue;
                 }
 
-                if (src is System.Collections.IDictionary dict && IsDictionary(mapping.SourceType, out var kType, out var vType) && kType == typeof(string))
+                if (src is System.Collections.IDictionary dict && IsDictionary(mapping.SourceType, out Type? kType, out Type? vType) && kType == typeof(string))
                 {
                     string[] parts = mapping.DestinationNaming?.Split(destProp.Name) ?? [destProp.Name];
                     string keyName = JoinName(parts, mapping.SourceNaming);
@@ -490,7 +480,10 @@ public sealed class Mapper : IMapper, IDisposable
                         bool isSimple = destProp.PropertyType.IsValueType || destProp.PropertyType == typeof(string);
                         if (isSimple)
                         {
-                            if (destProp.CanWrite) destProp.SetValue(dst, val);
+                            if (destProp.CanWrite)
+                            {
+                                destProp.SetValue(dst, val);
+                            }
                         }
                         else if (!IsCollection(destProp.PropertyType, out _))
                         {
@@ -502,14 +495,17 @@ public sealed class Mapper : IMapper, IDisposable
                             if (destProp.GetValue(dst) is System.Collections.IList targetColl)
                             {
                                 targetColl.Clear();
-                                foreach (object? item in (System.Collections.IEnumerable)val) targetColl.Add(item);
+                                foreach (object? item in (System.Collections.IEnumerable)val)
+                                {
+                                    targetColl.Add(item);
+                                }
                             }
                         }
                     }
-                    else if (IsDictionary(destProp.PropertyType, out var dK, out var dV) && IsDictionary(srcProp.PropertyType, out var sK, out var sV))
+                    else if (IsDictionary(destProp.PropertyType, out Type? dK, out Type? dV) && IsDictionary(srcProp.PropertyType, out Type? sK, out Type? sV))
                     {
                         var sourceDict = (System.Collections.IDictionary)val;
-                        var resultDict = CreateDictionary(destProp.PropertyType, dK, dV);
+                        IDictionary resultDict = CreateDictionary(destProp.PropertyType, dK, dV);
 
                         foreach (System.Collections.DictionaryEntry entry in sourceDict)
                         {
@@ -543,7 +539,10 @@ public sealed class Mapper : IMapper, IDisposable
                                     if (mapper.MapCore(srcProp.PropertyType, destProp.PropertyType, val, null) is System.Collections.IEnumerable items)
                                     {
                                         targetColl.Clear();
-                                        foreach (object? item in items) targetColl.Add(item);
+                                        foreach (object? item in items)
+                                        {
+                                            targetColl.Add(item);
+                                        }
                                     }
                                 }
                             }
@@ -568,7 +567,7 @@ public sealed class Mapper : IMapper, IDisposable
                         }
                     }
                 }
-                else if (sourceMethods.TryGetValue(destProp.Name, out var srcMethod))
+                else if (sourceMethods.TryGetValue(destProp.Name, out MethodInfo? srcMethod))
                 {
                     destProp.SetValue(dst, srcMethod.Invoke(src, null));
                 }
@@ -591,26 +590,38 @@ public sealed class Mapper : IMapper, IDisposable
 
     private static object? ResolveFlattenedValue(object source, string destName, INamingConvention? sourceNaming, INamingConvention? destNaming)
     {
-        var props = source.GetType().GetProperties(BindingFlags.Public | BindingFlags.Instance);
+        PropertyInfo[] props = source.GetType().GetProperties(BindingFlags.Public | BindingFlags.Instance);
         string[] destParts = destNaming?.Split(destName) ?? [destName];
 
-        if (destParts.Length == 0) return null;
+        if (destParts.Length == 0)
+        {
+            return null;
+        }
 
         for (int i = 1; i <= destParts.Length; i++)
         {
             string segment = string.Concat(destParts.Take(i));
-            foreach (var prop in props)
+            foreach (PropertyInfo prop in props)
             {
                 if (string.Equals(Normalize(prop.Name, sourceNaming), Normalize(segment, destNaming), StringComparison.OrdinalIgnoreCase))
                 {
                     object? val = prop.GetValue(source);
-                    if (val == null) return null;
+                    if (val == null)
+                    {
+                        return null;
+                    }
 
-                    if (i == destParts.Length) return val;
+                    if (i == destParts.Length)
+                    {
+                        return val;
+                    }
 
                     string remaining = string.Concat(destParts.Skip(i));
                     object? result = ResolveFlattenedValue(val, remaining, sourceNaming, destNaming);
-                    if (result != null) return result;
+                    if (result != null)
+                    {
+                        return result;
+                    }
                 }
             }
         }
@@ -623,7 +634,7 @@ public sealed class Mapper : IMapper, IDisposable
         keyType = null!;
         valueType = null!;
 
-        var dictIntf = type.IsGenericType && type.GetGenericTypeDefinition() == typeof(IDictionary<,>)
+        Type? dictIntf = type.IsGenericType && type.GetGenericTypeDefinition() == typeof(IDictionary<,>)
             ? type
             : type.GetInterfaces().FirstOrDefault(i => i.IsGenericType && i.GetGenericTypeDefinition() == typeof(IDictionary<,>));
 
@@ -665,8 +676,16 @@ public sealed class Mapper : IMapper, IDisposable
 
     private static string JoinName(string[] parts, INamingConvention? conv)
     {
-        if (conv is LowerUnderscoreNamingConvention) return string.Join("_", parts).ToLowerInvariant();
-        if (conv is KebabCaseNamingConvention) return string.Join("-", parts).ToLowerInvariant();
+        if (conv is LowerUnderscoreNamingConvention)
+        {
+            return string.Join("_", parts).ToLowerInvariant();
+        }
+
+        if (conv is KebabCaseNamingConvention)
+        {
+            return string.Join("-", parts).ToLowerInvariant();
+        }
+
         if (conv is CamelCaseNamingConvention)
         {
             return parts.Length == 0
@@ -680,11 +699,7 @@ public sealed class Mapper : IMapper, IDisposable
             p.Length > 0 ? char.ToUpperInvariant(p[0]) + p[1..].ToLowerInvariant() : string.Empty));
     }
 
-    private static string Normalize(string name, INamingConvention? conv = null)
-    {
-        if (string.IsNullOrEmpty(name)) return name;
-        return conv == null ? name.Replace("-", "").Replace("_", "") : string.Concat(conv.Split(name));
-    }
+    private static string Normalize(string name, INamingConvention? conv = null) => string.IsNullOrEmpty(name) ? name : conv == null ? name.Replace("-", "").Replace("_", "") : string.Concat(conv.Split(name));
 }
 
 

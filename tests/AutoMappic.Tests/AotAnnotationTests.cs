@@ -1,6 +1,5 @@
 using System.Diagnostics.CodeAnalysis;
 using System.Reflection;
-using AutoMappic;
 using Prova;
 using Assert = Prova.Assertions.Assert;
 
@@ -90,7 +89,7 @@ public sealed class AotAnnotationTests
     {
         foreach (string? name in new[] { "MapCore", "MapCoreAsync" })
         {
-            var method = typeof(Mapper).GetMethod(name, BindingFlags.Public | BindingFlags.Instance);
+            MethodInfo? method = typeof(Mapper).GetMethod(name, BindingFlags.Public | BindingFlags.Instance);
             Assert.NotNull(method);
             Assert.NotNull(method!.GetCustomAttribute<RequiresUnreferencedCodeAttribute>());
             Assert.NotNull(method!.GetCustomAttribute<RequiresDynamicCodeAttribute>());
@@ -110,7 +109,7 @@ public sealed class AotAnnotationTests
     [Fact]
     public void ReflectionFallbackFeatureSwitch_IsSubstitutable()
     {
-        var xml = typeof(Mapper).Assembly.GetManifestResourceStream("ILLink.Substitutions.xml");
+        Stream? xml = typeof(Mapper).Assembly.GetManifestResourceStream("ILLink.Substitutions.xml");
         Assert.NotNull(xml);
 
         using var reader = new StreamReader(xml!);
@@ -120,7 +119,7 @@ public sealed class AotAnnotationTests
         Assert.Contains("get_IsReflectionFallbackEnabled", content);
         Assert.Contains("value=\"false\"", content);
 
-        var property = typeof(Mapper).Assembly
+        PropertyInfo? property = typeof(Mapper).Assembly
             .GetType("AutoMappic.AutoMappicFeatures", throwOnError: true)!
             .GetProperty("IsReflectionFallbackEnabled", BindingFlags.NonPublic | BindingFlags.Static);
 

@@ -1,7 +1,3 @@
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using AutoMappic;
 using Prova;
 using Assert = Prova.Assertions.Assert;
 
@@ -11,16 +7,16 @@ namespace AutoMappic.Tests;
 
 public class InterfaceCollSource
 {
-    public IReadOnlyList<int> List { get; set; } = new List<int> { 1, 2, 3 };
+    public IReadOnlyList<int> List { get; set; } = [1, 2, 3];
     public HashSet<string> Names { get; set; } = ["A", "B"];
-    public Stack<int> Numbers { get; set; } = new(new[] { 10, 20 });
-    public Queue<string> Commands { get; set; } = new(new[] { "Cmd1", "Cmd2" });
+    public Stack<int> Numbers { get; set; } = new([10, 20]);
+    public Queue<string> Commands { get; set; } = new(["Cmd1", "Cmd2"]);
 }
 
 public class InterfaceCollDto
 {
     public List<int> List { get; set; } = [];
-    public IReadOnlyList<string> Names { get; set; } = new List<string>();
+    public IReadOnlyList<string> Names { get; set; } = [];
     public List<int> Numbers { get; set; } = [];
     public List<string> Commands { get; set; } = [];
 }
@@ -35,7 +31,7 @@ public class SpecializedContainerDto
     public HashSet<int> Values { get; set; } = [];
 }
 
-public class StackToQueueSource { public Stack<int> Data { get; set; } = new(new[] { 1, 2, 3 }); }
+public class StackToQueueSource { public Stack<int> Data { get; set; } = new([1, 2, 3]); }
 public class StackToQueueDto { public Queue<int> Data { get; set; } = new(); }
 
 #endregion
@@ -62,9 +58,9 @@ public class InterfaceMappingTestSuite
     [Fact]
     public void Test_CollectionInterfaces_Exhaustive()
     {
-        var mapper = GetMapper();
+        IMapper mapper = GetMapper();
         var source = new InterfaceCollSource();
-        var result = mapper.Map<InterfaceCollDto>(source);
+        InterfaceCollDto result = mapper.Map<InterfaceCollDto>(source);
 
         Assert.Equal(3, result.List.Count);
         Assert.Equal(2, result.Names.Count);
@@ -76,9 +72,9 @@ public class InterfaceMappingTestSuite
     [Fact]
     public void Test_ListToHashSet_Deduplication()
     {
-        var mapper = GetMapper();
+        IMapper mapper = GetMapper();
         var source = new SpecializedContainerSource();
-        var result = mapper.Map<SpecializedContainerDto>(source);
+        SpecializedContainerDto result = mapper.Map<SpecializedContainerDto>(source);
 
         Assert.Equal(2, result.Values.Count);
         Assert.True(result.Values.Contains(1));
@@ -89,9 +85,9 @@ public class InterfaceMappingTestSuite
     [Fact]
     public void Test_StackToQueue_Exhaustive()
     {
-        var mapper = GetMapper();
+        IMapper mapper = GetMapper();
         var source = new StackToQueueSource();
-        var result = mapper.Map<StackToQueueDto>(source);
+        StackToQueueDto result = mapper.Map<StackToQueueDto>(source);
 
         Assert.Equal(3, result.Data.Count);
     }

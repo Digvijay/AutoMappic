@@ -1,4 +1,3 @@
-using AutoMappic;
 using AutoMappic.Tests.Fixtures;
 using Prova;
 using Assert = Prova.Assertions.Assert;
@@ -20,7 +19,7 @@ public sealed class OverridingTests
     [Fact]
     public void Map_WithForMember_OverridesFlattening()
     {
-        var mapper = new MapperConfiguration(cfg => cfg.AddProfile<OverrideProfile>())
+        IMapper mapper = new MapperConfiguration(cfg => cfg.AddProfile<OverrideProfile>())
             .CreateMapper();
 
         var source = new Order

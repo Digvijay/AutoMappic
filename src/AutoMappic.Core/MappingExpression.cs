@@ -1,6 +1,5 @@
 using System.Diagnostics.CodeAnalysis;
 using System.Linq.Expressions;
-using System.Threading.Tasks;
 
 namespace AutoMappic;
 
@@ -124,7 +123,7 @@ internal sealed class MappingExpression<
     [RequiresDynamicCode("Compiling an expression tree needs runtime code generation.")]
     private static Func<object, object?> BuildRuntimeMap(Expression<Func<TSource, object?>> mapFrom)
     {
-        var compiled = mapFrom.Compile();
+        Func<TSource, object?> compiled = mapFrom.Compile();
         return src => compiled((TSource)src);
     }
 
@@ -214,23 +213,37 @@ internal sealed class MappingExpression<
     internal async Task ExecuteBeforeAsync(TSource source, TDestination destination)
     {
         _beforeMap?.Invoke(source, destination);
-        if (_beforeMapAsync != null) await _beforeMapAsync(source, destination).ConfigureAwait(false);
+        if (_beforeMapAsync != null)
+        {
+            await _beforeMapAsync(source, destination).ConfigureAwait(false);
+        }
     }
 
     internal async Task ExecuteAfterAsync(TSource source, TDestination destination)
     {
         _afterMap?.Invoke(source, destination);
-        if (_afterMapAsync != null) await _afterMapAsync(source, destination).ConfigureAwait(false);
+        if (_afterMapAsync != null)
+        {
+            await _afterMapAsync(source, destination).ConfigureAwait(false);
+        }
     }
 
     void IMappingExpression.ExecuteBefore(object source, object destination)
     {
-        if (source is null || destination is null) return;
+        if (source is null || destination is null)
+        {
+            return;
+        }
+
         ExecuteBefore((TSource)source, (TDestination)destination);
     }
     void IMappingExpression.ExecuteAfter(object source, object destination)
     {
-        if (source is null || destination is null) return;
+        if (source is null || destination is null)
+        {
+            return;
+        }
+
         ExecuteAfter((TSource)source, (TDestination)destination);
     }
     Task IMappingExpression.ExecuteBeforeAsync(object source, object destination) => source is null || destination is null ? Task.CompletedTask : ExecuteBeforeAsync((TSource)source, (TDestination)destination);

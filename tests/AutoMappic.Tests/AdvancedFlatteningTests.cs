@@ -1,4 +1,3 @@
-using AutoMappic.Tests.Fixtures;
 using Prova;
 using Assert = Prova.Assertions.Assert;
 
@@ -21,7 +20,7 @@ public sealed class AdvancedFlatteningTests
     [Fact]
     public void Map_DeepFlattening_ThreeLevels()
     {
-        var mapper = new MapperConfiguration(cfg => cfg.AddProfile<DeepProfile>())
+        IMapper mapper = new MapperConfiguration(cfg => cfg.AddProfile<DeepProfile>())
             .CreateMapper();
 
         var source = new DeepOrder
@@ -32,7 +31,7 @@ public sealed class AdvancedFlatteningTests
             }
         };
 
-        var dto = mapper.Map<DeepOrder, DeepOrderDto>(source);
+        DeepOrderDto dto = mapper.Map<DeepOrder, DeepOrderDto>(source);
         Assert.Equal("Redmond", dto.UserAddressCity);
     }
 
@@ -40,11 +39,11 @@ public sealed class AdvancedFlatteningTests
     [Fact]
     public void Map_DeepFlattening_MiddleNull_ReturnsDefault()
     {
-        var mapper = new MapperConfiguration(cfg => cfg.AddProfile<DeepProfile>())
+        IMapper mapper = new MapperConfiguration(cfg => cfg.AddProfile<DeepProfile>())
             .CreateMapper();
 
         var source = new DeepOrder { User = new DeepUser { Address = null } };
-        var dto = mapper.Map<DeepOrder, DeepOrderDto>(source);
+        DeepOrderDto dto = mapper.Map<DeepOrder, DeepOrderDto>(source);
 
         Assert.Equal(string.Empty, dto.UserAddressCity);
     }

@@ -1,4 +1,3 @@
-using AutoMappic.Tests.Fixtures;
 using Prova;
 using Assert = Prova.Assertions.Assert;
 
@@ -52,7 +51,7 @@ public sealed class ExceedingTests
     public void Map_SnakeCase_To_PascalCase()
     {
         var source = new SnakeSource { user_id = 42, first_name = "John", last_name = "Doe" };
-        var dto = _mapper.Map<SnakeSource, SnakeDto>(source);
+        SnakeDto dto = _mapper.Map<SnakeSource, SnakeDto>(source);
 
         Assert.Equal(42, dto.UserId);
         Assert.Equal("John", dto.FirstName);
@@ -67,12 +66,12 @@ public sealed class ExceedingTests
         {
             Matrix =
             [
-                new List<int> { 1, 2 },
-                new List<int> { 3, 4 }
+                [1, 2],
+                [3, 4]
             ]
         };
 
-        var dto = _mapper.Map<NestedCollSource, NestedCollDto>(source);
+        NestedCollDto dto = _mapper.Map<NestedCollSource, NestedCollDto>(source);
 
         Assert.Equal(2, dto.Matrix.Count);
         Assert.Equal(1, dto.Matrix[0][0]);

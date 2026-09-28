@@ -25,11 +25,11 @@ public sealed class AotAnnotationParityTests
 {
     private static IEnumerable<(Type Type, MethodInfo Interface, MethodInfo Implementation)> InterfaceMappings()
     {
-        var assembly = typeof(Mapper).Assembly;
+        Assembly assembly = typeof(Mapper).Assembly;
 
-        foreach (var type in assembly.GetTypes().Where(t => t is { IsClass: true, IsAbstract: false }))
+        foreach (Type? type in assembly.GetTypes().Where(t => t is { IsClass: true, IsAbstract: false }))
         {
-            foreach (var contract in type.GetInterfaces().Where(i => i.Assembly == assembly))
+            foreach (Type? contract in type.GetInterfaces().Where(i => i.Assembly == assembly))
             {
                 InterfaceMapping map;
                 try

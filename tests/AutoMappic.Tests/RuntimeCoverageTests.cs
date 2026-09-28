@@ -1,7 +1,4 @@
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
+using System.Reflection;
 using Microsoft.Extensions.DependencyInjection;
 using Prova;
 using Assert = Prova.Assertions.Assert;
@@ -15,8 +12,8 @@ public class RuntimeCoverageTests
     [Fact]
     public async Task MapAsync_WhenSourceIsNull_ReturnsNull()
     {
-        var mapper = new MapperConfiguration(p => { }).CreateMapper();
-        var result = await mapper.MapAsync<UserDto>(null!);
+        IMapper mapper = new MapperConfiguration(p => { }).CreateMapper();
+        UserDto result = await mapper.MapAsync<UserDto>(null!);
         Assert.Null(result);
     }
 
@@ -24,8 +21,8 @@ public class RuntimeCoverageTests
     [Fact]
     public async Task MapAsyncGeneric_WhenSourceIsNull_ReturnsNull()
     {
-        var mapper = new MapperConfiguration(p => { }).CreateMapper();
-        var result = await mapper.MapAsync<User, UserDto>(null!);
+        IMapper mapper = new MapperConfiguration(p => { }).CreateMapper();
+        UserDto result = await mapper.MapAsync<User, UserDto>(null!);
         Assert.Null(result);
     }
 
@@ -36,10 +33,10 @@ public class RuntimeCoverageTests
         var profile = new TestProfile();
         profile.Register<DictSourceIntVal, DictDestStringVal>();
 
-        var mapper = new MapperConfiguration(p => p.AddProfile(profile)).CreateMapper();
+        IMapper mapper = new MapperConfiguration(p => p.AddProfile(profile)).CreateMapper();
 
         var source = new DictSourceIntVal { Items = new Dictionary<string, int> { { "a", 123 } } };
-        var dest = mapper.Map<DictDestStringVal>(source);
+        DictDestStringVal dest = mapper.Map<DictDestStringVal>(source);
 
         Assert.Equal("123", dest.Items["a"]);
     }
@@ -53,10 +50,10 @@ public class RuntimeCoverageTests
         profile.Register<long, int>();
         profile.Register<DictSourceLong, DictDestInt>();
 
-        var mapper = new MapperConfiguration(p => p.AddProfile(profile)).CreateMapper();
+        IMapper mapper = new MapperConfiguration(p => p.AddProfile(profile)).CreateMapper();
 
         var source = new DictSourceLong { Items = new Dictionary<long, long> { { 1L, 100L } } };
-        var dest = mapper.Map<DictDestInt>(source);
+        DictDestInt dest = mapper.Map<DictDestInt>(source);
 
         Assert.NotNull(dest.Items);
         Assert.True(dest.Items.ContainsKey(1));
@@ -71,10 +68,10 @@ public class RuntimeCoverageTests
         profile.Register<int, long>();
         profile.Register<DictSourceIntVal, DictDestLongVal>();
 
-        var mapper = new MapperConfiguration(p => p.AddProfile(profile)).CreateMapper();
+        IMapper mapper = new MapperConfiguration(p => p.AddProfile(profile)).CreateMapper();
 
         var source = new DictSourceIntVal { Items = new Dictionary<string, int> { { "a", 1 } } };
-        var dest = mapper.Map<DictDestLongVal>(source);
+        DictDestLongVal dest = mapper.Map<DictDestLongVal>(source);
 
         Assert.Equal(1L, dest.Items["a"]);
     }
@@ -87,7 +84,7 @@ public class RuntimeCoverageTests
         profile.Register<SkippedMapSource, SkippedMapDest>();
         // No mapping for UnregisteredSource -> UnregisteredDest
 
-        var mapper = new MapperConfiguration(p => p.AddProfile(profile)).CreateMapper();
+        IMapper mapper = new MapperConfiguration(p => p.AddProfile(profile)).CreateMapper();
 
         var source = new SkippedMapSource { Item = new UnregisteredSource() };
 
@@ -108,10 +105,10 @@ public class RuntimeCoverageTests
         // Register S -> D with reverse map D -> S
         profile.Register<User, UserDto>().ReverseMap();
 
-        var mapper = new MapperConfiguration(p => p.AddProfile(profile)).CreateMapper();
+        IMapper mapper = new MapperConfiguration(p => p.AddProfile(profile)).CreateMapper();
 
         var source = new UserDto { Name = "Alice" };
-        var dest = mapper.Map<User>(source);
+        User dest = mapper.Map<User>(source);
 
         Assert.Equal("Alice", dest.Name);
     }
@@ -123,10 +120,10 @@ public class RuntimeCoverageTests
         var profile = new TestProfile();
         profile.Register<User, UserDto>(opt => opt.ForMemberIgnore(d => d.Name));
 
-        var mapper = new MapperConfiguration(p => p.AddProfile(profile)).CreateMapper();
+        IMapper mapper = new MapperConfiguration(p => p.AddProfile(profile)).CreateMapper();
 
         var source = new User { Name = "Alice" };
-        var dest = mapper.Map<UserDto>(source);
+        UserDto dest = mapper.Map<UserDto>(source);
 
         Assert.Equal("", dest.Name); // Should be ignored
     }
@@ -137,8 +134,8 @@ public class RuntimeCoverageTests
     {
         var services = new Microsoft.Extensions.DependencyInjection.ServiceCollection();
         services.AddAutoMappic(new TestProfile());
-        var sp = services.BuildServiceProvider();
-        var mapper = sp.GetService<IMapper>();
+        ServiceProvider sp = services.BuildServiceProvider();
+        IMapper? mapper = sp.GetService<IMapper>();
         Assert.NotNull(mapper);
     }
 
@@ -149,8 +146,8 @@ public class RuntimeCoverageTests
         var profile = new TestProfile();
         profile.Register<User, UserDto>(opt => opt.ForMember(d => d.Name, o => o.Ignore()));
 
-        var mapper = new MapperConfiguration(p => p.AddProfile(profile)).CreateMapper();
-        var dest = mapper.Map<UserDto>(new User { Name = "Alice" });
+        IMapper mapper = new MapperConfiguration(p => p.AddProfile(profile)).CreateMapper();
+        UserDto dest = mapper.Map<UserDto>(new User { Name = "Alice" });
         Assert.Equal("", dest.Name);
     }
 
@@ -171,8 +168,8 @@ public class RuntimeCoverageTests
         IMappingExpression<User, UserDto> exp = profile.Register<User, UserDto>(opt =>
             opt.ForMember(d => d.Name, o => o.MapFrom<NameResolver>()));
 
-        var mapper = new MapperConfiguration(p => p.AddProfile(profile)).CreateMapper();
-        var result = mapper.Map<UserDto>(new User { Name = "Test" });
+        IMapper mapper = new MapperConfiguration(p => p.AddProfile(profile)).CreateMapper();
+        UserDto result = mapper.Map<UserDto>(new User { Name = "Test" });
         Assert.Equal("Resolved: Test", result.Name);
     }
 
@@ -180,12 +177,12 @@ public class RuntimeCoverageTests
     [Fact]
     public void QueryableExtensions_ProjectTo_ThrowsAtRuntime()
     {
-        var queryable = new List<User>().AsQueryable();
-        var method = typeof(QueryableExtensions).GetMethods()
+        IQueryable<User> queryable = new List<User>().AsQueryable();
+        MethodInfo method = typeof(QueryableExtensions).GetMethods()
             .First(m => m.Name == "ProjectTo" && m.GetGenericArguments().Length == 2)
             .MakeGenericMethod(typeof(User), typeof(UserDto));
         // Calling via reflection avoids interceptor
-        var ex = Assert.Throws<System.Reflection.TargetInvocationException>(() => method.Invoke(null, [queryable]));
+        TargetInvocationException ex = Assert.Throws<System.Reflection.TargetInvocationException>(() => method.Invoke(null, [queryable]));
         Assert.True(ex.InnerException is AutoMappicException);
     }
 
@@ -194,9 +191,9 @@ public class RuntimeCoverageTests
     public void DataReaderExtensions_Map_ThrowsAtRuntime()
     {
         var reader = new MockDataReader();
-        var method = typeof(DataReaderExtensions).GetMethod("Map")!.MakeGenericMethod(typeof(UserDto));
+        MethodInfo method = typeof(DataReaderExtensions).GetMethod("Map")!.MakeGenericMethod(typeof(UserDto));
         // Calling via reflection avoids interceptor
-        var ex = Assert.Throws<System.Reflection.TargetInvocationException>(() => method.Invoke(null, [reader]));
+        TargetInvocationException ex = Assert.Throws<System.Reflection.TargetInvocationException>(() => method.Invoke(null, [reader]));
         Assert.True(ex.InnerException is AutoMappicException);
     }
 
@@ -254,14 +251,14 @@ public class RuntimeCoverageTests
         profile.Register<NestedSource, NestedDest>();
         profile.Register<DictSourceNested, DictDestNested>();
 
-        var mapper = new MapperConfiguration(p => p.AddProfile(profile)).CreateMapper();
+        IMapper mapper = new MapperConfiguration(p => p.AddProfile(profile)).CreateMapper();
 
         var source = new DictSourceNested
         {
             Items = new Dictionary<int, NestedSource> { { 1, new NestedSource { Id = 100 } } }
         };
 
-        var dest = mapper.Map<DictDestNested>(source);
+        DictDestNested dest = mapper.Map<DictDestNested>(source);
 
         Assert.NotNull(dest.Items);
         // Key 1 -> "1", Value NestedSource(100) -> NestedDest(100)
@@ -277,10 +274,10 @@ public class RuntimeCoverageTests
         profile.Register<NestedSource, NestedDest>();
         profile.Register<ListSource, ListDest>();
 
-        var mapper = new MapperConfiguration(p => p.AddProfile(profile)).CreateMapper();
+        IMapper mapper = new MapperConfiguration(p => p.AddProfile(profile)).CreateMapper();
 
         var source = new ListSource { Items = [new NestedSource { Id = 1 }, null, new NestedSource { Id = 3 }] };
-        var dest = mapper.Map<ListDest>(source);
+        ListDest dest = mapper.Map<ListDest>(source);
 
         Assert.Equal(3, dest.Items.Count);
         Assert.Equal(1, dest.Items[0].Id);
@@ -295,7 +292,7 @@ public class RuntimeCoverageTests
         var profile = new TestProfile();
         profile.Register<ListSourceUnreg, ListDestUnreg>();
 
-        var mapper = new MapperConfiguration(p => p.AddProfile(profile)).CreateMapper();
+        IMapper mapper = new MapperConfiguration(p => p.AddProfile(profile)).CreateMapper();
 
         var source = new ListSourceUnreg { Items = [new UnregisteredSource()] };
 
@@ -315,7 +312,7 @@ public class RuntimeCoverageTests
         var profile = new TestProfile();
         profile.Register<long, int>(); // This registration doesn't really matter for MapCore's primitive check
 
-        var mapper = new MapperConfiguration(p => p.AddProfile(profile)).CreateMapper();
+        IMapper mapper = new MapperConfiguration(p => p.AddProfile(profile)).CreateMapper();
 
         // long.MaxValue to int will overflow in Convert.ChangeType
         long val = long.MaxValue;
@@ -375,7 +372,7 @@ public class RuntimeCoverageTests
         public IMappingExpression<S, D> Register<S, D>(Action<IMappingExpression<S, D>>? opt = null)
         {
 #pragma warning disable AM0012
-            var exp = CreateMap<S, D>();
+            IMappingExpression<S, D> exp = CreateMap<S, D>();
 #pragma warning restore AM0012
             opt?.Invoke(exp);
             return exp;

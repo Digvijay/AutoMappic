@@ -1,5 +1,3 @@
-using System.Collections.Generic;
-using AutoMappic;
 using Prova;
 using Assert = Prova.Assertions.Assert;
 
@@ -28,7 +26,7 @@ public class ReadOnlyMappingTests
     public void Map_ToReadOnlyCollection_PopulatesItems()
     {
         var config = new MapperConfiguration(cfg => cfg.AddProfile<ReadOnlyProfile>());
-        var mapper = config.CreateMapper();
+        IMapper mapper = config.CreateMapper();
 
         var source = new S { Vals = [1, 2, 3] };
         var dest = new D();
@@ -46,7 +44,7 @@ public class ReadOnlyMappingTests
     public void Map_ToReadOnlyNonCollection_IsSkipped()
     {
         var config = new MapperConfiguration(cfg => cfg.AddProfile<ReadOnlyProfile>());
-        var mapper = config.CreateMapper();
+        IMapper mapper = config.CreateMapper();
 
         var source = new S { Vals = [1] };
         var dest = new DNonColl();

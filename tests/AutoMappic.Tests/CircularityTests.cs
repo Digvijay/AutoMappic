@@ -1,7 +1,4 @@
-using System.Linq;
-using AutoMappic.Generator.Pipeline;
 using Microsoft.CodeAnalysis;
-using Microsoft.CodeAnalysis.CSharp;
 using Prova;
 
 namespace AutoMappic.Tests;
@@ -25,7 +22,7 @@ public class CircularProfile : Profile
     }
 }";
 
-        var result = GeneratorTestHelper.RunGenerator(sourceCode);
+        GeneratorTestHelper.GeneratorResult result = GeneratorTestHelper.RunGenerator(sourceCode);
 
         var errors = result.Diagnostics.Where(d => d.Id == "AM0006").ToList();
         Prova.Assertions.Assert.NotEmpty(errors);

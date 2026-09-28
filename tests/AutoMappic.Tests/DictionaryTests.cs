@@ -34,13 +34,13 @@ public sealed class DictionaryMappingTests
     [Fact]
     public void Map_Dictionary_ComplexValuesTransformed()
     {
-        var mapper = new MapperConfiguration(cfg => cfg.AddProfile<DictProfile>())
+        IMapper mapper = new MapperConfiguration(cfg => cfg.AddProfile<DictProfile>())
             .CreateMapper();
 
         var source = new DictSource();
         source.Users["admin"] = new User { Username = "root", Email = "admin@x.com" };
 
-        var dto = mapper.Map<DictSource, DictDto>(source);
+        DictDto dto = mapper.Map<DictSource, DictDto>(source);
 
         Assert.Single(dto.Users);
         Assert.Equal("root", dto.Users["admin"].Username);
@@ -51,10 +51,10 @@ public sealed class DictionaryMappingTests
     public void Map_InheritedDictionary_Works()
     {
         var config = new MapperConfiguration(cfg => cfg.AddProfile<DictProfile>());
-        var mapper = config.CreateMapper();
+        IMapper mapper = config.CreateMapper();
 
         var source = new CustomDictSource { Stats = new MyDict { { "a", 1 }, { "b", 2 } } };
-        var dto = mapper.Map<CustomDictSource, CustomDictDto>(source);
+        CustomDictDto dto = mapper.Map<CustomDictSource, CustomDictDto>(source);
 
         Assert.Equal(2, dto.Stats.Count);
         Assert.Equal(1, dto.Stats["a"]);

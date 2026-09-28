@@ -1,4 +1,3 @@
-using System.Linq;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 using Prova;
@@ -47,9 +46,9 @@ public class MyProfile : Profile
     [Description("Generated registration code must compile when the assembly name contains characters that are legal in an assembly name but illegal in a C# identifier.")]
     public void Registration_Compiles_For_Assembly_Names_With_Illegal_Identifier_Characters(string assemblyName)
     {
-        var result = GeneratorTestHelper.RunGenerator(Source, assemblyName: assemblyName);
+        GeneratorTestHelper.GeneratorResult result = GeneratorTestHelper.RunGenerator(Source, assemblyName: assemblyName);
 
-        var registration = result.Sources
+        GeneratedSourceResult registration = result.Sources
             .FirstOrDefault(s => s.HintName.Contains("Registration"));
 
         Assert.NotNull(registration.SourceText);
@@ -63,7 +62,7 @@ public class MyProfile : Profile
             $"Generated registration embedded the raw assembly name '{assemblyName}' verbatim.");
 
         // The authoritative check: parse the generated file and require it to be syntactically valid.
-        var tree = CSharpSyntaxTree.ParseText(generated);
+        SyntaxTree tree = CSharpSyntaxTree.ParseText(generated);
         var syntaxErrors = tree.GetDiagnostics()
             .Where(d => d.Severity == DiagnosticSeverity.Error)
             .ToList();
@@ -78,12 +77,12 @@ public class MyProfile : Profile
     [Description("A sanitised identifier may not begin with a digit even if the assembly name does.")]
     public void Registration_Compiles_For_Assembly_Name_Starting_With_Digit()
     {
-        var result = GeneratorTestHelper.RunGenerator(Source, assemblyName: "7Eleven.Api");
+        GeneratorTestHelper.GeneratorResult result = GeneratorTestHelper.RunGenerator(Source, assemblyName: "7Eleven.Api");
 
-        var registration = result.Sources.FirstOrDefault(s => s.HintName.Contains("Registration"));
+        GeneratedSourceResult registration = result.Sources.FirstOrDefault(s => s.HintName.Contains("Registration"));
         Assert.NotNull(registration.SourceText);
 
-        var tree = CSharpSyntaxTree.ParseText(registration.SourceText!.ToString());
+        SyntaxTree tree = CSharpSyntaxTree.ParseText(registration.SourceText!.ToString());
         var syntaxErrors = tree.GetDiagnostics()
             .Where(d => d.Severity == DiagnosticSeverity.Error)
             .ToList();

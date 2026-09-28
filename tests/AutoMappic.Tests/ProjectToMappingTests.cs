@@ -1,6 +1,3 @@
-using System.Collections.Generic;
-using System.Linq;
-using AutoMappic;
 using Prova;
 using Assert = Prova.Assertions.Assert;
 
@@ -20,7 +17,7 @@ public class ProjectToMappingTests
     [Prova.Description("Verify that IQueryable.ProjectTo works as an in-memory transformation using TopLevel classes.")]
     public void Queryable_ProjectTo_WorksInMemory()
     {
-        var sourceList = new List<ProjectToSource>
+        IQueryable<ProjectToSource> sourceList = new List<ProjectToSource>
         {
             new() { Id = 1, Name = "A" },
             new() { Id = 2, Name = "B" }

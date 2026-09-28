@@ -38,7 +38,7 @@ public sealed class CollectionMappingTests
     [Fact]
     public void Map_Collections_TransformedCorrectly()
     {
-        var mapper = new MapperConfiguration(cfg => cfg.AddProfile<CollectionProfile>())
+        IMapper mapper = new MapperConfiguration(cfg => cfg.AddProfile<CollectionProfile>())
             .CreateMapper();
 
         var source = new CollectionSource
@@ -51,7 +51,7 @@ public sealed class CollectionMappingTests
             ]
         };
 
-        var dto = mapper.Map<CollectionSource, CollectionDto>(source);
+        CollectionDto dto = mapper.Map<CollectionSource, CollectionDto>(source);
 
         Assert.Equal(3, dto.Scores.Length);
         Assert.Equal(2, dto.Tags.Count);
@@ -64,10 +64,10 @@ public sealed class CollectionMappingTests
     public void Map_InheritedCollection_Works()
     {
         var config = new MapperConfiguration(cfg => cfg.AddProfile<CollectionProfile>());
-        var mapper = config.CreateMapper();
+        IMapper mapper = config.CreateMapper();
 
         var source = new CustomCollSource { Scores = [1, 2, 3] };
-        var dto = mapper.Map<CustomCollSource, CustomCollDto>(source);
+        CustomCollDto dto = mapper.Map<CustomCollSource, CustomCollDto>(source);
 
         Assert.Equal(3, dto.Scores.Count);
         Assert.Equal(1, dto.Scores[0]);
@@ -77,11 +77,11 @@ public sealed class CollectionMappingTests
     [Prova.Description("Verify that mapping a collection directly (without a wrapper) works and is intercepted.")]
     public void Map_DirectCollection_Works()
     {
-        var mapper = new MapperConfiguration(cfg => cfg.AddProfile<CollectionProfile>())
+        IMapper mapper = new MapperConfiguration(cfg => cfg.AddProfile<CollectionProfile>())
             .CreateMapper();
 
         var source = new List<User> { new() { Username = "alice" } };
-        var dtos = mapper.Map<List<UserSummaryDto>>(source);
+        List<UserSummaryDto> dtos = mapper.Map<List<UserSummaryDto>>(source);
 
         Assert.Single(dtos);
         Assert.Equal("alice", dtos[0].Username);
@@ -91,11 +91,11 @@ public sealed class CollectionMappingTests
     [Prova.Description("Verify that mapping a collection asynchronously directly works and is intercepted.")]
     public async Task MapAsync_DirectCollection_Works()
     {
-        var mapper = new MapperConfiguration(cfg => cfg.AddProfile<CollectionProfile>())
+        IMapper mapper = new MapperConfiguration(cfg => cfg.AddProfile<CollectionProfile>())
             .CreateMapper();
 
         var source = new List<User> { new() { Username = "bob" } };
-        var dtos = await mapper.MapAsync<List<UserSummaryDto>>(source);
+        List<UserSummaryDto> dtos = await mapper.MapAsync<List<UserSummaryDto>>(source);
 
         Assert.Single(dtos);
         Assert.Equal("bob", dtos[0].Username);

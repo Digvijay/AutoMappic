@@ -1,4 +1,5 @@
-using System.Linq;
+using System.Collections.Immutable;
+using Microsoft.CodeAnalysis.Text;
 using Prova;
 using Assert = Prova.Assertions.Assert;
 
@@ -20,10 +21,10 @@ public class MyProfile : Profile
 {
     public MyProfile() { CreateMap<S, D>(); }
 }";
-        var result = GeneratorTestHelper.RunGenerator(source);
-        var diagnostics = result.Diagnostics;
+        GeneratorTestHelper.GeneratorResult result = GeneratorTestHelper.RunGenerator(source);
+        ImmutableArray<Microsoft.CodeAnalysis.Diagnostic> diagnostics = result.Diagnostics;
 
-        var am001 = diagnostics.FirstOrDefault(d => d.Id == "AM0001");
+        Microsoft.CodeAnalysis.Diagnostic? am001 = diagnostics.FirstOrDefault(d => d.Id == "AM0001");
         Assert.NotNull(am001);
         Assert.Contains("'Name' on 'D'", am001!.GetMessage());
     }
@@ -43,10 +44,10 @@ public class MyProfile : Profile
 {
     public MyProfile() { CreateMap<S, D>(); }
 }";
-        var result = GeneratorTestHelper.RunGenerator(source);
-        var diagnostics = result.Diagnostics;
+        GeneratorTestHelper.GeneratorResult result = GeneratorTestHelper.RunGenerator(source);
+        ImmutableArray<Microsoft.CodeAnalysis.Diagnostic> diagnostics = result.Diagnostics;
 
-        var am002 = diagnostics.FirstOrDefault(d => d.Id == "AM0002");
+        Microsoft.CodeAnalysis.Diagnostic? am002 = diagnostics.FirstOrDefault(d => d.Id == "AM0002");
         Assert.NotNull(am002);
         Assert.Contains("is ambiguous", am002!.GetMessage());
     }
@@ -66,10 +67,10 @@ public class MyProfile : Profile
 {
     public MyProfile() { CreateMap<S, D>(); }
 }";
-        var result = GeneratorTestHelper.RunGenerator(source);
-        var diagnostics = result.Diagnostics;
+        GeneratorTestHelper.GeneratorResult result = GeneratorTestHelper.RunGenerator(source);
+        ImmutableArray<Microsoft.CodeAnalysis.Diagnostic> diagnostics = result.Diagnostics;
 
-        var am005 = diagnostics.FirstOrDefault(d => d.Id == "AM0005");
+        Microsoft.CodeAnalysis.Diagnostic? am005 = diagnostics.FirstOrDefault(d => d.Id == "AM0005");
         Assert.NotNull(am005);
         Assert.Contains("must have a public parameterless constructor", am005!.GetMessage());
     }
@@ -88,10 +89,10 @@ public class MyProfile : Profile
 {
     public MyProfile() { CreateMap<S, EmptyD>(); }
 }";
-        var result = GeneratorTestHelper.RunGenerator(source);
-        var diagnostics = result.Diagnostics;
+        GeneratorTestHelper.GeneratorResult result = GeneratorTestHelper.RunGenerator(source);
+        ImmutableArray<Microsoft.CodeAnalysis.Diagnostic> diagnostics = result.Diagnostics;
 
-        var am012 = diagnostics.FirstOrDefault(d => d.Id == "AM0012");
+        Microsoft.CodeAnalysis.Diagnostic? am012 = diagnostics.FirstOrDefault(d => d.Id == "AM0012");
         Assert.NotNull(am012);
         Assert.Contains("has no writable destination properties", am012!.GetMessage());
     }
@@ -114,10 +115,10 @@ public class MyProfile : Profile
 {
     public MyProfile() { CreateMap<S, D>(); }
 }";
-        var result = GeneratorTestHelper.RunGenerator(source, options: new Dictionary<string, string> { { "build_property.automappic_enableidentitymanagement", "true" } });
-        var diagnostics = result.Diagnostics;
+        GeneratorTestHelper.GeneratorResult result = GeneratorTestHelper.RunGenerator(source, options: new Dictionary<string, string> { { "build_property.automappic_enableidentitymanagement", "true" } });
+        ImmutableArray<Microsoft.CodeAnalysis.Diagnostic> diagnostics = result.Diagnostics;
 
-        var am014 = diagnostics.FirstOrDefault(d => d.Id == "AM0014");
+        Microsoft.CodeAnalysis.Diagnostic? am014 = diagnostics.FirstOrDefault(d => d.Id == "AM0014");
         Assert.NotNull(am014);
         Assert.Contains("lacks a mapped primary key", am014!.GetMessage());
     }
@@ -136,10 +137,10 @@ public class MyProfile : Profile
 {
     public MyProfile() { CreateMap<S, D>(); }
 }";
-        var result = GeneratorTestHelper.RunGenerator(source);
-        var diagnostics = result.Diagnostics;
+        GeneratorTestHelper.GeneratorResult result = GeneratorTestHelper.RunGenerator(source);
+        ImmutableArray<Microsoft.CodeAnalysis.Diagnostic> diagnostics = result.Diagnostics;
 
-        var am015 = diagnostics.FirstOrDefault(d => d.Id == "AM0015");
+        Microsoft.CodeAnalysis.Diagnostic? am015 = diagnostics.FirstOrDefault(d => d.Id == "AM0015");
         Assert.NotNull(am015);
         Assert.Contains("Did you mean to map it from 'FullName'?", am015!.GetMessage());
     }
@@ -164,10 +165,10 @@ public class MyProfile : Profile
             .ForMember(d => d.Items, opt => opt.MapFrom(s => s.Items.Select(x => x * 2).ToList()));
     }
 }";
-        var result = GeneratorTestHelper.RunGenerator(source);
-        var diagnostics = result.Diagnostics;
+        GeneratorTestHelper.GeneratorResult result = GeneratorTestHelper.RunGenerator(source);
+        ImmutableArray<Microsoft.CodeAnalysis.Diagnostic> diagnostics = result.Diagnostics;
 
-        var am016 = diagnostics.FirstOrDefault(d => d.Id == "AM0016");
+        Microsoft.CodeAnalysis.Diagnostic? am016 = diagnostics.FirstOrDefault(d => d.Id == "AM0016");
         Assert.NotNull(am016);
         Assert.Contains("preventing compiler loop vectorization", am016!.GetMessage());
     }
@@ -190,10 +191,10 @@ public class MyProfile : Profile
 {
     public MyProfile() { CreateMap<S, D>(); }
 }";
-        var result = GeneratorTestHelper.RunGenerator(source, options: new Dictionary<string, string> { { "build_property.automappic_enableidentitymanagement", "true" } });
-        var diagnostics = result.Diagnostics;
+        GeneratorTestHelper.GeneratorResult result = GeneratorTestHelper.RunGenerator(source, options: new Dictionary<string, string> { { "build_property.automappic_enableidentitymanagement", "true" } });
+        ImmutableArray<Microsoft.CodeAnalysis.Diagnostic> diagnostics = result.Diagnostics;
 
-        var am017 = diagnostics.FirstOrDefault(d => d.Id == "AM0017");
+        Microsoft.CodeAnalysis.Diagnostic? am017 = diagnostics.FirstOrDefault(d => d.Id == "AM0017");
         Assert.NotNull(am017);
         Assert.Contains("has no identifiable primary key", am017!.GetMessage());
     }
@@ -220,10 +221,10 @@ public class MyProfile : Profile
 {
     public MyProfile() { CreateMap<S, D>(); }
 }";
-        var result = GeneratorTestHelper.RunGenerator(source, options: new Dictionary<string, string> { { "build_property.automappic_enableidentitymanagement", "true" } });
-        var diagnostics = result.Diagnostics;
+        GeneratorTestHelper.GeneratorResult result = GeneratorTestHelper.RunGenerator(source, options: new Dictionary<string, string> { { "build_property.automappic_enableidentitymanagement", "true" } });
+        ImmutableArray<Microsoft.CodeAnalysis.Diagnostic> diagnostics = result.Diagnostics;
 
-        var am014 = diagnostics.FirstOrDefault(d => d.Id == "AM0014");
+        Microsoft.CodeAnalysis.Diagnostic? am014 = diagnostics.FirstOrDefault(d => d.Id == "AM0014");
         Assert.Null(am014);
     }
 
@@ -241,10 +242,10 @@ public class MyProfile : Profile
 {
     public MyProfile() { CreateMap<S, D>(); }
 }";
-        var result = GeneratorTestHelper.RunGenerator(source);
-        var diagnostics = result.Diagnostics;
+        GeneratorTestHelper.GeneratorResult result = GeneratorTestHelper.RunGenerator(source);
+        ImmutableArray<Microsoft.CodeAnalysis.Diagnostic> diagnostics = result.Diagnostics;
 
-        var am015 = diagnostics.FirstOrDefault(d => d.Id == "AM0015");
+        Microsoft.CodeAnalysis.Diagnostic? am015 = diagnostics.FirstOrDefault(d => d.Id == "AM0015");
         Assert.Null(am015);
     }
 
@@ -262,10 +263,10 @@ public class MyProfile : Profile
 {
     public MyProfile() { CreateMap<S, D>(); }
 }";
-        var result = GeneratorTestHelper.RunGenerator(source);
-        var diagnostics = result.Diagnostics;
+        GeneratorTestHelper.GeneratorResult result = GeneratorTestHelper.RunGenerator(source);
+        ImmutableArray<Microsoft.CodeAnalysis.Diagnostic> diagnostics = result.Diagnostics;
 
-        var am015 = diagnostics.FirstOrDefault(d => d.Id == "AM0015");
+        Microsoft.CodeAnalysis.Diagnostic? am015 = diagnostics.FirstOrDefault(d => d.Id == "AM0015");
         Assert.Null(am015);
     }
 
@@ -284,10 +285,10 @@ public class MyProfile : Profile
     public MyProfile() { CreateMap<S, D>(); }
 }";
         // FullName vs Name = 0.5, so a threshold of 0.75 should suppress it
-        var result = GeneratorTestHelper.RunGenerator(source, options: new Dictionary<string, string> { { "build_property.automappic_smartmatchthreshold", "0.75" } });
-        var diagnostics = result.Diagnostics;
+        GeneratorTestHelper.GeneratorResult result = GeneratorTestHelper.RunGenerator(source, options: new Dictionary<string, string> { { "build_property.automappic_smartmatchthreshold", "0.75" } });
+        ImmutableArray<Microsoft.CodeAnalysis.Diagnostic> diagnostics = result.Diagnostics;
 
-        var am015 = diagnostics.FirstOrDefault(d => d.Id == "AM0015");
+        Microsoft.CodeAnalysis.Diagnostic? am015 = diagnostics.FirstOrDefault(d => d.Id == "AM0015");
         Assert.Null(am015);
     }
 
@@ -306,10 +307,10 @@ public class MyProfile : Profile
     public MyProfile() { CreateMap<S, D>(); }
 }";
         // FullName vs Name = 0.5, so a threshold of 0.4 should include it
-        var result = GeneratorTestHelper.RunGenerator(source, options: new Dictionary<string, string> { { "build_property.automappic_smartmatchthreshold", "0.4" } });
-        var diagnostics = result.Diagnostics;
+        GeneratorTestHelper.GeneratorResult result = GeneratorTestHelper.RunGenerator(source, options: new Dictionary<string, string> { { "build_property.automappic_smartmatchthreshold", "0.4" } });
+        ImmutableArray<Microsoft.CodeAnalysis.Diagnostic> diagnostics = result.Diagnostics;
 
-        var am015 = diagnostics.FirstOrDefault(d => d.Id == "AM0015");
+        Microsoft.CodeAnalysis.Diagnostic? am015 = diagnostics.FirstOrDefault(d => d.Id == "AM0015");
         Assert.NotNull(am015);
     }
 
@@ -331,10 +332,10 @@ public class MyProfile : Profile
             .ForMember(d => d.Formatted, opt => opt.MapFrom(s => s.Raw.ToUpper()));
     }
 }";
-        var result = GeneratorTestHelper.RunGenerator(source);
-        var diagnostics = result.Diagnostics;
+        GeneratorTestHelper.GeneratorResult result = GeneratorTestHelper.RunGenerator(source);
+        ImmutableArray<Microsoft.CodeAnalysis.Diagnostic> diagnostics = result.Diagnostics;
 
-        var am016 = diagnostics.FirstOrDefault(d => d.Id == "AM0016");
+        Microsoft.CodeAnalysis.Diagnostic? am016 = diagnostics.FirstOrDefault(d => d.Id == "AM0016");
         Assert.Null(am016);
     }
 
@@ -356,10 +357,10 @@ public class MyProfile : Profile
 {
     public MyProfile() { CreateMap<S, D>(); }
 }";
-        var result = GeneratorTestHelper.RunGenerator(source, options: new Dictionary<string, string> { { "build_property.automappic_enableidentitymanagement", "true" } });
-        var diagnostics = result.Diagnostics;
+        GeneratorTestHelper.GeneratorResult result = GeneratorTestHelper.RunGenerator(source, options: new Dictionary<string, string> { { "build_property.automappic_enableidentitymanagement", "true" } });
+        ImmutableArray<Microsoft.CodeAnalysis.Diagnostic> diagnostics = result.Diagnostics;
 
-        var am017 = diagnostics.FirstOrDefault(d => d.Id == "AM0017");
+        Microsoft.CodeAnalysis.Diagnostic? am017 = diagnostics.FirstOrDefault(d => d.Id == "AM0017");
         Assert.Null(am017);
     }
 
@@ -382,10 +383,10 @@ public class MyProfile : Profile
     public MyProfile() { CreateMap<S, D>(); }
 }";
         // Use a very low threshold so the diagnostic passes through
-        var result = GeneratorTestHelper.RunGenerator(source, options: new Dictionary<string, string> { { "build_property.automappic_smartmatchthreshold", "0.1" } });
-        var diagnostics = result.Diagnostics;
+        GeneratorTestHelper.GeneratorResult result = GeneratorTestHelper.RunGenerator(source, options: new Dictionary<string, string> { { "build_property.automappic_smartmatchthreshold", "0.1" } });
+        ImmutableArray<Microsoft.CodeAnalysis.Diagnostic> diagnostics = result.Diagnostics;
 
-        var am015 = diagnostics.FirstOrDefault(d => d.Id == "AM0015");
+        Microsoft.CodeAnalysis.Diagnostic? am015 = diagnostics.FirstOrDefault(d => d.Id == "AM0015");
         Assert.NotNull(am015);
         Assert.True(am015!.Properties.ContainsKey("Score"));
         Assert.True(am015.Properties.ContainsKey("SuggestedName"));
@@ -410,10 +411,10 @@ public class MyProfile : Profile
 {
     public MyProfile() { CreateMap<Order, OrderDto>(); }
 }";
-        var result = GeneratorTestHelper.RunGenerator(source, options: new Dictionary<string, string> { { "build_property.automappic_enableidentitymanagement", "true" } });
-        var diagnostics = result.Diagnostics;
+        GeneratorTestHelper.GeneratorResult result = GeneratorTestHelper.RunGenerator(source, options: new Dictionary<string, string> { { "build_property.automappic_enableidentitymanagement", "true" } });
+        ImmutableArray<Microsoft.CodeAnalysis.Diagnostic> diagnostics = result.Diagnostics;
 
-        var am014 = diagnostics.FirstOrDefault(d => d.Id == "AM0014");
+        Microsoft.CodeAnalysis.Diagnostic? am014 = diagnostics.FirstOrDefault(d => d.Id == "AM0014");
         Assert.NotNull(am014);
         Assert.Contains("OrderLineDto", am014!.GetMessage());
         Assert.Contains("OrderLine", am014.GetMessage());
@@ -431,8 +432,8 @@ public class S { public int Id { get; set; } }
 [AutoMap(typeof(S))]
 public class NonPartialD { public int Id { get; set; } }
 ";
-        var result = GeneratorTestHelper.RunGenerator(source);
-        var am018 = result.Diagnostics.FirstOrDefault(d => d.Id == "AM0018");
+        GeneratorTestHelper.GeneratorResult result = GeneratorTestHelper.RunGenerator(source);
+        Microsoft.CodeAnalysis.Diagnostic? am018 = result.Diagnostics.FirstOrDefault(d => d.Id == "AM0018");
 
         Assert.NotNull(am018);
         Assert.Contains("must be partial", am018!.GetMessage());
@@ -456,17 +457,17 @@ public class MyProfile : Profile
     }
 }
 ";
-        var result = GeneratorTestHelper.RunGenerator(source);
-        var am001 = result.Diagnostics.FirstOrDefault(d => d.Id == "AM0001");
+        GeneratorTestHelper.GeneratorResult result = GeneratorTestHelper.RunGenerator(source);
+        Microsoft.CodeAnalysis.Diagnostic? am001 = result.Diagnostics.FirstOrDefault(d => d.Id == "AM0001");
 
         Assert.NotNull(am001);
 
         // Verify span length is non-zero
-        var span = am001!.Location.SourceSpan;
+        TextSpan span = am001!.Location.SourceSpan;
         Assert.True(span.Length > 0, "Diagnostic span should be non-zero length.");
 
         // Verify it's on the CreateMap line (Line 11 in this source)
-        var lineSpan = am001.Location.GetLineSpan();
+        Microsoft.CodeAnalysis.FileLinePositionSpan lineSpan = am001.Location.GetLineSpan();
         Assert.Equal(10, lineSpan.StartLinePosition.Line); // 0-indexed
     }
 }

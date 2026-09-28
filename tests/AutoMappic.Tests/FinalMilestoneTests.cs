@@ -39,7 +39,7 @@ public sealed class FinalMilestoneTests
     public void Map_EnumToString()
     {
         var source = new StatusWrapper { Status = Status.Active };
-        var dto = _mapper.Map<StatusWrapper, StatusWrapperDto>(source);
+        StatusWrapperDto dto = _mapper.Map<StatusWrapper, StatusWrapperDto>(source);
 
         Assert.Equal("Active", dto.Status);
     }
@@ -49,7 +49,7 @@ public sealed class FinalMilestoneTests
     public void Map_IntToLong_Widening()
     {
         var source = new WideningWrapper { Value = 42 };
-        var dto = _mapper.Map<WideningWrapper, WideningWrapperDto>(source);
+        WideningWrapperDto dto = _mapper.Map<WideningWrapper, WideningWrapperDto>(source);
 
         Assert.Equal(42L, dto.Value);
     }
@@ -58,10 +58,10 @@ public sealed class FinalMilestoneTests
     [Fact]
     public void Map_ArrayToList_Complex()
     {
-        var sourceUsers = new[] { new User { Username = "alice" }, new User { Username = "bob" } };
+        User[] sourceUsers = [new User { Username = "alice" }, new User { Username = "bob" }];
         var source = new CollWrapper { Items = [.. sourceUsers] };
 
-        var dto = _mapper.Map<CollWrapper, CollWrapperDto>(source);
+        CollWrapperDto dto = _mapper.Map<CollWrapper, CollWrapperDto>(source);
 
         Assert.NotNull(dto);
         Assert.Equal(2, dto.Items.Count);
@@ -73,7 +73,7 @@ public sealed class FinalMilestoneTests
     public void Map_DeepNull_DoesNotThrow()
     {
         var order = new Order { Customer = null };
-        var dto = _mapper.Map<Order, OrderDto>(order);
+        OrderDto dto = _mapper.Map<Order, OrderDto>(order);
 
         Assert.Equal(string.Empty, dto.CustomerName);
     }
@@ -94,7 +94,7 @@ public sealed class FinalMilestoneTests
     public void Map_LargeLong_ToLong()
     {
         var source = new WideningWrapperDto { Value = long.MaxValue };
-        var dest = _mapper.Map<WideningWrapperDto, WideningWrapperDto>(source);
+        WideningWrapperDto dest = _mapper.Map<WideningWrapperDto, WideningWrapperDto>(source);
 
         Assert.Equal(long.MaxValue, dest.Value);
     }

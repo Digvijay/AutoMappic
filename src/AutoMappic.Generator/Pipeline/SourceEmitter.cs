@@ -55,7 +55,11 @@ internal static class SourceEmitter
         }
         else
         {
-            if (!model.IsSourceValueType) sb.AppendLine("        if (source is null) throw new global::System.ArgumentNullException(nameof(source));");
+            if (!model.IsSourceValueType)
+            {
+                sb.AppendLine("        if (source is null) throw new global::System.ArgumentNullException(nameof(source));");
+            }
+
             sb.AppendLine();
             if (model.StaticConverterMethodFullName != null)
             {
@@ -79,7 +83,11 @@ internal static class SourceEmitter
             sb.AppendLine($"    /// <summary>Asynchronously maps a {GetSeeTag(model.SourceTypeFullName)} to a new {GetSeeTag(model.DestinationTypeFullName)} instance.</summary>");
             sb.AppendLine($"    public static async global::System.Threading.Tasks.Task<{destTypeNameFixed}> {methodName}{typeParamsStr}Async(this {sourceTypeNameFixed} source, global::System.Threading.CancellationToken ct = default, global::AutoMappic.Generated.MappingContext context = default)");
             sb.AppendLine("    {");
-            if (!model.IsSourceValueType) sb.AppendLine("        if (source is null) throw new global::System.ArgumentNullException(nameof(source));");
+            if (!model.IsSourceValueType)
+            {
+                sb.AppendLine("        if (source is null) throw new global::System.ArgumentNullException(nameof(source));");
+            }
+
             sb.AppendLine();
             if (model.StaticConverterMethodFullName != null)
             {
@@ -108,8 +116,16 @@ internal static class SourceEmitter
         }
         else
         {
-            if (!model.IsSourceValueType) sb.AppendLine("        if (source is null) throw new global::System.ArgumentNullException(nameof(source));");
-            if (!model.IsDestinationValueType && model.DestinationTypeFullName != "string") sb.AppendLine("        if (destination is null) throw new global::System.ArgumentNullException(nameof(destination));");
+            if (!model.IsSourceValueType)
+            {
+                sb.AppendLine("        if (source is null) throw new global::System.ArgumentNullException(nameof(source));");
+            }
+
+            if (!model.IsDestinationValueType && model.DestinationTypeFullName != "string")
+            {
+                sb.AppendLine("        if (destination is null) throw new global::System.ArgumentNullException(nameof(destination));");
+            }
+
             sb.AppendLine();
             if (model.StaticConverterMethodFullName != null)
             {
@@ -130,8 +146,16 @@ internal static class SourceEmitter
             sb.AppendLine($"    /// <summary>Asynchronously maps properties from <paramref name=\"source\" /> onto an existing <paramref name=\"destination\" /> instance.</summary>");
             sb.AppendLine($"    public static async global::System.Threading.Tasks.Task<{destTypeNameFixed}> {methodName}{typeParamsStr}Async(this {sourceTypeNameFixed} source, {destTypeNameFixed} destination, global::System.Threading.CancellationToken ct = default, global::AutoMappic.Generated.MappingContext context = default)");
             sb.AppendLine("    {");
-            if (!model.IsSourceValueType) sb.AppendLine("        if (source is null) throw new global::System.ArgumentNullException(nameof(source));");
-            if (!model.IsDestinationValueType && model.DestinationTypeFullName != "string") sb.AppendLine("        if (destination is null) throw new global::System.ArgumentNullException(nameof(destination));");
+            if (!model.IsSourceValueType)
+            {
+                sb.AppendLine("        if (source is null) throw new global::System.ArgumentNullException(nameof(source));");
+            }
+
+            if (!model.IsDestinationValueType && model.DestinationTypeFullName != "string")
+            {
+                sb.AppendLine("        if (destination is null) throw new global::System.ArgumentNullException(nameof(destination));");
+            }
+
             sb.AppendLine();
             if (model.StaticConverterMethodFullName != null)
             {
@@ -148,7 +172,7 @@ internal static class SourceEmitter
         // 5. Collection Helpers
         var collectionHelpers = new List<PropertyMap>();
         CollectCollectionHelpers(model, collectionHelpers);
-        foreach (var helper in collectionHelpers.GroupBy(h => h.DestinationProperty).Select(g => g.First()))
+        foreach (PropertyMap? helper in collectionHelpers.GroupBy(h => h.DestinationProperty).Select(g => g.First()))
         {
             EmitCollectionHelper(sb, helper);
         }
@@ -171,10 +195,10 @@ internal static class SourceEmitter
                 : $"new {destTypeNameFixed}()";
 
             sb.AppendLine($"    public static readonly global::System.Linq.Expressions.Expression<global::System.Func<{sourceTypeNameFixed}, {destTypeNameFixed}>> Projection = source => {ctorCall}");
-            if (model.ProjectionProperties.Any(p => p.Kind != PropertyMapKind.Ignored && p.Kind != PropertyMapKind.Suggested))
+            if (model.ProjectionProperties.Any(p => p.Kind is not PropertyMapKind.Ignored and not PropertyMapKind.Suggested))
             {
                 sb.AppendLine("    {");
-                foreach (var prop in model.ProjectionProperties.Where(p => p.Kind != PropertyMapKind.Ignored && p.Kind != PropertyMapKind.Suggested))
+                foreach (PropertyMap? prop in model.ProjectionProperties.Where(p => p.Kind is not PropertyMapKind.Ignored and not PropertyMapKind.Suggested))
                 {
                     if (!string.IsNullOrEmpty(prop.SourceExpression))
                     {
@@ -196,7 +220,7 @@ internal static class SourceEmitter
 
     private static void EmitMappingBody(StringBuilder sb, MappingModel model, bool isAsync, string sourceTypeNameFixed, string destTypeNameFixed, IReadOnlyDictionary<string, MappingModel> mappings)
     {
-        var keyProp = model.Properties.FirstOrDefault(p => p.IsKey && p.Kind != PropertyMapKind.Ignored && p.Kind != PropertyMapKind.Suggested);
+        PropertyMap? keyProp = model.Properties.FirstOrDefault(p => p.IsKey && p.Kind != PropertyMapKind.Ignored && p.Kind != PropertyMapKind.Suggested);
 
         if (keyProp != null && keyProp.SourceExpression != null)
         {
@@ -212,7 +236,7 @@ internal static class SourceEmitter
         }
 
         var ctorArgExpressions = new List<string>();
-        foreach (var arg in model.ConstructorArguments.Where(p => p.Kind != PropertyMapKind.Suggested))
+        foreach (PropertyMap? arg in model.ConstructorArguments.Where(p => p.Kind != PropertyMapKind.Suggested))
         {
             string? expression = arg.SourceExpression;
             if (arg.IsCollection)
@@ -243,7 +267,7 @@ internal static class SourceEmitter
             }
 
             sb.AppendLine("        {");
-            foreach (var prop in initOnlyProps)
+            foreach (PropertyMap? prop in initOnlyProps)
             {
                 string? expression = prop.SourceExpression;
                 sb.AppendLine($"            {prop.DestinationProperty} = {expression}, // {prop.Kind}");
@@ -290,15 +314,22 @@ internal static class SourceEmitter
         // BeforeMap: ...
         if (isAsync)
         {
-            if (!string.IsNullOrEmpty(model.BeforeMapBody)) sb.AppendLine($"        {model.BeforeMapBody}");
-            if (!string.IsNullOrEmpty(model.BeforeMapAsyncBody)) sb.AppendLine($"        {model.BeforeMapAsyncBody}");
+            if (!string.IsNullOrEmpty(model.BeforeMapBody))
+            {
+                sb.AppendLine($"        {model.BeforeMapBody}");
+            }
+
+            if (!string.IsNullOrEmpty(model.BeforeMapAsyncBody))
+            {
+                sb.AppendLine($"        {model.BeforeMapAsyncBody}");
+            }
         }
         else if (!string.IsNullOrEmpty(model.BeforeMapBody))
         {
             sb.AppendLine($"        {model.BeforeMapBody}");
         }
 
-        foreach (var prop in otherProps)
+        foreach (PropertyMap? prop in otherProps)
         {
             string? expression = prop.SourceExpression;
             if (prop.ConditionBody != null)
@@ -342,8 +373,15 @@ internal static class SourceEmitter
         // AfterMap: emit sync first, then async (both run if both configured)
         if (isAsync)
         {
-            if (!string.IsNullOrEmpty(model.AfterMapBody)) sb.AppendLine($"        {model.AfterMapBody}");
-            if (!string.IsNullOrEmpty(model.AfterMapAsyncBody)) sb.AppendLine($"        {model.AfterMapAsyncBody}");
+            if (!string.IsNullOrEmpty(model.AfterMapBody))
+            {
+                sb.AppendLine($"        {model.AfterMapBody}");
+            }
+
+            if (!string.IsNullOrEmpty(model.AfterMapAsyncBody))
+            {
+                sb.AppendLine($"        {model.AfterMapAsyncBody}");
+            }
         }
         else if (!string.IsNullOrEmpty(model.AfterMapBody))
         {
@@ -357,7 +395,7 @@ internal static class SourceEmitter
         string destTypeNameFixed = ApplyTypeParameters(model.DestinationTypeFullName, model.TypeParameters);
         sb.AppendLine("        var result = destination;");
 
-        var keyProp = model.Properties.FirstOrDefault(p => p.IsKey && p.Kind != PropertyMapKind.Ignored && p.Kind != PropertyMapKind.Suggested);
+        PropertyMap keyProp = model.Properties.FirstOrDefault(p => p.IsKey && p.Kind != PropertyMapKind.Ignored && p.Kind != PropertyMapKind.Suggested);
 
         if (keyProp != null && keyProp.SourceExpression != null)
         {
@@ -372,8 +410,15 @@ internal static class SourceEmitter
         // BeforeMap: emit sync first, then async (both run if both configured)
         if (isAsync)
         {
-            if (!string.IsNullOrEmpty(model.BeforeMapBody)) sb.AppendLine($"        {model.BeforeMapBody}");
-            if (!string.IsNullOrEmpty(model.BeforeMapAsyncBody)) sb.AppendLine($"        {model.BeforeMapAsyncBody}");
+            if (!string.IsNullOrEmpty(model.BeforeMapBody))
+            {
+                sb.AppendLine($"        {model.BeforeMapBody}");
+            }
+
+            if (!string.IsNullOrEmpty(model.BeforeMapAsyncBody))
+            {
+                sb.AppendLine($"        {model.BeforeMapAsyncBody}");
+            }
         }
         else if (!string.IsNullOrEmpty(model.BeforeMapBody))
         {
@@ -385,9 +430,13 @@ internal static class SourceEmitter
             sb.AppendLine("        var sw = global::System.Diagnostics.Stopwatch.StartNew();");
         }
 
-        foreach (var prop in model.Properties)
+        foreach (PropertyMap prop in model.Properties)
         {
-            if (prop.Kind == PropertyMapKind.Ignored || prop.Kind == PropertyMapKind.Suggested || prop.IsInitOnly) continue;
+            if (prop.Kind == PropertyMapKind.Ignored || prop.Kind == PropertyMapKind.Suggested || prop.IsInitOnly)
+            {
+                continue;
+            }
+
             string? expression = prop.SourceExpression;
             if (prop.ConditionBody != null)
             {
@@ -515,8 +564,15 @@ internal static class SourceEmitter
             sb.AppendLine("        #pragma warning disable CS8602");
             if (isAsync)
             {
-                if (!string.IsNullOrEmpty(model.AfterMapBody)) sb.AppendLine($"        {model.AfterMapBody}");
-                if (!string.IsNullOrEmpty(model.AfterMapAsyncBody)) sb.AppendLine($"        {model.AfterMapAsyncBody}");
+                if (!string.IsNullOrEmpty(model.AfterMapBody))
+                {
+                    sb.AppendLine($"        {model.AfterMapBody}");
+                }
+
+                if (!string.IsNullOrEmpty(model.AfterMapAsyncBody))
+                {
+                    sb.AppendLine($"        {model.AfterMapAsyncBody}");
+                }
             }
             else
             {
@@ -528,11 +584,15 @@ internal static class SourceEmitter
 
     private static void CollectCollectionHelpers(MappingModel model, List<PropertyMap> collectionHelpers)
     {
-        foreach (var arg in model.ConstructorArguments.Where(a => a.IsCollection))
+        foreach (PropertyMap? arg in model.ConstructorArguments.Where(a => a.IsCollection))
+        {
             collectionHelpers.Add(arg with { DestinationProperty = arg.DestinationProperty + "_Ctor" });
+        }
 
-        foreach (var prop in model.Properties.Where(p => p.IsCollection && p.NestedSourceTypeFullName != null && p.Kind != PropertyMapKind.Ignored && p.Kind != PropertyMapKind.Suggested))
+        foreach (PropertyMap? prop in model.Properties.Where(p => p.IsCollection && p.NestedSourceTypeFullName != null && p.Kind != PropertyMapKind.Ignored && p.Kind != PropertyMapKind.Suggested))
+        {
             collectionHelpers.Add(prop);
+        }
     }
     private static void EmitCollectionHelper(StringBuilder sb, PropertyMap helper)
     {
@@ -542,18 +602,34 @@ internal static class SourceEmitter
         string returnExpr = helper.IsArray ? "list.ToArray()" : "list";
 
         if (helper.NestedFullDestTypeFullName != null && helper.NestedFullDestTypeFullName.Contains("HashSet<"))
+        {
             returnExpr = "list.ToHashSet()";
+        }
         else if (helper.NestedFullDestTypeFullName != null && helper.NestedFullDestTypeFullName.Contains("Stack<"))
+        {
             returnExpr = "new " + helper.NestedFullDestTypeFullName + "(list)";
+        }
         else if (helper.NestedFullDestTypeFullName != null && helper.NestedFullDestTypeFullName.Contains("Queue<"))
+        {
             returnExpr = "new " + helper.NestedFullDestTypeFullName + "(list)";
+        }
+
         string dName = dItem;
         string innerLogic = helper.NestedExpression ?? $"x.MapTo{Sanitise(dName, true)}(context)";
 
         string dNull = helper.IsArray ? $"global::System.Array.Empty<{dItem}>()" : $"new {dType}(0)";
-        if (dType.Contains("HashSet")) dNull = $"new {dType}()";
-        else if (dType.Contains("Stack")) dNull = $"new {dType}()";
-        else if (dType.Contains("Queue")) dNull = $"new {dType}()";
+        if (dType.Contains("HashSet"))
+        {
+            dNull = $"new {dType}()";
+        }
+        else if (dType.Contains("Stack"))
+        {
+            dNull = $"new {dType}()";
+        }
+        else if (dType.Contains("Queue"))
+        {
+            dNull = $"new {dType}()";
+        }
         else if (helper.NestedFullDestTypeFullName != null && !helper.IsArray)
         {
             // If dType is an interface, we must instantiate a concrete type
@@ -659,7 +735,7 @@ internal static class SourceEmitter
                 ? $"{Sanitise(item.EffectiveSourceTypeFullName ?? item.SourceTypeFullName)}_To_{Sanitise(item.EffectiveDestTypeFullName ?? item.DestinationTypeFullName)}"
                 : mappingKey;
 
-            if (!mappingsByKey.TryGetValue(effectiveMappingKey, out var model))
+            if (!mappingsByKey.TryGetValue(effectiveMappingKey, out MappingModel? model))
             {
                 // Fallback for open generics: try looking up by unbound names
                 string unboundKey = GetUnboundMappingKey(item.EffectiveSourceTypeFullName ?? item.SourceTypeFullName, item.EffectiveDestTypeFullName ?? item.DestinationTypeFullName);
@@ -669,7 +745,10 @@ internal static class SourceEmitter
                 }
             }
 
-            if (item.Kind == InterceptKind.Map && model == null) continue;
+            if (item.Kind == InterceptKind.Map && model == null)
+            {
+                continue;
+            }
 
             string shimName = $"MapShim_{Sanitise($"{item.Kind}_{mappingKey}_{item.MethodSignatureKey}")}";
             var shimSb = new StringBuilder();
@@ -737,9 +816,14 @@ internal static class SourceEmitter
                         shimSb.AppendLine($"            global::System.Diagnostics.Debug.WriteLine($\"AutoMappic Profiler (Collection {item.SourceTypeFullName} -> {item.DestinationTypeFullName}): complete in {{sw.ElapsedTicks}} ticks\");");
                     }
                     if (dType.EndsWith("[]", StringComparison.Ordinal))
+                    {
                         shimSb.AppendLine($"            return {(isAsyncShim ? "" : "")}list.ToArray();");
+                    }
                     else
+                    {
                         shimSb.AppendLine($"            return {(isAsyncShim ? "" : "")}list;");
+                    }
+
                     shimSb.AppendLine("        }");
                 }
                 else if (isAsyncShim)
@@ -849,8 +933,8 @@ internal static class SourceEmitter
                         }
                         else
                         {
-                            var targetProps = (model.ProjectionProperties != null && model.ProjectionProperties.Count > 0) ? model.ProjectionProperties : model.Properties;
-                            var targetCtor = (model.ProjectionConstructorArguments != null && model.ProjectionConstructorArguments.Count > 0) ? model.ProjectionConstructorArguments : model.ConstructorArguments;
+                            EquatableArray<PropertyMap> targetProps = (model.ProjectionProperties != null && model.ProjectionProperties.Count > 0) ? model.ProjectionProperties : model.Properties;
+                            EquatableArray<PropertyMap> targetCtor = (model.ProjectionConstructorArguments != null && model.ProjectionConstructorArguments.Count > 0) ? model.ProjectionConstructorArguments : model.ConstructorArguments;
 
                             if (targetCtor != null && targetCtor.Count > 0)
                             {
@@ -864,7 +948,7 @@ internal static class SourceEmitter
                             }
 
                             shimSb.AppendLine("             {");
-                            foreach (var prop in targetProps.Where(p => p.Kind != PropertyMapKind.Ignored))
+                            foreach (PropertyMap? prop in targetProps.Where(p => p.Kind != PropertyMapKind.Ignored))
                             {
                                 string? expr = prop.SourceExpression?.Replace("?.", ".");
                                 if (!string.IsNullOrEmpty(expr))
@@ -888,7 +972,7 @@ internal static class SourceEmitter
                     shimSb.AppendLine($"        public static global::System.Collections.Generic.IEnumerable<{item.DestinationTypeFullName}> {shimName}(this global::System.Data.IDataReader reader)");
                     shimSb.AppendLine("        {");
                     var ordinals = new global::System.Collections.Generic.Dictionary<string, string>(global::System.StringComparer.Ordinal);
-                    foreach (var prop in model.Properties)
+                    foreach (PropertyMap prop in model.Properties)
                     {
                         if (prop.DataReaderColumn != null && !ordinals.ContainsKey(prop.DataReaderColumn))
                         {
@@ -897,7 +981,7 @@ internal static class SourceEmitter
                             shimSb.AppendLine($"            var {ordVar} = reader.GetOrdinal(\"{prop.DataReaderColumn}\");");
                         }
                     }
-                    foreach (var arg in model.ConstructorArguments)
+                    foreach (PropertyMap arg in model.ConstructorArguments)
                     {
                         if (arg.DataReaderColumn != null && !ordinals.ContainsKey(arg.DataReaderColumn))
                         {
@@ -915,7 +999,7 @@ internal static class SourceEmitter
                     if (model.ConstructorArguments.Count > 0)
                     {
                         var args = new global::System.Collections.Generic.List<string>();
-                        foreach (var arg in model.ConstructorArguments)
+                        foreach (PropertyMap arg in model.ConstructorArguments)
                         {
                             string? expr = arg.SourceExpression?.Replace($"source.GetOrdinal(\"{arg.DataReaderColumn}\")", $"_ord_{Sanitise(arg.DataReaderColumn)}").Replace("source.", "reader.");
                             args.Add(expr ?? "default!");
@@ -925,7 +1009,7 @@ internal static class SourceEmitter
 
                     shimSb.AppendLine($"                yield return new {item.DestinationTypeFullName}({ctorArgs})");
                     shimSb.AppendLine("                {");
-                    foreach (var prop in model.Properties)
+                    foreach (PropertyMap prop in model.Properties)
                     {
                         if (prop.DataReaderColumn != null && prop.SourceExpression != null)
                         {
@@ -947,7 +1031,7 @@ internal static class SourceEmitter
                     shimSb.AppendLine("        {");
                     shimSb.AppendLine("            if (reader is null) throw new global::System.ArgumentNullException(nameof(reader));");
                     var ordinals = new global::System.Collections.Generic.Dictionary<string, string>(global::System.StringComparer.Ordinal);
-                    foreach (var prop in model.Properties)
+                    foreach (PropertyMap prop in model.Properties)
                     {
                         if (prop.DataReaderColumn != null && !ordinals.ContainsKey(prop.DataReaderColumn))
                         {
@@ -956,7 +1040,7 @@ internal static class SourceEmitter
                             shimSb.AppendLine($"            var {ordVar} = reader.GetOrdinal(\"{prop.DataReaderColumn}\");");
                         }
                     }
-                    foreach (var arg in model.ConstructorArguments)
+                    foreach (PropertyMap arg in model.ConstructorArguments)
                     {
                         if (arg.DataReaderColumn != null && !ordinals.ContainsKey(arg.DataReaderColumn))
                         {
@@ -974,7 +1058,7 @@ internal static class SourceEmitter
                     if (model.ConstructorArguments.Count > 0)
                     {
                         var args = new global::System.Collections.Generic.List<string>();
-                        foreach (var arg in model.ConstructorArguments)
+                        foreach (PropertyMap arg in model.ConstructorArguments)
                         {
                             string? expr = arg.SourceExpression?.Replace($"source.GetOrdinal(\"{arg.DataReaderColumn}\")", $"_ord_{Sanitise(arg.DataReaderColumn)}").Replace("source.", "reader.");
                             args.Add(expr ?? "default!");
@@ -984,7 +1068,7 @@ internal static class SourceEmitter
 
                     shimSb.AppendLine($"                yield return new {item.DestinationTypeFullName}({ctorArgs})");
                     shimSb.AppendLine("                {");
-                    foreach (var prop in model.Properties)
+                    foreach (PropertyMap prop in model.Properties)
                     {
                         if (prop.DataReaderColumn != null && prop.SourceExpression != null)
                         {
@@ -1001,8 +1085,11 @@ internal static class SourceEmitter
 
             if (shimSb.Length > 0)
             {
-                foreach (var loc in group)
+                foreach (InterceptLocation? loc in group)
+                {
                     sb.AppendLine($"        [global::System.Runtime.CompilerServices.InterceptsLocation(@\"{EscapePath(loc.FilePath)}\", {loc.Line}, {loc.Column})]");
+                }
+
                 sb.Append(shimSb.ToString());
 
                 bool isAsyncShim = item.MethodSignatureKey.StartsWith("MapAsync", global::System.StringComparison.Ordinal);
@@ -1040,7 +1127,7 @@ internal static class SourceEmitter
         sb.AppendLine("#nullable enable");
         sb.AppendLine("#pragma warning disable CS8600, CS8601, CS8602, CS8603, CS8604 // Suppress nullability warnings in registration code");
         sb.AppendLine("using Microsoft.Extensions.DependencyInjection;");
-        foreach (var m in localMappings)
+        foreach (MappingModel m in localMappings)
         {
             // CS0616/AM0012 safety: only emit discovery for mappings that have properties.
             // Mapping from object to UnmappedDest has no properties, causing CS0616 if UnmappedDest is used in discovery.
@@ -1069,7 +1156,10 @@ internal static class SourceEmitter
         }
         string pList = profiles.IsDefaultOrEmpty ? "" : string.Join(", ", profiles.Distinct().Where(p => p != null).Select(p => $"typeof({(p!.StartsWith("global::", StringComparison.Ordinal) ? p : $"global::{p}")})"));
         if (!string.IsNullOrEmpty(pList))
+        {
             sb.AppendLine($"[assembly: global::AutoMappic.HasAutoMappicProfilesAttribute({pList})]");
+        }
+
         sb.AppendLine();
         sb.AppendLine("namespace AutoMappic.Generated");
         sb.AppendLine("{");
@@ -1089,8 +1179,16 @@ internal static class SourceEmitter
         sb.AppendLine($"            if (global::System.Linq.Enumerable.Any(services, d => d.ServiceType == typeof(global::AutoMappic.Generated.Marker_{sanitized}))) return;");
         sb.AppendLine($"            services.AddSingleton<global::AutoMappic.Generated.Marker_{sanitized}>();");
         sb.AppendLine();
-        foreach (string? r in referencedAssemblies.Distinct()) sb.AppendLine($"            global::AutoMappic.Generated.{Sanitise(r, false)}_Registration.AddProfiles(services);");
-        foreach (string? p in profiles.Distinct().Where(x => x != null)) sb.AppendLine($"            services.AddSingleton<global::AutoMappic.Profile, global::{p}>();");
+        foreach (string? r in referencedAssemblies.Distinct())
+        {
+            sb.AppendLine($"            global::AutoMappic.Generated.{Sanitise(r, false)}_Registration.AddProfiles(services);");
+        }
+
+        foreach (string? p in profiles.Distinct().Where(x => x != null))
+        {
+            sb.AppendLine($"            services.AddSingleton<global::AutoMappic.Profile, global::{p}>();");
+        }
+
         sb.AppendLine("        }");
         sb.AppendLine("    }");
         sb.AppendLine("}");
@@ -1099,7 +1197,11 @@ internal static class SourceEmitter
         sb.AppendLine($"    public static class AutoMappic_Extension_{sanitized}");
         sb.AppendLine("    {");
         sb.AppendLine($"        public static IServiceCollection AddAutoMappicFrom{sanitized}(this IServiceCollection services) {{ global::AutoMappic.Generated.{sanitized}_Registration.AddProfiles(services); if (!global::System.Linq.Enumerable.Any(services, d => d.ServiceType == typeof(global::AutoMappic.IMapper))) services.AddSingleton<global::AutoMappic.IMapper>(sp => new global::AutoMappic.MapperConfiguration(cfg => {{ foreach(var p in sp.GetServices<global::AutoMappic.Profile>()) cfg.AddProfile(p); }}).CreateMapper()); return services; }}");
-        if (isEntryPoint) sb.AppendLine("        public static IServiceCollection AddAutoMappic(this IServiceCollection services) => AddAutoMappicFrom" + sanitized + "(services);");
+        if (isEntryPoint)
+        {
+            sb.AppendLine("        public static IServiceCollection AddAutoMappic(this IServiceCollection services) => AddAutoMappicFrom" + sanitized + "(services);");
+        }
+
         sb.AppendLine("    }");
         sb.AppendLine("}");
         return ("AutoMappic.Registration.g.cs", sb.ToString());
@@ -1109,11 +1211,20 @@ internal static class SourceEmitter
     {
         var usings = new HashSet<string>();
         if (!string.IsNullOrEmpty(model.SourceNamespace))
+        {
             usings.Add($"using {model.SourceNamespace};");
+        }
+
         if (!string.IsNullOrEmpty(model.DestinationNamespace))
+        {
             usings.Add($"using {model.DestinationNamespace};");
+        }
+
         if (model.EnablePerformanceProfiling)
+        {
             usings.Add("using System.Diagnostics;");
+        }
+
         return string.Join("\n", usings);
     }
 
@@ -1124,10 +1235,13 @@ internal static class SourceEmitter
     public static string GetDisplayString(ITypeSymbol type)
     {
         if (type is ITypeParameterSymbol)
+        {
             return type.Name;
+        }
+
         if (type.IsTupleType && type is INamedTypeSymbol tuple)
         {
-            var elements = tuple.TupleElements.Select(e => GetDisplayString(e.Type));
+            IEnumerable<string> elements = tuple.TupleElements.Select(e => GetDisplayString(e.Type));
             return "global::System.ValueTuple<" + string.Join(", ", elements) + ">";
         }
         return type.WithNullableAnnotation(NullableAnnotation.None).ToDisplayString(TypeFormat);
@@ -1137,15 +1251,28 @@ internal static class SourceEmitter
 
     internal static string GetUnbound(string typeName)
     {
-        if (string.IsNullOrEmpty(typeName)) return typeName;
+        if (string.IsNullOrEmpty(typeName))
+        {
+            return typeName;
+        }
+
         int angleIndex = typeName.IndexOf('<');
-        if (angleIndex < 0) return typeName.StartsWith("global::", StringComparison.Ordinal) ? typeName : $"global::{typeName}";
+        if (angleIndex < 0)
+        {
+            return typeName.StartsWith("global::", StringComparison.Ordinal) ? typeName : $"global::{typeName}";
+        }
 
         int endAngle = typeName.LastIndexOf('>');
-        if (endAngle < angleIndex) return typeName.StartsWith("global::", StringComparison.Ordinal) ? typeName : $"global::{typeName}";
+        if (endAngle < angleIndex)
+        {
+            return typeName.StartsWith("global::", StringComparison.Ordinal) ? typeName : $"global::{typeName}";
+        }
 
         string prefix = typeName.Substring(0, angleIndex + 1);
-        if (!prefix.StartsWith("global::", StringComparison.Ordinal) && !prefix.Contains("::")) prefix = $"global::{prefix}";
+        if (!prefix.StartsWith("global::", StringComparison.Ordinal) && !prefix.Contains("::"))
+        {
+            prefix = $"global::{prefix}";
+        }
 
         string inner = typeName.Substring(angleIndex + 1, endAngle - angleIndex - 1);
         int commas = inner.Count(c => c == ',');
@@ -1172,7 +1299,10 @@ internal static class SourceEmitter
     /// </remarks>
     internal static string ToProjectionExpression(string? sourceExpression)
     {
-        if (string.IsNullOrEmpty(sourceExpression)) return string.Empty;
+        if (string.IsNullOrEmpty(sourceExpression))
+        {
+            return string.Empty;
+        }
 
         string expr = sourceExpression!
             .Replace("?.", ".")
@@ -1190,7 +1320,10 @@ internal static class SourceEmitter
 
     public static string Sanitise(string? name, bool includeHash = true)
     {
-        if (string.IsNullOrEmpty(name)) return "Default";
+        if (string.IsNullOrEmpty(name))
+        {
+            return "Default";
+        }
 
         // 1. Structural replacement for complex types (nested, tuples, generics)
         string structural = name!
@@ -1219,21 +1352,36 @@ internal static class SourceEmitter
         var res = new StringBuilder();
         foreach (char c in structural)
         {
-            if (char.IsLetterOrDigit(c)) res.Append(c);
-            else res.Append('_');
+            if (char.IsLetterOrDigit(c))
+            {
+                res.Append(c);
+            }
+            else
+            {
+                res.Append('_');
+            }
         }
 
         // An identifier may not begin with a digit.
-        if (res.Length > 0 && char.IsDigit(res[0])) res.Insert(0, '_');
+        if (res.Length > 0 && char.IsDigit(res[0]))
+        {
+            res.Insert(0, '_');
+        }
 
-        if (!includeHash) return res.ToString();
+        if (!includeHash)
+        {
+            return res.ToString();
+        }
 
         uint hash = GetStableHash(name!);
         return $"{res}_{hash:X}";
     }
     private static string EscapeXml(string value)
     {
-        if (string.IsNullOrEmpty(value)) return "";
+        if (string.IsNullOrEmpty(value))
+        {
+            return "";
+        }
         // C# Documentation comments (cref) are very picky.
         // If it's a tuple like (A, B), it's not a valid cref.
         // If it contains spaces, it might not be a valid cref.
@@ -1258,16 +1406,28 @@ internal static class SourceEmitter
 
     private static string ApplyTypeParameters(string typeName, IEnumerable<string>? parameters)
     {
-        if (parameters == null) return typeName;
+        if (parameters == null)
+        {
+            return typeName;
+        }
 
         var paramList = parameters.ToList();
-        if (paramList.Count == 0) return typeName;
+        if (paramList.Count == 0)
+        {
+            return typeName;
+        }
 
         int openIdx = typeName.IndexOf('<');
-        if (openIdx < 0) return typeName;
+        if (openIdx < 0)
+        {
+            return typeName;
+        }
 
         int closeIdx = typeName.LastIndexOf('>');
-        if (closeIdx < openIdx) return typeName;
+        if (closeIdx < openIdx)
+        {
+            return typeName;
+        }
 
         string content = typeName.Substring(openIdx + 1, closeIdx - openIdx - 1);
         // If it's already bound (contains more than just commas), return as is.
@@ -1278,20 +1438,34 @@ internal static class SourceEmitter
 
     private static bool IsMappingAsync(string? sourceFull, string? destFull, IReadOnlyDictionary<string, MappingModel> mappings, HashSet<string>? seen = null)
     {
-        if (sourceFull == null || destFull == null) return false;
+        if (sourceFull == null || destFull == null)
+        {
+            return false;
+        }
+
         string key = GetMappingKey(sourceFull, destFull);
 
         seen ??= new HashSet<string>(System.StringComparer.Ordinal);
-        if (!seen.Add(key)) return false;
-
-        if (mappings.TryGetValue(key, out var model))
+        if (!seen.Add(key))
         {
-            if (model.IsAsync) return true;
-            foreach (var p in model.Properties)
+            return false;
+        }
+
+        if (mappings.TryGetValue(key, out MappingModel? model))
+        {
+            if (model.IsAsync)
+            {
+                return true;
+            }
+
+            foreach (PropertyMap p in model.Properties)
             {
                 if (p.NestedSourceTypeFullName != null && p.NestedDestTypeFullName != null)
                 {
-                    if (IsMappingAsync(p.NestedSourceTypeFullName, p.NestedDestTypeFullName, mappings, seen)) return true;
+                    if (IsMappingAsync(p.NestedSourceTypeFullName, p.NestedDestTypeFullName, mappings, seen))
+                    {
+                        return true;
+                    }
                 }
             }
         }
@@ -1300,14 +1474,21 @@ internal static class SourceEmitter
         string unboundSource = GetUnbound(sourceFull);
         string unboundDest = GetUnbound(destFull);
         string unboundKey = GetMappingKey(unboundSource, unboundDest);
-        if (unboundKey != key && mappings.TryGetValue(unboundKey, out var unboundModel))
+        if (unboundKey != key && mappings.TryGetValue(unboundKey, out MappingModel? unboundModel))
         {
-            if (unboundModel.IsAsync) return true;
-            foreach (var p in unboundModel.Properties)
+            if (unboundModel.IsAsync)
+            {
+                return true;
+            }
+
+            foreach (PropertyMap p in unboundModel.Properties)
             {
                 if (p.NestedSourceTypeFullName != null && p.NestedDestTypeFullName != null)
                 {
-                    if (IsMappingAsync(p.NestedSourceTypeFullName, p.NestedDestTypeFullName, mappings, seen)) return true;
+                    if (IsMappingAsync(p.NestedSourceTypeFullName, p.NestedDestTypeFullName, mappings, seen))
+                    {
+                        return true;
+                    }
                 }
             }
         }

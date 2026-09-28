@@ -1,4 +1,3 @@
-using System.Linq;
 using Prova;
 using Assert = Prova.Assertions.Assert;
 
@@ -23,8 +22,8 @@ public class MyProfile : Profile
         CreateMap<S, D>(); 
     }
 }";
-        var result = GeneratorTestHelper.RunGenerator(source);
-        var am001 = result.Diagnostics.FirstOrDefault(d => d.Id == "AM0001");
+        GeneratorTestHelper.GeneratorResult result = GeneratorTestHelper.RunGenerator(source);
+        Microsoft.CodeAnalysis.Diagnostic? am001 = result.Diagnostics.FirstOrDefault(d => d.Id == "AM0001");
         Assert.NotNull(am001);
     }
 
@@ -46,8 +45,8 @@ public class MyProfile : Profile
         CreateMap<S, D>(); 
     }
 }";
-        var result = GeneratorTestHelper.RunGenerator(source);
-        var am005 = result.Diagnostics.FirstOrDefault(d => d.Id == "AM0005");
+        GeneratorTestHelper.GeneratorResult result = GeneratorTestHelper.RunGenerator(source);
+        Microsoft.CodeAnalysis.Diagnostic? am005 = result.Diagnostics.FirstOrDefault(d => d.Id == "AM0005");
         Assert.NotNull(am005);
     }
 
@@ -78,8 +77,8 @@ public class MyProfile : Profile
 public class S { }
 public class D { }
 ";
-        var result = GeneratorTestHelper.RunGenerator(source);
-        var am003 = result.Diagnostics.FirstOrDefault(d => d.Id == "AM0003");
+        GeneratorTestHelper.GeneratorResult result = GeneratorTestHelper.RunGenerator(source);
+        Microsoft.CodeAnalysis.Diagnostic? am003 = result.Diagnostics.FirstOrDefault(d => d.Id == "AM0003");
         Assert.NotNull(am003);
     }
 
@@ -98,8 +97,8 @@ public class MyProfile : Profile
 {
     public MyProfile() { CreateMap<S, D>(); }
 }";
-        var result = GeneratorTestHelper.RunGenerator(source);
-        var am010 = result.Diagnostics.FirstOrDefault(d => d.Id == "AM0010");
+        GeneratorTestHelper.GeneratorResult result = GeneratorTestHelper.RunGenerator(source);
+        Microsoft.CodeAnalysis.Diagnostic? am010 = result.Diagnostics.FirstOrDefault(d => d.Id == "AM0010");
         Assert.NotNull(am010);
     }
 
@@ -121,8 +120,8 @@ public class MyProfile : Profile
         CreateMap<S, D>(); 
     }
 }";
-        var result = GeneratorTestHelper.RunGenerator(source);
-        var am013 = result.Diagnostics.FirstOrDefault(d => d.Id == "AM0013");
+        GeneratorTestHelper.GeneratorResult result = GeneratorTestHelper.RunGenerator(source);
+        Microsoft.CodeAnalysis.Diagnostic? am013 = result.Diagnostics.FirstOrDefault(d => d.Id == "AM0013");
         Assert.NotNull(am013);
     }
 
@@ -150,8 +149,8 @@ public class Usage
         query.ProjectTo<D>();
     }
 }";
-        var result = GeneratorTestHelper.RunGenerator(source);
-        var am011 = result.Diagnostics.FirstOrDefault(d => d.Id == "AM0011");
+        GeneratorTestHelper.GeneratorResult result = GeneratorTestHelper.RunGenerator(source);
+        Microsoft.CodeAnalysis.Diagnostic? am011 = result.Diagnostics.FirstOrDefault(d => d.Id == "AM0011");
         Assert.NotNull(am011);
     }
 
@@ -172,8 +171,8 @@ public class Usage
         mapper.Map<D>(s); // No CreateMap<S, D> in any profile
     }
 }";
-        var result = GeneratorTestHelper.RunGenerator(source);
-        var am004 = result.Diagnostics.FirstOrDefault(d => d.Id == "AM0004");
+        GeneratorTestHelper.GeneratorResult result = GeneratorTestHelper.RunGenerator(source);
+        Microsoft.CodeAnalysis.Diagnostic? am004 = result.Diagnostics.FirstOrDefault(d => d.Id == "AM0004");
         Assert.NotNull(am004);
     }
 }

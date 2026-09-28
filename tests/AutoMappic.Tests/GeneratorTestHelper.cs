@@ -1,5 +1,4 @@
 using System.Collections.Immutable;
-using System.IO;
 using AutoMappic.Generator;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
@@ -19,13 +18,13 @@ public static class GeneratorTestHelper
         IReadOnlyDictionary<string, string>? options = null,
         string assemblyName = "TestAssembly")
     {
-        var syntaxTree = CSharpSyntaxTree.ParseText(source);
+        SyntaxTree syntaxTree = CSharpSyntaxTree.ParseText(source);
 
         var compilation = CSharpCompilation.Create(
             assemblyName: assemblyName,
-            syntaxTrees: new[] { syntaxTree },
-            references: new[]
-            {
+            syntaxTrees: [syntaxTree],
+            references:
+            [
                 MetadataReference.CreateFromFile(typeof(object).Assembly.Location),
                 MetadataReference.CreateFromFile(Path.Combine(Path.GetDirectoryName(typeof(object).Assembly.Location)!, "System.Runtime.dll")),
                 MetadataReference.CreateFromFile(Path.Combine(Path.GetDirectoryName(typeof(object).Assembly.Location)!, "System.Collections.dll")),
@@ -38,19 +37,19 @@ public static class GeneratorTestHelper
                 MetadataReference.CreateFromFile(Path.Combine(Path.GetDirectoryName(typeof(object).Assembly.Location)!, "netstandard.dll")),
                 MetadataReference.CreateFromFile(typeof(System.Linq.Enumerable).Assembly.Location),
                 MetadataReference.CreateFromFile(typeof(Profile).Assembly.Location)
-            },
+            ],
             options: new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary));
 
         var generator = new AutoMappicGenerator();
 
-        var optionsProvider = options != null ? new TestOptionsProvider(options) : null;
+        TestOptionsProvider? optionsProvider = options != null ? new TestOptionsProvider(options) : null;
         var driver = CSharpGeneratorDriver.Create(
-            new[] { generator.AsSourceGenerator() },
+            [generator.AsSourceGenerator()],
             parseOptions: compilation.SyntaxTrees.First().Options as CSharpParseOptions,
             optionsProvider: optionsProvider);
 
-        var runDriver = driver.RunGenerators(compilation);
-        var runResult = runDriver.GetRunResult();
+        GeneratorDriver runDriver = driver.RunGenerators(compilation);
+        GeneratorDriverRunResult runResult = runDriver.GetRunResult();
 
         var sources = runResult.Results
             .SelectMany(r => r.GeneratedSources)

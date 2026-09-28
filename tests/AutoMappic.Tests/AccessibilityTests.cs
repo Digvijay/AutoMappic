@@ -36,11 +36,11 @@ public sealed class AccessibilityTests
     [Fact]
     public void Map_RespectsAccessibility_SkipsInaccessibleMembers()
     {
-        var mapper = new MapperConfiguration(cfg => cfg.AddProfile<AccessProfile>())
+        IMapper mapper = new MapperConfiguration(cfg => cfg.AddProfile<AccessProfile>())
             .CreateMapper();
 
         var source = new AccessSource { Name = "Tester" };
-        var dto = mapper.Map<AccessSource, AccessDto>(source);
+        AccessDto dto = mapper.Map<AccessSource, AccessDto>(source);
 
         Assert.Equal("Tester", dto.Name);
         Assert.Equal("Fixed", dto.ReadOnly);

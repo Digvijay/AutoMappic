@@ -1,4 +1,3 @@
-using AutoMappic;
 using Prova;
 using Assert = Prova.Assertions.Assert;
 
@@ -42,9 +41,9 @@ public class DeepProfile : Profile
         CreateMap<SChild, DChild>();
     }
 }";
-        var result = GeneratorTestHelper.RunGenerator(sourceCode);
+        GeneratorTestHelper.GeneratorResult result = GeneratorTestHelper.RunGenerator(sourceCode);
         var fileNames = result.Sources.Select(s => s.HintName).ToList();
-        var mapFile = result.Sources.FirstOrDefault(f => f.HintName.Contains("S_") && f.HintName.Contains("_To_") && f.HintName.Contains("_D_"));
+        Microsoft.CodeAnalysis.GeneratedSourceResult mapFile = result.Sources.FirstOrDefault(f => f.HintName.Contains("S_") && f.HintName.Contains("_To_") && f.HintName.Contains("_D_"));
 
         if (mapFile.HintName == null)
         {
@@ -57,18 +56,18 @@ public class DeepProfile : Profile
         Assert.Contains(".ToList()", mapCode);
 
         var config = new MapperConfiguration(cfg => cfg.AddProfile<DeepProfile>());
-        var mapper = config.CreateMapper();
+        IMapper mapper = config.CreateMapper();
 
         var source = new S
         {
             Data =
             [
-                new List<SChild> { new() { Value = 1 }, new() { Value = 2 } },
-                new List<SChild> { new() { Value = 3 } }
+                [new() { Value = 1 }, new() { Value = 2 }],
+                [new() { Value = 3 }]
             ]
         };
 
-        var dest = mapper.Map<D>(source);
+        D dest = mapper.Map<D>(source);
 
         Assert.NotNull(dest.Data);
 

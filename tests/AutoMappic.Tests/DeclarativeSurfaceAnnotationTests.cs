@@ -1,6 +1,5 @@
 using System.Diagnostics.CodeAnalysis;
 using System.Reflection;
-using AutoMappic;
 using Prova;
 using Assert = Prova.Assertions.Assert;
 
@@ -73,7 +72,7 @@ public sealed class DeclarativeSurfaceAnnotationTests
     {
         public IMappingExpression<SourceShape, DestinationShape> Configure()
         {
-            var expression = CreateMap<SourceShape, DestinationShape>();
+            IMappingExpression<SourceShape, DestinationShape> expression = CreateMap<SourceShape, DestinationShape>();
             expression.ForMember(d => d.Label, o => o.MapFrom(s => s.Name.ToUpperInvariant()));
             return expression;
         }

@@ -1,60 +1,57 @@
-using System.Threading.Tasks;
-using AutoMappic;
 using Prova;
 
-namespace AutoMappic.Tests
+namespace AutoMappic.Tests;
+
+public class IgnoreAttributeTests
 {
-    public class IgnoreAttributeTests
+    public class Source { public string Name { get; set; } = "Alice"; public string Secret { get; set; } = "Pass"; }
+    public class Dest
     {
-        public class Source { public string Name { get; set; } = "Alice"; public string Secret { get; set; } = "Pass"; }
-        public class Dest
-        {
-            public string Name { get; set; } = "";
-            [AutoMappicIgnore]
-            public string Secret { get; set; } = "Old";
-        }
+        public string Name { get; set; } = "";
+        [AutoMappicIgnore]
+        public string Secret { get; set; } = "Old";
+    }
 
-        public class IgnoreProfile : Profile
-        {
-            public IgnoreProfile() => CreateMap<Source, Dest>();
-        }
+    public class IgnoreProfile : Profile
+    {
+        public IgnoreProfile() => CreateMap<Source, Dest>();
+    }
 
-        [Fact]
-        public void Map_WithIgnoreAttribute_ShouldNotMapProperty()
-        {
-            // Arrange
-            var source = new Source();
-            var mapper = new MapperConfiguration(cfg => cfg.AddProfile<IgnoreProfile>()).CreateMapper();
+    [Fact]
+    public void Map_WithIgnoreAttribute_ShouldNotMapProperty()
+    {
+        // Arrange
+        var source = new Source();
+        IMapper mapper = new MapperConfiguration(cfg => cfg.AddProfile<IgnoreProfile>()).CreateMapper();
 
-            // Act
-            var result = mapper.Map<Dest>(source);
+        // Act
+        Dest result = mapper.Map<Dest>(source);
 
-            // Assert
-            Assert.Equal("Alice", result.Name);
-            Assert.Equal("Old", result.Secret);
-        }
+        // Assert
+        Assert.Equal("Alice", result.Name);
+        Assert.Equal("Old", result.Secret);
+    }
 
-        public class UnmappedDest
-        {
-            [AutoMappicIgnore]
-            public string RequiredButIgnored { get; set; } = "";
-            [AutoMappicIgnore]
-            public string IgnoredSecret { get; set; } = "";
-        }
+    public class UnmappedDest
+    {
+        [AutoMappicIgnore]
+        public string RequiredButIgnored { get; set; } = "";
+        [AutoMappicIgnore]
+        public string IgnoredSecret { get; set; } = "";
+    }
 
-        public class UnmappedIgnoreProfile : Profile
-        {
-            public UnmappedIgnoreProfile() => CreateMap<object, UnmappedDest>();
-        }
+    public class UnmappedIgnoreProfile : Profile
+    {
+        public UnmappedIgnoreProfile() => CreateMap<object, UnmappedDest>();
+    }
 
-        [Fact]
-        public void Map_WithRequiredButIgnored_ShouldNotThrowErrorIfIgnored()
-        {
-            var config = new MapperConfiguration(cfg => cfg.AddProfile<UnmappedIgnoreProfile>());
-            var mapper = config.CreateMapper();
-            object source = new();
-            var result = mapper.Map<UnmappedDest>(source);
-            Assert.Equal("", result.RequiredButIgnored);
-        }
+    [Fact]
+    public void Map_WithRequiredButIgnored_ShouldNotThrowErrorIfIgnored()
+    {
+        var config = new MapperConfiguration(cfg => cfg.AddProfile<UnmappedIgnoreProfile>());
+        IMapper mapper = config.CreateMapper();
+        object source = new();
+        UnmappedDest result = mapper.Map<UnmappedDest>(source);
+        Assert.Equal("", result.RequiredButIgnored);
     }
 }

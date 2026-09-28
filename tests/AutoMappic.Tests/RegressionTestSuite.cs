@@ -1,7 +1,4 @@
 #nullable enable
-using System;
-using System.Collections.Generic;
-using System.Linq;
 using Prova;
 using Assert = Prova.Assertions.Assert;
 
@@ -87,10 +84,10 @@ public class RegressionTestSuite
     [Prova.Description("Verify that deeply nested null references map safely into their respective target types and sentinel value structures.")]
     public void Test_Regression_DeepNullStructures_MapCorrectly()
     {
-        var mapper = GetMapper();
+        IMapper mapper = GetMapper();
         var source = new ExtremeSource();
 
-        var result = mapper.Map<ExtremeDestination>(source);
+        ExtremeDestination result = mapper.Map<ExtremeDestination>(source);
 
         Assert.Equal(0, result.NullableInt);
         Assert.Equal("Not Null", result.NullableString);
@@ -111,9 +108,9 @@ public class RegressionTestSuite
     [Prova.Description("Verify initialized readonly and init properties properly function along with fallback interceptors")]
     public void Test_Regression_InitProperties_AreAssignedCorrectly()
     {
-        var mapper = GetMapper();
+        IMapper mapper = GetMapper();
         var source = new ExtremeSource();
-        var result = mapper.Map<ExtremeDestination>(source);
+        ExtremeDestination result = mapper.Map<ExtremeDestination>(source);
 
         Assert.Equal("Prop1", result.Prop1);
     }
@@ -122,7 +119,7 @@ public class RegressionTestSuite
     [Prova.Description("Verify tree-based structures with self-referencing nullable cycle patterns assign securely.")]
     public void Test_Regression_SelfReferencingNode_DoesNotCrash()
     {
-        var mapper = GetMapper();
+        IMapper mapper = GetMapper();
         var source = new SelfReferencingNode
         {
             Id = 1,
@@ -130,7 +127,7 @@ public class RegressionTestSuite
             Right = new SelfReferencingNode { Id = 3 }
         };
 
-        var result = mapper.Map<SelfReferencingNodeDto>(source);
+        SelfReferencingNodeDto result = mapper.Map<SelfReferencingNodeDto>(source);
 
         Assert.Equal(1, result.Id);
         Assert.NotNull(result.Left);
@@ -144,7 +141,7 @@ public class RegressionTestSuite
     [Prova.Description("Verify that updating dictionary instances safely clears existing keys to maintain referential parity without memory leak bugs")]
     public void Test_Regression_DictionaryUpdate_RefreshesEntireMatrix()
     {
-        var mapper = GetMapper();
+        IMapper mapper = GetMapper();
         var source = new ExtremeSource();
         var dest = new ExtremeDestination();
         dest.NullableDict.Add("OldKey", "OldValue");

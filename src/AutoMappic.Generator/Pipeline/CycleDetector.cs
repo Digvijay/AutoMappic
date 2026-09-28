@@ -10,11 +10,14 @@ internal static class CycleDetector
     public static IEnumerable<Diagnostic> Detect(IEnumerable<MappingModel> models, System.Threading.CancellationToken ct)
     {
         var modelMap = new Dictionary<string, MappingModel>(System.StringComparer.Ordinal);
-        foreach (var m in models)
+        foreach (MappingModel m in models)
         {
             ct.ThrowIfCancellationRequested();
             string key = GetKey(m.SourceTypeFullName, m.DestinationTypeFullName);
-            if (!modelMap.ContainsKey(key)) modelMap[key] = m;
+            if (!modelMap.ContainsKey(key))
+            {
+                modelMap[key] = m;
+            }
         }
 
         var visited = new HashSet<string>(System.StringComparer.Ordinal);
@@ -45,9 +48,9 @@ internal static class CycleDetector
         visited.Add(currentKey);
         stack.Add(currentKey);
 
-        if (modelMap.TryGetValue(currentKey, out var model))
+        if (modelMap.TryGetValue(currentKey, out MappingModel? model))
         {
-            foreach (var prop in model.Properties)
+            foreach (PropertyMap prop in model.Properties)
             {
                 if (prop.NestedSourceTypeFullName != null && prop.NestedDestTypeFullName != null)
                 {

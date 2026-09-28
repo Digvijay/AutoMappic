@@ -1,7 +1,3 @@
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using AutoMappic;
 using Prova;
 using Assert = Prova.Assertions.Assert;
 
@@ -61,7 +57,7 @@ public class ComplexScenarioTests
     [Description("Complex: Verify numeric widening and nullable-to-non-nullable transitions.")]
     public void Test_Numeric_Transitions()
     {
-        var mapper = GetMapper();
+        IMapper mapper = GetMapper();
         var source = new NumericSource
         {
             IntVal = 42,
@@ -71,7 +67,7 @@ public class ComplexScenarioTests
             NullIntNotNull = 7
         };
 
-        var result = mapper.Map<NumericDto>(source);
+        NumericDto result = mapper.Map<NumericDto>(source);
 
         Assert.Equal(42L, result.IntVal);
         Assert.Equal(100L, result.LongVal);
@@ -84,9 +80,9 @@ public class ComplexScenarioTests
     [Description("Complex: Verify that properties from base classes are correctly mapped in derived types.")]
     public void Test_Inheritance_Mapping()
     {
-        var mapper = GetMapper();
+        IMapper mapper = GetMapper();
         var source = new DerivedSource { CreatedBy = "System", ModifiedBy = "Admin" };
-        var result = mapper.Map<CombinedDto>(source);
+        CombinedDto result = mapper.Map<CombinedDto>(source);
 
         Assert.Equal("System", result.CreatedBy);
         Assert.Equal("Admin", result.ModifiedBy);
@@ -96,11 +92,11 @@ public class ComplexScenarioTests
     [Description("Complex: Verify combined member conditions and lifecycle hooks.")]
     public void Test_Logic_And_Hooks()
     {
-        var mapper = GetMapper();
+        IMapper mapper = GetMapper();
 
         // Scenario 1: Condition met
         var s1 = new LogicSource { Status = 1, Note = "Valid" };
-        var r1 = mapper.Map<LogicDto>(s1);
+        LogicDto r1 = mapper.Map<LogicDto>(s1);
         Assert.True(r1.IsActive);
         Assert.Equal("Valid", r1.Note);
         Assert.Equal("PROCESSED", r1.Audit);
@@ -118,11 +114,11 @@ public class ComplexScenarioTests
     [Description("Complex: Verify open generic mappings for custom types.")]
     public void Test_OpenGenerics_Custom()
     {
-        var mapper = GetMapper();
+        IMapper mapper = GetMapper();
 
         // Custom Generic
         var wrapper = new GenericWrapper<int> { Value = 123 };
-        var genericDto = mapper.Map<GenericDto<int>>(wrapper);
+        GenericDto<int> genericDto = mapper.Map<GenericDto<int>>(wrapper);
         Assert.Equal(123, genericDto.Value);
     }
 }

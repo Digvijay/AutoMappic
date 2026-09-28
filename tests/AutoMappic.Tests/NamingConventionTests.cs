@@ -10,11 +10,11 @@ public class NamingConventionTests
     {
         var services = new ServiceCollection();
         services.AddAutoMappicFromAutoMappic_Tests();
-        var sp = services.BuildServiceProvider();
-        var mapper = sp.GetRequiredService<IMapper>();
+        ServiceProvider sp = services.BuildServiceProvider();
+        IMapper mapper = sp.GetRequiredService<IMapper>();
 
         var source = new NamingSnakeSource { first_name = "John", last_name = "Doe" };
-        var dest = mapper.Map<NamingSnakeDto>(source);
+        NamingSnakeDto dest = mapper.Map<NamingSnakeDto>(source);
 
         Prova.Assertions.Assert.Equal("John", dest.FirstName);
         Prova.Assertions.Assert.Equal("Doe", dest.LastName);
@@ -25,11 +25,11 @@ public class NamingConventionTests
     {
         var services = new ServiceCollection();
         services.AddAutoMappicFromAutoMappic_Tests();
-        var sp = services.BuildServiceProvider();
-        var mapper = sp.GetRequiredService<IMapper>();
+        ServiceProvider sp = services.BuildServiceProvider();
+        IMapper mapper = sp.GetRequiredService<IMapper>();
 
         var source = new ProfileSnakeSource { email_address = "test@example.com" };
-        var dest = mapper.Map<NamingStandardDto>(source);
+        NamingStandardDto dest = mapper.Map<NamingStandardDto>(source);
 
         Prova.Assertions.Assert.Equal("test@example.com", dest.EmailAddress);
     }
@@ -38,11 +38,11 @@ public class NamingConventionTests
     {
         var services = new ServiceCollection();
         services.AddAutoMappicFromAutoMappic_Tests();
-        var sp = services.BuildServiceProvider();
-        var mapper = sp.GetRequiredService<IMapper>();
+        ServiceProvider sp = services.BuildServiceProvider();
+        IMapper mapper = sp.GetRequiredService<IMapper>();
 
         var source = new KebabSource { ["product-id"] = "PROD-123" };
-        var dest = mapper.Map<NamingKebabDto>(source);
+        NamingKebabDto dest = mapper.Map<NamingKebabDto>(source);
 
         Prova.Assertions.Assert.Equal("PROD-123", dest.ProductId);
     }
@@ -52,11 +52,11 @@ public class NamingConventionTests
     {
         var services = new ServiceCollection();
         services.AddAutoMappicFromAutoMappic_Tests();
-        var sp = services.BuildServiceProvider();
-        var mapper = sp.GetRequiredService<IMapper>();
+        ServiceProvider sp = services.BuildServiceProvider();
+        IMapper mapper = sp.GetRequiredService<IMapper>();
 
         var source = new AcronymSource { CustomerID = 42 };
-        var dest = mapper.Map<AcronymDto>(source);
+        AcronymDto dest = mapper.Map<AcronymDto>(source);
 
         Prova.Assertions.Assert.Equal(42, dest.CustomerId);
     }
@@ -66,11 +66,11 @@ public class NamingConventionTests
     {
         var services = new ServiceCollection();
         services.AddAutoMappicFromAutoMappic_Tests();
-        var sp = services.BuildServiceProvider();
-        var mapper = sp.GetRequiredService<IMapper>();
+        ServiceProvider sp = services.BuildServiceProvider();
+        IMapper mapper = sp.GetRequiredService<IMapper>();
 
         var source = new SourcePascal { FullName = "Alice Smith" };
-        var dest = mapper.Map<DestCamel>(source);
+        DestCamel dest = mapper.Map<DestCamel>(source);
 
         Prova.Assertions.Assert.Equal("Alice Smith", dest.fullName);
     }

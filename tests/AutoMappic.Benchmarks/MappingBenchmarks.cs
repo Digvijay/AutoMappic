@@ -1,6 +1,5 @@
-using AutoMapper;
 using BenchmarkDotNet.Attributes;
-using BenchmarkDotNet.Running;
+using Microsoft.Extensions.Logging.Abstractions;
 using Riok.Mapperly.Abstractions;
 
 namespace AutoMappic.Benchmarks;
@@ -96,7 +95,7 @@ public class MappingBenchmarks
     [GlobalSetup]
     public void Setup()
     {
-        using var loggerFactory = Microsoft.Extensions.Logging.Abstractions.NullLoggerFactory.Instance;
+        using NullLoggerFactory loggerFactory = Microsoft.Extensions.Logging.Abstractions.NullLoggerFactory.Instance;
         var autoMapperConfig = new global::AutoMapper.MapperConfigurationExpression();
         autoMapperConfig.AddProfile<BenchAutoMapperProfile>();
         _autoMapper = new global::AutoMapper.MapperConfiguration(autoMapperConfig, loggerFactory)

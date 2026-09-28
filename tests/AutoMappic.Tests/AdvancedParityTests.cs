@@ -1,4 +1,3 @@
-using AutoMappic;
 using Prova;
 using Assert = Prova.Assertions.Assert;
 
@@ -45,10 +44,10 @@ public class AdvancedParityTests
     public void ConstructUsing_ShouldInvokeCustomFactory()
     {
         var config = new MapperConfiguration(cfg => cfg.AddProfile<AdvancedProfile>());
-        var mapper = config.CreateMapper();
+        IMapper mapper = config.CreateMapper();
         var source = new AdvancedSource { Name = "Alice" };
 
-        var result = mapper.Map<AdvancedSource, AdvancedDestination>(source);
+        AdvancedDestination result = mapper.Map<AdvancedSource, AdvancedDestination>(source);
 
         Assert.Equal("Alice", result.FullName);
         Assert.Equal("Custom", result.ConstructionMode);
@@ -59,16 +58,16 @@ public class AdvancedParityTests
     public void Condition_ShouldRespectPredicate()
     {
         var config = new MapperConfiguration(cfg => cfg.AddProfile<AdvancedProfile>());
-        var mapper = config.CreateMapper();
+        IMapper mapper = config.CreateMapper();
 
         // Case 1: Should map
         var s1 = new AdvancedSource { Age = 25, ShouldMap = true };
-        var r1 = mapper.Map<AdvancedSource, AdvancedDestination>(s1);
+        AdvancedDestination r1 = mapper.Map<AdvancedSource, AdvancedDestination>(s1);
         Assert.Equal(25, r1.Age);
 
         // Case 2: Should NOT map (Age should remain default 0)
         var s2 = new AdvancedSource { Age = 30, ShouldMap = false };
-        var r2 = mapper.Map<AdvancedSource, AdvancedDestination>(s2);
+        AdvancedDestination r2 = mapper.Map<AdvancedSource, AdvancedDestination>(s2);
         Assert.Equal(0, r2.Age);
     }
 
@@ -88,7 +87,7 @@ public class AdvancedParityTests
     public void Condition_WithSourceAndDest_ShouldWork()
     {
         var config = new MapperConfiguration(cfg => cfg.AddProfile<ComplexProfile>());
-        var mapper = config.CreateMapper();
+        IMapper mapper = config.CreateMapper();
 
         // Case 1: Both true
         var s1 = new ComplexSource { Age = 15 };
@@ -126,11 +125,11 @@ public class AdvancedParityTests
     public void ReverseMap_WithCondition_ShouldWork()
     {
         var config = new MapperConfiguration(cfg => cfg.AddProfile<ReverseConditionProfile>());
-        var mapper = config.CreateMapper();
+        IMapper mapper = config.CreateMapper();
 
         // Case 1: Should map back to source
         var d1 = new ComplexDestination { Age = 60 };
-        var s1 = mapper.Map<ComplexDestination, ComplexSource>(d1);
+        ComplexSource s1 = mapper.Map<ComplexDestination, ComplexSource>(d1);
         Assert.Equal(60, s1.Age);
 
         // Case 2: Should NOT map back (Age <= 50)

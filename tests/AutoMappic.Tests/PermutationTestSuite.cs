@@ -1,7 +1,3 @@
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using AutoMappic;
 using Prova;
 using Assert = Prova.Assertions.Assert;
 
@@ -96,12 +92,12 @@ public class PermutationTestSuite
     [Fact]
     public void Test_NestedGenerics_Exhaustive()
     {
-        var mapper = GetMapper();
+        IMapper mapper = GetMapper();
         var source = new Outer<InnerGeneric<int>>
         {
             Inner = new InnerGeneric<int> { Value = 42 }
         };
-        var result = mapper.Map<Outer<InnerGeneric<int>>>(source);
+        Outer<InnerGeneric<int>> result = mapper.Map<Outer<InnerGeneric<int>>>(source);
 
         Assert.Equal(42, result.Inner.Value);
     }
@@ -110,9 +106,9 @@ public class PermutationTestSuite
     [Fact]
     public void Test_MultiParamGenerics_Exhaustive()
     {
-        var mapper = GetMapper();
+        IMapper mapper = GetMapper();
         var source = new BiWrapper<int, string> { Item1 = 100, Item2 = "Gold" };
-        var result = mapper.Map<BiDto<int, string>>(source);
+        BiDto<int, string> result = mapper.Map<BiDto<int, string>>(source);
 
         Assert.Equal(100, result.Item1);
         Assert.Equal("Gold", result.Item2);
@@ -122,9 +118,9 @@ public class PermutationTestSuite
     [Fact]
     public void Test_InheritedGenerics_Exhaustive()
     {
-        var mapper = GetMapper();
+        IMapper mapper = GetMapper();
         var source = new DerivedSource<double> { BaseValue = 1.1, DerivedValue = 2.2 };
-        var result = mapper.Map<DerivedDto<double>>(source);
+        DerivedDto<double> result = mapper.Map<DerivedDto<double>>(source);
 
         Assert.Equal(1.1, result.BaseValue);
         Assert.Equal(2.2, result.DerivedValue);
@@ -134,9 +130,9 @@ public class PermutationTestSuite
     [Fact]
     public void Test_EnumMapping_Permutation()
     {
-        var mapper = GetMapper();
+        IMapper mapper = GetMapper();
         var source = new EnumSource { Value = PermutationSourceEnum.Gamma };
-        var result = mapper.Map<EnumDto>(source);
+        EnumDto result = mapper.Map<EnumDto>(source);
 
         Assert.Equal((int)PermutationDestEnum.Gamma, (int)result.Value);
     }
@@ -145,9 +141,9 @@ public class PermutationTestSuite
     [Fact]
     public void Test_NullableMapping_Permutation()
     {
-        var mapper = GetMapper();
+        IMapper mapper = GetMapper();
         var source = new NullableSource { Val1 = 123, Val2 = 456 };
-        var result = mapper.Map<NullableDto>(source);
+        NullableDto result = mapper.Map<NullableDto>(source);
 
         Assert.Equal(123, result.Val1);
         Assert.Equal((int?)456, result.Val2);
@@ -162,7 +158,7 @@ public class PermutationTestSuite
     [Fact]
     public void Test_ComplexCollectionMapping_Exhaustive()
     {
-        var mapper = GetMapper();
+        IMapper mapper = GetMapper();
         var source = new CollectionPermutationSource
         {
             Data = new Dictionary<string, List<int>>
@@ -170,7 +166,7 @@ public class PermutationTestSuite
                 { "A", new List<int> { 1, 2, 3 } }
             }
         };
-        var result = mapper.Map<CollectionPermutationDto>(source);
+        CollectionPermutationDto result = mapper.Map<CollectionPermutationDto>(source);
 
         Assert.True(result.Data.ContainsKey("A"));
         Assert.Equal(3, result.Data["A"].Length);
@@ -181,9 +177,9 @@ public class PermutationTestSuite
     [Fact]
     public void Test_MultiEnumMapping_Exhaustive()
     {
-        var mapper = GetMapper();
+        IMapper mapper = GetMapper();
         var source = new MultiEnumSource { E1 = PermutationSourceEnum.Alpha, E2 = PermutationSourceEnum.Beta };
-        var result = mapper.Map<MultiEnumDto>(source);
+        MultiEnumDto result = mapper.Map<MultiEnumDto>(source);
 
         Assert.Equal((int)PermutationDestEnum.Alpha, (int)result.E1);
         Assert.Equal((int)PermutationDestEnum.Beta, (int)result.E2);
@@ -193,7 +189,7 @@ public class PermutationTestSuite
     [Fact]
     public void Test_DeepNesting_Exhaustive()
     {
-        var mapper = GetMapper();
+        IMapper mapper = GetMapper();
         var source = new DeepNestingSource
         {
             Deep = new Outer<InnerGeneric<InnerGeneric<string>>>
@@ -204,7 +200,7 @@ public class PermutationTestSuite
                 }
             }
         };
-        var result = mapper.Map<DeepNestingDto>(source);
+        DeepNestingDto result = mapper.Map<DeepNestingDto>(source);
 
         Assert.Equal("DeepValue", result.Deep.Inner.Value.Value);
     }
@@ -213,9 +209,9 @@ public class PermutationTestSuite
     [Fact]
     public void Test_ComplexTupleInClass_Exhaustive()
     {
-        var mapper = GetMapper();
+        IMapper mapper = GetMapper();
         var source = new ComplexTupleWrapper { Identity = ("Alice", 30) };
-        var result = mapper.Map<ComplexClassDto>(source);
+        ComplexClassDto result = mapper.Map<ComplexClassDto>(source);
 
         Assert.Equal("Alice", result.Identity.Name);
         Assert.Equal(30, result.Identity.Age);
