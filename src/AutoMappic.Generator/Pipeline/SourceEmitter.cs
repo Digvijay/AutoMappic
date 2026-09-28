@@ -1376,20 +1376,6 @@ internal static class SourceEmitter
         uint hash = GetStableHash(name!);
         return $"{res}_{hash:X}";
     }
-    private static string EscapeXml(string value)
-    {
-        if (string.IsNullOrEmpty(value))
-        {
-            return "";
-        }
-        // C# Documentation comments (cref) are very picky.
-        // If it's a tuple like (A, B), it's not a valid cref.
-        // If it contains spaces, it might not be a valid cref.
-        // We fallback to manual summary text if it doesn't look like a standard identifier/generic.
-        return value.Contains("(") || value.Contains(")") || value.Contains(",")
-            ? value.Replace("<", "&lt;").Replace(">", "&gt;")
-            : value.Replace("<", "{").Replace(">", "}");
-    }
 
     private static string GetSeeTag(string typeFullName) => string.IsNullOrEmpty(typeFullName) ? "unknown" : typeFullName.Replace("<", "&lt;").Replace(">", "&gt;");
     private static string EscapePath(string path) => path.Replace("\"", "\\\"");
