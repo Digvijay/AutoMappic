@@ -1,4 +1,3 @@
-using System.Collections.Generic;
 using System.Linq;
 using AutoMappic.Generator.Models;
 using Microsoft.CodeAnalysis;
@@ -16,8 +15,8 @@ internal static class InterceptorCollector
         System.Threading.CancellationToken cancellationToken)
     {
         var invocation = (InvocationExpressionSyntax)context.Node;
-        var info = context.SemanticModel.GetSymbolInfo(invocation, cancellationToken);
-        var symbol = info.Symbol as IMethodSymbol ?? info.CandidateSymbols.FirstOrDefault() as IMethodSymbol;
+        SymbolInfo info = context.SemanticModel.GetSymbolInfo(invocation, cancellationToken);
+        IMethodSymbol? symbol = info.Symbol as IMethodSymbol ?? info.CandidateSymbols.FirstOrDefault() as IMethodSymbol;
 
         if (symbol is null)
         {
@@ -25,7 +24,7 @@ internal static class InterceptorCollector
         }
 
         // Skip internal dispatch calls in MapperExtensions to avoid AM0004 errors on open generics
-        var caller = context.SemanticModel.GetEnclosingSymbol(invocation.SpanStart, cancellationToken);
+        ISymbol? caller = context.SemanticModel.GetEnclosingSymbol(invocation.SpanStart, cancellationToken);
         if (caller?.ContainingType?.Name == "MapperExtensions" && caller.ContainingNamespace?.ToDisplayString() == "AutoMappic")
         {
             return null;
@@ -33,14 +32,14 @@ internal static class InterceptorCollector
 
         string name = symbol.Name;
         bool isProjectTo = name == "ProjectTo";
-        bool isMap = name == "Map" || name == "MapAsync" || name == "MapTo" || name == "MapToAsync";
+        bool isMap = name is "Map" or "MapAsync" or "MapTo" or "MapToAsync";
 
         if (!isProjectTo && !isMap)
         {
             return null;
         }
 
-        var containingType = symbol.ContainingType;
+        INamedTypeSymbol containingType = symbol.ContainingType;
         if (containingType == null)
         {
             return null;
@@ -76,7 +75,7 @@ internal static class InterceptorCollector
         }
 
         // Coordination types (S and D) must be concrete call-site types
-        var callSiteDest = symbol.TypeArguments.Length > 0 ? symbol.TypeArguments[symbol.TypeArguments.Length >= 2 ? 1 : 0] : null;
+        ITypeSymbol? callSiteDest = symbol.TypeArguments.Length > 0 ? symbol.TypeArguments[symbol.TypeArguments.Length >= 2 ? 1 : 0] : null;
         ITypeSymbol? callSiteSource = null;
 
         if (kind == InterceptKind.Map)
@@ -102,10 +101,10 @@ internal static class InterceptorCollector
             // Try the ACTUAL expression type of the receiver (most accurate for extension methods)
             if (callSiteSource == null)
             {
-                var receiverExpr = invocation.Expression is MemberAccessExpressionSyntax ma ? ma.Expression : null;
+                ExpressionSyntax? receiverExpr = invocation.Expression is MemberAccessExpressionSyntax ma ? ma.Expression : null;
                 if (receiverExpr != null)
                 {
-                    var receiverType = context.SemanticModel.GetTypeInfo(receiverExpr, cancellationToken).Type;
+                    ITypeSymbol? receiverType = context.SemanticModel.GetTypeInfo(receiverExpr, cancellationToken).Type;
                     if (receiverType is INamedTypeSymbol nr && nr.IsGenericType && nr.TypeArguments.Length > 0)
                     {
                         callSiteSource = nr.TypeArguments[0];
@@ -113,7 +112,7 @@ internal static class InterceptorCollector
                     else if (receiverType != null)
                     {
                         // Check interfaces (e.g. List<T> -> IQueryable<T>)
-                        var iqt = receiverType.AllInterfaces.FirstOrDefault(i => i.Name == "IQueryable" && i.IsGenericType && i.TypeArguments.Length > 0);
+                        INamedTypeSymbol? iqt = receiverType.AllInterfaces.FirstOrDefault(i => i.Name == "IQueryable" && i.IsGenericType && i.TypeArguments.Length > 0);
                         if (iqt != null)
                         {
                             callSiteSource = iqt.TypeArguments[0];
@@ -125,14 +124,14 @@ internal static class InterceptorCollector
             // Fallback: look at the symbol's receiver type
             if (callSiteSource == null)
             {
-                var receiver = symbol.ReceiverType;
+                ITypeSymbol? receiver = symbol.ReceiverType;
                 if (receiver is INamedTypeSymbol nr && nr.IsGenericType && nr.TypeArguments.Length > 0)
                 {
                     callSiteSource = nr.TypeArguments[0];
                 }
                 else if (receiver != null)
                 {
-                    var iQueryableT = receiver.AllInterfaces.FirstOrDefault(i => i.Name == "IQueryable" && i.IsGenericType && i.TypeArguments.Length > 0);
+                    INamedTypeSymbol? iQueryableT = receiver.AllInterfaces.FirstOrDefault(i => i.Name == "IQueryable" && i.IsGenericType && i.TypeArguments.Length > 0);
                     if (iQueryableT != null)
                     {
                         callSiteSource = iQueryableT.TypeArguments[0];
@@ -140,7 +139,7 @@ internal static class InterceptorCollector
                 }
             }
         }
-        else if (kind == InterceptKind.DataReaderMap || kind == InterceptKind.DataReaderMapAsync)
+        else if (kind is InterceptKind.DataReaderMap or InterceptKind.DataReaderMapAsync)
         {
             string metaName = kind == InterceptKind.DataReaderMap ? "System.Data.IDataReader" : "System.Data.Common.DbDataReader";
             callSiteSource = context.SemanticModel.Compilation.GetTypeByMetadataName(metaName);
@@ -161,8 +160,8 @@ internal static class InterceptorCollector
 
         if (kind == InterceptKind.Map)
         {
-            var srcElement = TryGetCollectionElementType(callSiteSource);
-            var dstElement = TryGetCollectionElementType(callSiteDest);
+            ITypeSymbol? srcElement = TryGetCollectionElementType(callSiteSource);
+            ITypeSymbol? dstElement = TryGetCollectionElementType(callSiteDest);
             if (srcElement != null && dstElement != null)
             {
                 isCollectionMapping = true;
@@ -171,21 +170,21 @@ internal static class InterceptorCollector
             }
         }
 
-        var lineSpan = invocation.GetLocation().GetLineSpan();
+        FileLinePositionSpan lineSpan = invocation.GetLocation().GetLineSpan();
         if (!lineSpan.IsValid)
         {
             return null;
         }
 
-        var mapToken = invocation.Expression switch
+        ExpressionSyntax mapToken = invocation.Expression switch
         {
             MemberAccessExpressionSyntax ma => ma.Name,
             SimpleNameSyntax sn => sn,
             _ => invocation.Expression
         };
-        var mapNameSpan = mapToken.GetLocation().GetLineSpan();
+        FileLinePositionSpan mapNameSpan = mapToken.GetLocation().GetLineSpan();
 
-        var originalMethod = symbol.ReducedFrom ?? symbol;
+        IMethodSymbol originalMethod = symbol.ReducedFrom ?? symbol;
 
         return new InterceptLocation(
             FilePath: lineSpan.Path,
@@ -202,14 +201,14 @@ internal static class InterceptorCollector
             EffectiveSourceTypeFullName: SourceEmitter.GetDisplayString(effectiveSource),
             EffectiveDestTypeFullName: SourceEmitter.GetDisplayString(effectiveDest),
             GenericParameters: originalMethod.TypeParameters.Length > 0 ? "<" + string.Join(", ", originalMethod.TypeParameters.Select(p => p.Name)) + ">" : null,
-            TypeArguments: symbol.TypeArguments.Length > 0 ? new EquatableArray<string>(symbol.TypeArguments.Select(t => SourceEmitter.GetDisplayString(t))) : null,
+            TypeArguments: symbol.TypeArguments.Length > 0 ? new EquatableArray<string>(symbol.TypeArguments.Select(SourceEmitter.GetDisplayString)) : null,
             ExtraParameters: originalMethod.Parameters.Length > 1 ? new EquatableArray<string>(originalMethod.Parameters.Skip(1).Select(p => SourceEmitter.GetDisplayString(p.Type))) : null);
     }
 
     private static string BuildSignatureKey(IMethodSymbol method)
     {
         string typeArgs = method.TypeArguments.Length > 0
-            ? $"<{string.Join(", ", method.TypeArguments.Select(t => SourceEmitter.GetDisplayString(t)))}>"
+            ? $"<{string.Join(", ", method.TypeArguments.Select(SourceEmitter.GetDisplayString))}>"
             : string.Empty;
         string paramTypes = string.Join(", ", method.Parameters.Select(p => SourceEmitter.GetDisplayString(p.Type)));
         return $"{method.Name}{typeArgs}({paramTypes})";
@@ -240,7 +239,7 @@ internal static class InterceptorCollector
             }
 
             // Also check if it implements IEnumerable<T> (custom collections)
-            foreach (var iface in named.AllInterfaces)
+            foreach (INamedTypeSymbol iface in named.AllInterfaces)
             {
                 if (iface.Name == "IEnumerable" && iface.IsGenericType && iface.TypeArguments.Length == 1 &&
                     iface.ContainingNamespace?.ToDisplayString() == "System.Collections.Generic")

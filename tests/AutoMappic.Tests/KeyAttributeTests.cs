@@ -1,4 +1,3 @@
-using System.Linq;
 using Microsoft.CodeAnalysis;
 using Prova;
 using Assert = Prova.Assertions.Assert;
@@ -29,7 +28,7 @@ public class MyProfile : Profile
 public class KASource { public int SSN { get; set; } public string Name { get; set; } }
 public class KADest { [Key] public int SSN { get; set; } public string Name { get; set; } }
 ";
-        var result = GeneratorTestHelper.RunGenerator(source);
+        GeneratorTestHelper.GeneratorResult result = GeneratorTestHelper.RunGenerator(source);
         string mapSource = result.Sources.First(f => f.HintName.Contains("KASource") && f.HintName.Contains("KADest")).SourceText.ToString();
 
         // Should use SSN for identity management, but only pay for boxing when the context is
@@ -60,7 +59,7 @@ public class MyProfile : Profile
 public class AMKSource { public string Code { get; set; } }
 public class AMKDest { [AutoMappicKey] public string Code { get; set; } }
 ";
-        var result = GeneratorTestHelper.RunGenerator(source);
+        GeneratorTestHelper.GeneratorResult result = GeneratorTestHelper.RunGenerator(source);
         string mapSource = result.Sources.First(f => f.HintName.Contains("AMKSource") && f.HintName.Contains("AMKDest")).SourceText.ToString();
 
         Assert.Contains("var __keyVal = context.IsTracking ? (object?)source.Code : null;", mapSource);
@@ -92,10 +91,10 @@ public class SSDest { public List<SSItemDto> Items { get; set; } }
 public class SSItem { public int InternalCode { get; set; } public string Value { get; set; } }
 public class SSItemDto { [Key] public int InternalCode { get; set; } public string Value { get; set; } }
 ";
-        var result = GeneratorTestHelper.RunGenerator(source);
+        GeneratorTestHelper.GeneratorResult result = GeneratorTestHelper.RunGenerator(source);
 
         // Check for AM0014 (Unmapped Primary Key) - should NOT be present because InternalCode is marked [Key]
-        var diagnostic = result.Diagnostics.FirstOrDefault(d => d.Id == "AM0014");
+        Diagnostic? diagnostic = result.Diagnostics.FirstOrDefault(d => d.Id == "AM0014");
         Assert.True(diagnostic == null, "Generated AM0014 even though [Key] was present on InternalCode");
 
         string mapSource = result.Sources.First(f => f.SourceText.ToString().Contains("existingMap")).SourceText.ToString();

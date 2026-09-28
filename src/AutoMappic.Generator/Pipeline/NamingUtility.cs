@@ -16,8 +16,15 @@ internal static class NamingUtility
 
     public static string ToCamelCase(string name)
     {
-        if (string.IsNullOrEmpty(name)) return name;
-        if (!char.IsUpper(name[0])) return name;
+        if (string.IsNullOrEmpty(name))
+        {
+            return name;
+        }
+
+        if (!char.IsUpper(name[0]))
+        {
+            return name;
+        }
 
         char[] chars = name.ToCharArray();
         chars[0] = char.ToLowerInvariant(chars[0]);
@@ -26,7 +33,10 @@ internal static class NamingUtility
 
     private static string ToSeparatedCase(string name, char separator)
     {
-        if (string.IsNullOrEmpty(name)) return name;
+        if (string.IsNullOrEmpty(name))
+        {
+            return name;
+        }
 
         // Bounded length: worst case "A" -> "a", but "ABC" could be "a_b_c" if we're not careful.
         // Actually for PascalCase, it's at most N + (N/2) separators. 2N is safe.
@@ -69,7 +79,10 @@ internal static class NamingUtility
 
     public static string Normalize(string name)
     {
-        if (string.IsNullOrEmpty(name)) return name;
+        if (string.IsNullOrEmpty(name))
+        {
+            return name;
+        }
 
         // High-performance strategy: One-pass scan to see if we need a new string at all.
         bool needsNormalization = false;
@@ -82,7 +95,10 @@ internal static class NamingUtility
             }
         }
 
-        if (!needsNormalization) return name;
+        if (!needsNormalization)
+        {
+            return name;
+        }
 
         char[]? pooledBuffer = null;
         Span<char> buffer = name.Length <= StackAllocThreshold
@@ -94,7 +110,7 @@ internal static class NamingUtility
             int position = 0;
             foreach (char c in name)
             {
-                if (c != '_' && c != '-')
+                if (c is not '_' and not '-')
                 {
                     buffer[position++] = char.ToLowerInvariant(c);
                 }

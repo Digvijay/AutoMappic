@@ -31,11 +31,11 @@ public sealed class AdvancedCollectionMappingTests
     [Fact]
     public void Map_HashSetToList()
     {
-        var mapper = new MapperConfiguration(cfg => cfg.AddProfile<AdvCollProfile>())
+        IMapper mapper = new MapperConfiguration(cfg => cfg.AddProfile<AdvCollProfile>())
             .CreateMapper();
 
         var source = new CollWrapper { Items = [new User { Username = "alice" }] };
-        var dto = mapper.Map<CollWrapper, CollWrapperDto>(source);
+        CollWrapperDto dto = mapper.Map<CollWrapper, CollWrapperDto>(source);
 
         Assert.Single(dto.Items);
         Assert.Equal("alice", dto.Items[0].Username);
@@ -45,13 +45,13 @@ public sealed class AdvancedCollectionMappingTests
     [Fact]
     public void Map_DictionaryWithKeyTypeChange()
     {
-        var mapper = new MapperConfiguration(cfg => cfg.AddProfile<AdvCollProfile>())
+        IMapper mapper = new MapperConfiguration(cfg => cfg.AddProfile<AdvCollProfile>())
             .CreateMapper();
 
         var source = new DictWrapper();
         source.Dict[1] = new User { Username = "bob" };
 
-        var dto = mapper.Map<DictWrapper, DictWrapperDto>(source);
+        DictWrapperDto dto = mapper.Map<DictWrapper, DictWrapperDto>(source);
 
         Assert.Single(dto.Dict);
         Assert.Equal("bob", dto.Dict["1"].Username);
@@ -61,7 +61,7 @@ public sealed class AdvancedCollectionMappingTests
     [Fact]
     public void Map_DeepNestedCollection_NullSafety()
     {
-        var mapper = new MapperConfiguration(cfg => cfg.AddProfile<AdvCollProfile>())
+        IMapper mapper = new MapperConfiguration(cfg => cfg.AddProfile<AdvCollProfile>())
             .CreateMapper();
 
         var source = new NestedOrderWrapper
@@ -72,7 +72,7 @@ public sealed class AdvancedCollectionMappingTests
             ]
         };
 
-        var dto = mapper.Map<NestedOrderWrapper, NestedOrderWrapperDto>(source);
+        NestedOrderWrapperDto dto = mapper.Map<NestedOrderWrapper, NestedOrderWrapperDto>(source);
 
         Assert.Equal(2, dto.Orders.Count);
         Assert.Equal(string.Empty, dto.Orders[0].CustomerName);

@@ -1,4 +1,3 @@
-using AutoMappic.Tests.Fixtures;
 using Prova;
 using Assert = Prova.Assertions.Assert;
 
@@ -24,16 +23,16 @@ public sealed class ReverseMappingTests
     [Fact]
     public void ReverseMap_WithExplicitConfig_WorksBothWays()
     {
-        var mapper = new MapperConfiguration(cfg => cfg.AddProfile<ReverseProfile>())
+        IMapper mapper = new MapperConfiguration(cfg => cfg.AddProfile<ReverseProfile>())
             .CreateMapper();
 
         // Forward
         var source = new ReverseSource { FullName = "Digvijay Chauhan" };
-        var dest = mapper.Map<ReverseSource, ReverseDest>(source);
+        ReverseDest dest = mapper.Map<ReverseSource, ReverseDest>(source);
         Assert.Equal("Digvijay Chauhan", dest.Name);
 
         // Reverse
-        var revSource = mapper.Map<ReverseDest, ReverseSource>(dest);
+        ReverseSource revSource = mapper.Map<ReverseDest, ReverseSource>(dest);
         Assert.Equal("Digvijay Chauhan", revSource.FullName);
     }
 }

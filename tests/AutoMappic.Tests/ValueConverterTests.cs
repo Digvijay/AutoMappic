@@ -10,11 +10,11 @@ public class ValueConverterTests
     {
         var services = new ServiceCollection();
         services.AddAutoMappicFromAutoMappic_Tests();
-        var sp = services.BuildServiceProvider();
-        var mapper = sp.GetRequiredService<IMapper>();
+        ServiceProvider sp = services.BuildServiceProvider();
+        IMapper mapper = sp.GetRequiredService<IMapper>();
 
         var source = new ConvSource { Value = 100 };
-        var dest = mapper.Map<ConvDest>(source);
+        ConvDest dest = mapper.Map<ConvDest>(source);
 
         Prova.Assertions.Assert.Equal(200, dest.DoubledValue);
     }
@@ -22,11 +22,11 @@ public class ValueConverterTests
     [Fact]
     public void Map_WithMoneyConverter_Works()
     {
-        var mapper = new MapperConfiguration(cfg => cfg.AddProfile<ConverterProfile>())
+        IMapper mapper = new MapperConfiguration(cfg => cfg.AddProfile<ConverterProfile>())
             .CreateMapper();
 
         var source = new ConvOrderSource { Price = 99.99m };
-        var dest = mapper.Map<ConvOrderSource, ConvOrderDest>(source);
+        ConvOrderDest dest = mapper.Map<ConvOrderSource, ConvOrderDest>(source);
 
         Prova.Assertions.Assert.Equal("$99.99", dest.Price);
     }

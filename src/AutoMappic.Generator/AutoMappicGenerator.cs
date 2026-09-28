@@ -1,10 +1,10 @@
 using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Linq;
-using System.Threading;
 using AutoMappic.Generator.Models;
 using AutoMappic.Generator.Pipeline;
 using Microsoft.CodeAnalysis;
+using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace AutoMappic.Generator;
 
@@ -32,26 +32,26 @@ public sealed class AutoMappicGenerator : IIncrementalGenerator
 
         // -- Pipeline 1: Mapping Profiles -----------------------------------------
 
-        var profileCandidates = context.SyntaxProvider.CreateSyntaxProvider(
+        IncrementalValuesProvider<IReadOnlyList<(MappingModel Model, EquatableArray<DiagnosticInfo> Diagnostics)>> profileCandidates = context.SyntaxProvider.CreateSyntaxProvider(
             predicate: ProfileExtractor.IsProfileClassCandidate,
             transform: ProfileExtractor.ExtractMappingModels);
 
-        var converterCandidates = context.SyntaxProvider.CreateSyntaxProvider(
+        IncrementalValuesProvider<IReadOnlyList<(MappingModel Model, EquatableArray<DiagnosticInfo> Diagnostics)>> converterCandidates = context.SyntaxProvider.CreateSyntaxProvider(
             predicate: ProfileExtractor.IsConverterMethodCandidate,
             transform: ProfileExtractor.ExtractConverterModels);
 
-        var optionsProvider = context.AnalyzerConfigOptionsProvider;
+        IncrementalValueProvider<AnalyzerConfigOptionsProvider> optionsProvider = context.AnalyzerConfigOptionsProvider;
 
-        var allCandidates = profileCandidates.Collect()
+        IncrementalValuesProvider<IReadOnlyList<(MappingModel Model, EquatableArray<DiagnosticInfo> Diagnostics)>> allCandidates = profileCandidates.Collect()
             .Combine(converterCandidates.Collect())
             .SelectMany(static (pair, _) => pair.Left.AddRange(pair.Right));
 
-        var mappingResults = allCandidates
+        IncrementalValuesProvider<(MappingModel Model, EquatableArray<DiagnosticInfo> Diagnostics)> mappingResults = allCandidates
             .SelectMany(static (list, _) => list)
             .Combine(optionsProvider)
             .Select(static (pair, _) =>
             {
-                var (result, options) = pair;
+                ((MappingModel Model, EquatableArray<DiagnosticInfo> Diagnostics) result, AnalyzerConfigOptionsProvider? options) = pair;
                 options.GlobalOptions.TryGetValue("build_property.automappic_enableidentitymanagement", out string? idFlagStr);
                 bool enableIdentity = "true".Equals(idFlagStr, System.StringComparison.OrdinalIgnoreCase);
 
@@ -75,7 +75,7 @@ public sealed class AutoMappicGenerator : IIncrementalGenerator
 
                     if (enableIdentity)
                     {
-                        foreach (var prop in result.Model.Properties)
+                        foreach (PropertyMap prop in result.Model.Properties)
                         {
                             if (prop.IsRequired && prop.SourceCanBeNull && prop.ConditionBody == null)
                             {
@@ -84,7 +84,7 @@ public sealed class AutoMappicGenerator : IIncrementalGenerator
                                 diags.Add(new DiagnosticInfo(
                                     "AM0013",
                                     location,
-                                    new EquatableArray<string>(new[] { prop.DestinationProperty, result.Model.DestinationTypeName, prop.SourceRawExpression ?? prop.SourceExpression ?? "unknown" }),
+                                    new EquatableArray<string>([prop.DestinationProperty, result.Model.DestinationTypeName, prop.SourceRawExpression ?? prop.SourceExpression ?? "unknown"]),
                                     global::System.Collections.Immutable.ImmutableDictionary<string, string?>.Empty));
                             }
                         }
@@ -100,42 +100,46 @@ public sealed class AutoMappicGenerator : IIncrementalGenerator
             })
             .WithComparer(MappingResultComparer.Instance);
 
-        var mappingModels = mappingResults
+        IncrementalValuesProvider<MappingModel> mappingModels = mappingResults
             .Select(static (pair, _) => pair.Model)
             .Where(static m => m is not null);
 
-        var diagnostics = mappingResults
+        IncrementalValuesProvider<DiagnosticInfo> diagnostics = mappingResults
             .SelectMany(static (pair, _) => pair.Diagnostics);
 
         context.RegisterSourceOutput(diagnostics, static (spc, d) => spc.ReportDiagnostic(AutoMappicGenerator.ToRoslynDiagnostic(d)));
 
         // Deduplicate mapping models by their hint name.
-        var uniqueMappingModels = mappingModels
+        IncrementalValuesProvider<MappingModel> uniqueMappingModels = mappingModels
             .Collect()
             .SelectMany<ImmutableArray<MappingModel>, MappingModel>(static (models, _) => models.GroupBy(static m => m.HintName).Select(static g => g.First()));
 
         // Collect all unique models for linking and diagnostics.
-        var allUniqueModels = uniqueMappingModels.Collect();
+        IncrementalValueProvider<ImmutableArray<MappingModel>> allUniqueModels = uniqueMappingModels.Collect();
 
         // Pipeline 1: Mapping Classes (with linked registry)
         context.RegisterSourceOutput(uniqueMappingModels.Combine(allUniqueModels), static (spc, pair) =>
         {
-            var (model, allModels) = pair;
+            (MappingModel? model, ImmutableArray<MappingModel> allModels) = pair;
             var registry = allModels.ToDictionary(
                 static m => m.HintName,
                 static m => m,
                 System.StringComparer.Ordinal);
 
-            var (hintName, source) = SourceEmitter.EmitMappingClass(model, registry);
+            (string? hintName, string? source) = SourceEmitter.EmitMappingClass(model, registry);
             spc.AddSource(hintName, source);
         });
 
         // -- Pipeline 1.5: Cycle Detection -----------------------------------------
         context.RegisterSourceOutput(allUniqueModels, static (spc, models) =>
         {
-            if (models.IsEmpty) return;
-            var cycleDiagnostics = CycleDetector.Detect(models, spc.CancellationToken);
-            foreach (var d in cycleDiagnostics)
+            if (models.IsEmpty)
+            {
+                return;
+            }
+
+            IEnumerable<Diagnostic> cycleDiagnostics = CycleDetector.Detect(models, spc.CancellationToken);
+            foreach (Diagnostic d in cycleDiagnostics)
             {
                 spc.ReportDiagnostic(d);
             }
@@ -143,32 +147,35 @@ public sealed class AutoMappicGenerator : IIncrementalGenerator
 
         // -- Pipeline 2: Interceptors ----------------------------------------------
 
-        var interceptLocations = context.SyntaxProvider.CreateSyntaxProvider(
+        IncrementalValuesProvider<InterceptLocation> interceptLocations = context.SyntaxProvider.CreateSyntaxProvider(
             predicate: InterceptorCollector.IsInvocationCandidate,
             transform: InterceptorCollector.ExtractInterceptLocation)
             .Where(static loc => loc is not null)
             .Select(static (loc, _) => loc!);
 
-        var allMappings = uniqueMappingModels.Collect();
-        var allLocations = interceptLocations.Collect();
+        IncrementalValueProvider<ImmutableArray<MappingModel>> allMappings = uniqueMappingModels.Collect();
+        IncrementalValueProvider<ImmutableArray<InterceptLocation>> allLocations = interceptLocations.Collect();
 
-        var combined = allMappings.Combine(allLocations).Combine(context.CompilationProvider);
+        IncrementalValueProvider<((ImmutableArray<MappingModel> Left, ImmutableArray<InterceptLocation> Right) Left, Compilation Right)> combined = allMappings.Combine(allLocations).Combine(context.CompilationProvider);
 
         context.RegisterSourceOutput(combined, static (spc, triple) =>
         {
-            var (pair, compilation) = triple;
-            var (models, locations) = pair;
-            if (locations.IsEmpty) return;
+            ((ImmutableArray<MappingModel> Left, ImmutableArray<InterceptLocation> Right) pair, Compilation? compilation) = triple;
+            (ImmutableArray<MappingModel> models, ImmutableArray<InterceptLocation> locations) = pair;
+            if (locations.IsEmpty)
+            {
+                return;
+            }
 
             // Use the first registration found for each pair to resolve interception.
             var mappingsByKey = new Dictionary<string, MappingModel>(System.StringComparer.Ordinal);
             var collisionCheck = new Dictionary<string, MappingModel>(System.StringComparer.Ordinal);
 
             // 1. Local mappings
-            foreach (var m in models)
+            foreach (MappingModel? m in models)
             {
                 string fullKey = $"{m.SourceTypeFullName}_To_{m.DestinationTypeFullName}";
-                if (collisionCheck.TryGetValue(fullKey, out var existing))
+                if (collisionCheck.TryGetValue(fullKey, out MappingModel? existing))
                 {
                     spc.ReportDiagnostic(Diagnostic.Create(
                         AutoMappicDiagnostics.DuplicateMapping,
@@ -196,9 +203,9 @@ public sealed class AutoMappicGenerator : IIncrementalGenerator
             }
 
             // 2. Discover mappings from referenced assemblies (Sannr 1.6 style)
-            foreach (var reference in compilation.SourceModule.ReferencedAssemblySymbols)
+            foreach (IAssemblySymbol reference in compilation.SourceModule.ReferencedAssemblySymbols)
             {
-                foreach (var attr in reference.GetAttributes().Where(a => a.AttributeClass?.Name == "MappingDiscoveryAttribute"))
+                foreach (AttributeData? attr in reference.GetAttributes().Where(a => a.AttributeClass?.Name == "MappingDiscoveryAttribute"))
                 {
                     if (attr.ConstructorArguments.Length == 2 &&
                         attr.ConstructorArguments[0].Value is INamedTypeSymbol src &&
@@ -232,18 +239,21 @@ public sealed class AutoMappicGenerator : IIncrementalGenerator
                 var keys = mappingsByKey.Keys.ToList();
                 foreach (string? key in keys)
                 {
-                    var m = mappingsByKey[key];
-                    if (m.IsAsync) continue;
+                    MappingModel m = mappingsByKey[key];
+                    if (m.IsAsync)
+                    {
+                        continue;
+                    }
 
-                    foreach (var prop in m.Properties)
+                    foreach (PropertyMap prop in m.Properties)
                     {
                         if (prop.IsCollection || (prop.NestedDestTypeFullName != null && prop.NestedSourceTypeFullName != null))
                         {
                             string sType = prop.NestedSourceTypeFullName ?? m.SourceTypeFullName;
                             string childKey = $"{Pipeline.SourceEmitter.Sanitise(sType, true)}_To_{Pipeline.SourceEmitter.Sanitise(prop.NestedDestTypeFullName!, true)}";
-                            if (mappingsByKey.TryGetValue(childKey, out var child) && child.IsAsync)
+                            if (mappingsByKey.TryGetValue(childKey, out MappingModel? child) && child.IsAsync)
                             {
-                                var firstNonIgnored = m.Properties.FirstOrDefault(p => p.Kind != PropertyMapKind.Ignored);
+                                PropertyMap firstNonIgnored = m.Properties.FirstOrDefault(p => p.Kind != PropertyMapKind.Ignored);
                                 if (firstNonIgnored != null)
                                 {
                                     var updatedProps = m.Properties.ToList();
@@ -260,10 +270,10 @@ public sealed class AutoMappicGenerator : IIncrementalGenerator
             }
 
             // 3. Report Interceptor Diagnostics (Unresolved or Unsupported)
-            foreach (var loc in locations)
+            foreach (InterceptLocation? loc in locations)
             {
                 string key = $"{SourceEmitter.Sanitise(loc.EffectiveSourceTypeFullName)}_To_{SourceEmitter.Sanitise(loc.EffectiveDestTypeFullName)}";
-                if (!mappingsByKey.TryGetValue(key, out var model))
+                if (!mappingsByKey.TryGetValue(key, out MappingModel? model))
                 {
                     // AM0004: Unresolved interceptor (reflective fallback)
                     var linePos = new global::Microsoft.CodeAnalysis.Text.LinePosition(loc.Line - 1, loc.Column - 1);
@@ -320,19 +330,22 @@ public sealed class AutoMappicGenerator : IIncrementalGenerator
                 }
             }
 
-            var (hintName, source) = SourceEmitter.EmitInterceptors(locations, mappingsByKey);
+            (string? hintName, string? source) = SourceEmitter.EmitInterceptors(locations, mappingsByKey);
             // Hint name for the single Interceptors file is constant.
             spc.AddSource(hintName, source);
         });
 
         // -- Pipeline 3: DI Registration ------------------------------------------
 
-        var profileClasses = context.SyntaxProvider.CreateSyntaxProvider(
+        IncrementalValuesProvider<string?> profileClasses = context.SyntaxProvider.CreateSyntaxProvider(
             predicate: static (node, _) => node is Microsoft.CodeAnalysis.CSharp.Syntax.ClassDeclarationSyntax cls && cls.BaseList is not null,
             transform: static (ctx, ct) =>
             {
                 var classDecl = (Microsoft.CodeAnalysis.CSharp.Syntax.ClassDeclarationSyntax)ctx.Node;
-                if (ctx.SemanticModel.GetDeclaredSymbol(classDecl, ct) is not INamedTypeSymbol symbol) return null;
+                if (ctx.SemanticModel.GetDeclaredSymbol(classDecl, ct) is not INamedTypeSymbol symbol)
+                {
+                    return null;
+                }
 
                 if (ProfileExtractor.InheritsFromProfile(symbol))
                 {
@@ -350,21 +363,21 @@ public sealed class AutoMappicGenerator : IIncrementalGenerator
             .Where(static x => x is not null);
 
         // Combine profiles, compilation, and unique mappings for the registration emitter.
-        var registrationData = profileClasses.Collect()
+        IncrementalValueProvider<((ImmutableArray<string?> Left, Compilation Right) Left, ImmutableArray<MappingModel> Right)> registrationData = profileClasses.Collect()
             .Combine(context.CompilationProvider)
             .Combine(allUniqueModels);
 
         context.RegisterSourceOutput(registrationData, static (spc, data) =>
         {
-            var (pair, localMappings) = data;
-            var (profiles, compilation) = pair;
+            ((ImmutableArray<string?> Left, Compilation Right) pair, ImmutableArray<MappingModel> localMappings) = data;
+            (ImmutableArray<string?> profiles, Compilation? compilation) = pair;
             string assemblyName = compilation.AssemblyName ?? "Unknown";
 
             // Find referenced assemblies with marker attributes (Sannr-style metadata discovery).
             var referencedRegistrations = new List<string>();
-            foreach (var reference in compilation.SourceModule.ReferencedAssemblySymbols)
+            foreach (IAssemblySymbol reference in compilation.SourceModule.ReferencedAssemblySymbols)
             {
-                var attributes = reference.GetAttributes();
+                ImmutableArray<AttributeData> attributes = reference.GetAttributes();
                 if (attributes.Any(static a => a.AttributeClass?.Name == "HasAutoMappicProfilesAttribute"))
                 {
                     referencedRegistrations.Add(reference.Name);
@@ -373,9 +386,11 @@ public sealed class AutoMappicGenerator : IIncrementalGenerator
 
             // Only emit if we have local profiles, local mappings, referenced profiles, or we are the entry point.
             if (profiles.IsDefaultOrEmpty && localMappings.IsDefaultOrEmpty && referencedRegistrations.Count == 0 && compilation.GetEntryPoint(spc.CancellationToken) == null)
+            {
                 return;
+            }
 
-            var (hintName, source) = SourceEmitter.EmitRegistration(
+            (string? hintName, string? source) = SourceEmitter.EmitRegistration(
                 assemblyName,
                 profiles,
                 localMappings,
@@ -396,8 +411,9 @@ public sealed class AutoMappicGenerator : IIncrementalGenerator
             (MappingModel Model, EquatableArray<DiagnosticInfo> Diagnostics) x,
             (MappingModel Model, EquatableArray<DiagnosticInfo> Diagnostics) y)
         {
-            if (x.Model is null && y.Model is null) return x.Diagnostics.Equals(y.Diagnostics);
-            return x.Model is null || y.Model is null ? false : x.Model.Equals(y.Model) && x.Diagnostics.Equals(y.Diagnostics);
+            return x.Model is null && y.Model is null
+                ? x.Diagnostics.Equals(y.Diagnostics)
+                : x.Model is not null && y.Model is not null && x.Model.Equals(y.Model) && x.Diagnostics.Equals(y.Diagnostics);
         }
 
         public int GetHashCode(
@@ -415,14 +431,14 @@ public sealed class AutoMappicGenerator : IIncrementalGenerator
 
     private static Diagnostic ToRoslynDiagnostic(DiagnosticInfo info)
     {
-        var descriptor = GetDescriptor(info.DescriptorId);
+        DiagnosticDescriptor descriptor = GetDescriptor(info.DescriptorId);
         var linePos = new global::Microsoft.CodeAnalysis.Text.LinePosition(info.Location.StartLine, info.Location.StartColumn);
         var endPos = new global::Microsoft.CodeAnalysis.Text.LinePosition(info.Location.EndLine, info.Location.EndColumn);
         var location = global::Microsoft.CodeAnalysis.Location.Create(info.Location.FilePath,
              new global::Microsoft.CodeAnalysis.Text.TextSpan(info.Location.SourceStart, info.Location.SourceLength),
              new global::Microsoft.CodeAnalysis.Text.LinePositionSpan(linePos, endPos));
 
-        return Diagnostic.Create(descriptor, location, info.Properties, info.MessageArgs.ToArray());
+        return Diagnostic.Create(descriptor, location, info.Properties, [.. info.MessageArgs]);
     }
 
     private static DiagnosticDescriptor GetDescriptor(string id) => id switch

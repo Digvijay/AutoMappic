@@ -1,6 +1,5 @@
-using AutoMapper;
 using BenchmarkDotNet.Attributes;
-using BenchmarkDotNet.Running;
+using Microsoft.Extensions.Logging.Abstractions;
 
 namespace AutoMappic.Benchmarks;
 
@@ -34,7 +33,7 @@ public class ListMappingBenchmarks
     [GlobalSetup]
     public void Setup()
     {
-        using var loggerFactory = Microsoft.Extensions.Logging.Abstractions.NullLoggerFactory.Instance;
+        using NullLoggerFactory loggerFactory = Microsoft.Extensions.Logging.Abstractions.NullLoggerFactory.Instance;
         var autoMapperConfig = new global::AutoMapper.MapperConfigurationExpression();
         autoMapperConfig.AddProfile<AMProfile>();
         _autoMapper = new global::AutoMapper.MapperConfiguration(autoMapperConfig, loggerFactory)
@@ -58,7 +57,7 @@ public class ListMappingBenchmarks
     public List<PointDto> Manual_List()
     {
         var list = new List<PointDto>(_source.Count);
-        foreach (var s in _source)
+        foreach (PointSource s in _source)
         {
             list.Add(new PointDto { X = s.X, Y = s.Y });
         }

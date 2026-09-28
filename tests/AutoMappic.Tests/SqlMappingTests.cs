@@ -1,8 +1,4 @@
-using System;
-using System.Collections.Generic;
 using System.Data;
-using System.Linq;
-using AutoMappic;
 using Prova;
 using Assert = Prova.Assertions.Assert;
 
@@ -45,7 +41,7 @@ public class SqlMappingTests
         // 2. Setup AutoMappic
         var config = new MapperConfiguration(cfg => cfg.AddProfile<SqlProfile>());
 
-        using var reader = dt.CreateDataReader();
+        using DataTableReader reader = dt.CreateDataReader();
 
         // 3. Act - Use the intercepted DataReader extension
         var results = reader.Map<UserDto>().ToList();
@@ -63,7 +59,7 @@ public class SqlMappingTests
     public void ProjectTo_Expansion_IsExpressionReady()
     {
         // Interceptor for ProjectTo<UserDto> should trigger here
-        var source = new List<Source> { new() { Id = 1, Name = "Alice", Email = "alice@a.com" } }.AsQueryable();
+        IQueryable<Source> source = new List<Source> { new() { Id = 1, Name = "Alice", Email = "alice@a.com" } }.AsQueryable();
 
         var results = source.ProjectTo<UserDto>().ToList();
 
@@ -88,11 +84,11 @@ public class SqlMappingTests
         // 2. Setup AutoMappic
         var config = new MapperConfiguration(cfg => cfg.AddProfile<SqlProfile>());
 
-        using var reader = dt.CreateDataReader();
+        using DataTableReader reader = dt.CreateDataReader();
 
         // 3. Act - Use the new MapAsync extension for DbDataReader
         var results = new List<UserDto>();
-        await foreach (var item in reader.MapAsync<UserDto>())
+        await foreach (UserDto item in reader.MapAsync<UserDto>())
         {
             results.Add(item);
         }

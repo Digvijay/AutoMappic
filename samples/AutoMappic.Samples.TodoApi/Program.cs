@@ -1,7 +1,7 @@
 using AutoMappic;
 using Microsoft.EntityFrameworkCore;
 
-var builder = WebApplication.CreateBuilder(args);
+WebApplicationBuilder builder = WebApplication.CreateBuilder(args);
 
 // Note: For native AOT or high performance ASP.NET Core, an InMemoryDb works fine 
 // to demonstrate the EF Core AutoMappic interactions.
@@ -10,12 +10,12 @@ builder.Services.AddDbContext<TodoDb>(opt => opt.UseInMemoryDatabase("TodoList")
 // Register AutoMappic Profiles
 builder.Services.AddAutoMappic();
 
-var app = builder.Build();
+WebApplication app = builder.Build();
 
 // Seed some Initial Data
-using (var scope = app.Services.CreateScope())
+using (IServiceScope scope = app.Services.CreateScope())
 {
-    var db = scope.ServiceProvider.GetRequiredService<TodoDb>();
+    TodoDb db = scope.ServiceProvider.GetRequiredService<TodoDb>();
     var initialList = new TodoList { Title = "Groceries" };
     initialList.Items.Add(new TodoItem { Description = "Milk", IsDone = false });
     initialList.Items.Add(new TodoItem { Description = "Bread", IsDone = true });
@@ -29,7 +29,7 @@ app.MapGet("/", () => "Welcome to AutoMappic EF Core Todo API Sample. Go to /tod
 
 app.MapGet("/todo-lists", async (TodoDb db, IMapper mapper) =>
 {
-    var lists = await db.Lists.Include(l => l.Items).ToListAsync();
+    List<TodoList> lists = await db.Lists.Include(l => l.Items).ToListAsync();
     // Using mapping extension methods, or map manually
     return lists.Select(l => mapper.Map<TodoListDto>(l));
 });
@@ -42,7 +42,7 @@ app.MapGet("/todo-lists/projected", (TodoDb db) =>
 
 app.MapPost("/todo-lists", async (UpdateTodoListDto input, TodoDb db, IMapper mapper) =>
 {
-    var list = mapper.Map<TodoList>(input);
+    TodoList list = mapper.Map<TodoList>(input);
     db.Lists.Add(list);
     await db.SaveChangesAsync();
     return Results.Created($"/todo-lists/{list.Id}", mapper.Map<TodoListDto>(list));
@@ -50,8 +50,11 @@ app.MapPost("/todo-lists", async (UpdateTodoListDto input, TodoDb db, IMapper ma
 
 app.MapPut("/todo-lists/{id}", async (int id, UpdateTodoListDto input, TodoDb db, IMapper mapper) =>
 {
-    var list = await db.Lists.Include(l => l.Items).FirstOrDefaultAsync(l => l.Id == id);
-    if (list is null) return Results.NotFound();
+    TodoList? list = await db.Lists.Include(l => l.Items).FirstOrDefaultAsync(l => l.Id == id);
+    if (list is null)
+    {
+        return Results.NotFound();
+    }
 
     // The Magic Happens Here:
     // AutoMappic Smart-Sync updates the "Title" AND synchronizes the nested "Items" collection.

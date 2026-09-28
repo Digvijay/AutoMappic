@@ -1,8 +1,3 @@
-using System.CommandLine;
-using System.IO;
-using System.Threading;
-using System.Threading.Tasks;
-using AutoMappic.Cli;
 using Prova;
 using Assert = Prova.Assertions.Assert;
 
@@ -35,11 +30,11 @@ public sealed class CliTests
     {
         await ConsoleLock.WaitAsync();
         var sw = new StringWriter();
-        var originalOut = Console.Out;
+        TextWriter originalOut = Console.Out;
         Console.SetOut(sw);
         try
         {
-            string[] args = new[] { "validate", _sampleProjectPath };
+            string[] args = ["validate", _sampleProjectPath];
             int exitCode = await Program.Main(args);
 
             string output = sw.ToString();
@@ -60,11 +55,11 @@ public sealed class CliTests
     {
         await ConsoleLock.WaitAsync();
         var sw = new StringWriter();
-        var originalOut = Console.Out;
+        TextWriter originalOut = Console.Out;
         Console.SetOut(sw);
         try
         {
-            string[] args = new[] { "visualize", _sampleProjectPath, "--format", "mermaid" };
+            string[] args = ["visualize", _sampleProjectPath, "--format", "mermaid"];
             int exitCode = await Program.Main(args);
 
             string output = sw.ToString();
@@ -86,13 +81,13 @@ public sealed class CliTests
     {
         await ConsoleLock.WaitAsync();
         var sw = new StringWriter();
-        var originalOut = Console.Out;
+        TextWriter originalOut = Console.Out;
         Console.SetOut(sw);
         try
         {
             string root = GetSolutionRoot();
             string project = Path.Combine(root, "tests", "AutoMappic.Tests", "AutoMappic.Tests.csproj");
-            string[] args = new[] { "visualize", project, "--format", "mermaid" };
+            string[] args = ["visualize", project, "--format", "mermaid"];
             int exitCode = await Program.Main(args);
 
             string output = sw.ToString();
@@ -114,7 +109,7 @@ public sealed class CliTests
     {
         await ConsoleLock.WaitAsync();
         var sw = new StringWriter();
-        var originalOut = Console.Out;
+        TextWriter originalOut = Console.Out;
         Console.SetOut(sw);
 
         string tempPath = Path.Combine(Path.GetTempPath(), "AutoMappicCliTestDir");
@@ -140,7 +135,7 @@ class Program {
     }
 }");
 
-            string[] args = new[] { "migrate", projectFile };
+            string[] args = ["migrate", projectFile];
             int exitCode = await Program.Main(args);
 
             string output = sw.ToString();
@@ -155,7 +150,9 @@ class Program {
         finally
         {
             if (Directory.Exists(tempPath))
+            {
                 Directory.Delete(tempPath, true);
+            }
 
             Console.SetOut(originalOut);
             ConsoleLock.Release();

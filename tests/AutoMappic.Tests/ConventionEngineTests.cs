@@ -36,7 +36,7 @@ public sealed class ConventionEngineTests
     public void DirectMatch_Id_IsCopied()
     {
         var user = new User { Id = 99 };
-        var dto = _mapper.Map<User, UserDto>(user);
+        UserDto dto = _mapper.Map<User, UserDto>(user);
         Assert.Equal(99, dto.Id);
     }
 
@@ -48,7 +48,7 @@ public sealed class ConventionEngineTests
     public void DirectMatch_StringProperties_AreCopied(string username, string email)
     {
         var user = new User { Username = username, Email = email };
-        var dto = _mapper.Map<User, UserDto>(user);
+        UserDto dto = _mapper.Map<User, UserDto>(user);
 
         Assert.Equal(username, dto.Username);
         Assert.Equal(email, dto.Email);
@@ -69,7 +69,7 @@ public sealed class ConventionEngineTests
             TotalAmount = 250.00m
         };
 
-        var dto = _mapper.Map<Order, OrderDto>(order);
+        OrderDto dto = _mapper.Map<Order, OrderDto>(order);
 
         Assert.Equal(1, dto.Id);
         Assert.Equal(250.00m, dto.TotalAmount);
@@ -83,7 +83,7 @@ public sealed class ConventionEngineTests
     {
         var order = new Order { Id = 2, Customer = null };
 
-        var dto = _mapper.Map<Order, OrderDto>(order);
+        OrderDto dto = _mapper.Map<Order, OrderDto>(order);
 
         Assert.Equal(2, dto.Id);
         // CustomerName / CustomerEmail remain at their default (empty string for DTO strings)
@@ -96,7 +96,7 @@ public sealed class ConventionEngineTests
     [Fact]
     public void MultipleProfiles_CanCoexist()
     {
-        var mapper = new MapperConfiguration(cfg =>
+        IMapper mapper = new MapperConfiguration(cfg =>
         {
             cfg.AddProfile<UserProfile>();
             cfg.AddProfile<OrderProfile>();
@@ -105,8 +105,8 @@ public sealed class ConventionEngineTests
         var user = new User { Id = 1 };
         var order = new Order { Id = 2 };
 
-        var userDto = mapper.Map<User, UserDto>(user);
-        var orderDto = mapper.Map<Order, OrderDto>(order);
+        UserDto userDto = mapper.Map<User, UserDto>(user);
+        OrderDto orderDto = mapper.Map<Order, OrderDto>(order);
 
         Assert.Equal(1, userDto.Id);
         Assert.Equal(2, orderDto.Id);
@@ -120,8 +120,8 @@ public sealed class ConventionEngineTests
     {
         var user = new User { Id = 5, Username = "eve", Email = "eve@example.com" };
 
-        var full = _mapper.Map<User, UserDto>(user);
-        var summary = _mapper.Map<User, UserSummaryDto>(user);
+        UserDto full = _mapper.Map<User, UserDto>(user);
+        UserSummaryDto summary = _mapper.Map<User, UserSummaryDto>(user);
 
         Assert.Equal(5, full.Id);
         Assert.Equal("eve", full.Username);

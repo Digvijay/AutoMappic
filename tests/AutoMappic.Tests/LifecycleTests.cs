@@ -1,4 +1,3 @@
-using System.Threading.Tasks;
 using Prova;
 using Assert = Prova.Assertions.Assert;
 
@@ -15,9 +14,9 @@ public sealed class LifecycleTests
     [Fact]
     public void BeforeAfterMap_Sync_ExecutedInOrder()
     {
-        var mapper = CreateMapper<LifecycleProfile>();
+        IMapper mapper = CreateMapper<LifecycleProfile>();
         var source = new LifecycleSource { Value = 10 };
-        var result = mapper.Map<LifecycleSource, LifecycleDest>(source);
+        LifecycleDest result = mapper.Map<LifecycleSource, LifecycleDest>(source);
 
         Assert.Equal(10, result.Value);
         Assert.True(result.WasBeforeCalled);
@@ -27,9 +26,9 @@ public sealed class LifecycleTests
     [Fact]
     public async Task BeforeAfterMap_Async_ExecutedInOrder()
     {
-        var mapper = CreateMapper<LifecycleProfile>();
+        IMapper mapper = CreateMapper<LifecycleProfile>();
         var source = new LifecycleSource { Value = 10 };
-        var result = await mapper.MapAsync<LifecycleSource, LifecycleDest>(source);
+        LifecycleDest result = await mapper.MapAsync<LifecycleSource, LifecycleDest>(source);
 
         Assert.Equal(10, result.Value);
         Assert.True(result.WasBeforeCalled);

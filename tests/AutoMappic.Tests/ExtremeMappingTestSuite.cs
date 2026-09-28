@@ -1,7 +1,3 @@
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using AutoMappic;
 using Prova;
 using Assert = Prova.Assertions.Assert;
 
@@ -51,12 +47,12 @@ public class ExtremeMappingTestSuite
     [Fact]
     public void Test_PropertyShadowing_Extreme()
     {
-        var mapper = GetMapper();
+        IMapper mapper = GetMapper();
         var source = new ShadowDerived { Value = 100 };
         // We need to be careful here because 'Value' is shadowed. 
         // AutoMappic's ConventionEngine uses GetAllWritableMembers which uses a dictionary by name.
         // The most derived member should win.
-        var result = mapper.Map<ShadowDerivedDto>(source);
+        ShadowDerivedDto result = mapper.Map<ShadowDerivedDto>(source);
 
         Assert.Equal(100, result.Value);
         // Ensure base value didn't magically get set (it remains the target class default, e.g. string.Empty) 
@@ -68,10 +64,10 @@ public class ExtremeMappingTestSuite
     [Fact]
     public void Test_HighDepthFlattening_Extreme()
     {
-        var mapper = GetMapper();
+        IMapper mapper = GetMapper();
         var source = new ExtremeOuter();
         source.L1.L2.L3.L4.FinalValue = "FoundIt";
-        var result = mapper.Map<ExtremeOuterDto>(source);
+        ExtremeOuterDto result = mapper.Map<ExtremeOuterDto>(source);
 
         Assert.Equal("FoundIt", result.L1L2L3L4FinalValue);
     }

@@ -35,7 +35,7 @@ public sealed class GenericsMappingTests
     [Fact]
     public void Map_GenericWrapper_MapsNestedGenericArgument()
     {
-        var mapper = new MapperConfiguration(cfg => cfg.AddProfile<GenericProfile>())
+        IMapper mapper = new MapperConfiguration(cfg => cfg.AddProfile<GenericProfile>())
             .CreateMapper();
 
         var source = new Result<User>
@@ -44,7 +44,7 @@ public sealed class GenericsMappingTests
             Data = new User { Username = "generic_user", Email = "g@x.com" }
         };
 
-        var dto = mapper.Map<Result<User>, ResultDto<UserSummaryDto>>(source);
+        ResultDto<UserSummaryDto> dto = mapper.Map<Result<User>, ResultDto<UserSummaryDto>>(source);
 
         Assert.True(dto.Success);
         Assert.NotNull(dto.Data);

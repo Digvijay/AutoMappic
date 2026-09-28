@@ -1,5 +1,3 @@
-using System.Threading.Tasks;
-using AutoMappic;
 using Prova;
 using Assert = Prova.Assertions.Assert;
 
@@ -36,7 +34,7 @@ public class ArchitecturalHardeningTests
         IMapper mapper = new MapperConfiguration(cfg => cfg.AddProfile<HardenedProfile>()).CreateMapper();
 
         // This would have failed to compile/run correctly before the fix
-        var dto = await mapper.MapAsync<Blog, BlogDto>(blog);
+        BlogDto dto = await mapper.MapAsync<Blog, BlogDto>(blog);
 
         Assert.NotNull(dto);
         Assert.Single(dto.Posts);

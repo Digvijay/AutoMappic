@@ -39,11 +39,11 @@ public sealed class RecordMappingTests
     [Fact]
     public void Map_SimpleRecord_ToInitOnlyDto()
     {
-        var mapper = new MapperConfiguration(cfg => cfg.AddProfile<RecordProfile>())
+        IMapper mapper = new MapperConfiguration(cfg => cfg.AddProfile<RecordProfile>())
             .CreateMapper();
 
         var source = new UserRecord("digvijay", "digvijay@digvijay.dev");
-        var dto = mapper.Map<UserRecord, UserRecordDto>(source);
+        UserRecordDto dto = mapper.Map<UserRecord, UserRecordDto>(source);
 
         Assert.Equal("digvijay", dto.Username);
         Assert.Equal("digvijay@digvijay.dev", dto.Email);
@@ -53,11 +53,11 @@ public sealed class RecordMappingTests
     [Fact]
     public void Map_DeepRecord_FlattenedCorrectly()
     {
-        var mapper = new MapperConfiguration(cfg => cfg.AddProfile<RecordProfile>())
+        IMapper mapper = new MapperConfiguration(cfg => cfg.AddProfile<RecordProfile>())
             .CreateMapper();
 
         var source = new DeepRecord(new UserRecord("boss", "b@x.com"), "Project X");
-        var dto = mapper.Map<DeepRecord, DeepRecordDto>(source);
+        DeepRecordDto dto = mapper.Map<DeepRecord, DeepRecordDto>(source);
 
         Assert.Equal("boss", dto.OwnerUsername);
         Assert.Equal("Project X", dto.Name);

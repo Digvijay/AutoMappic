@@ -1,4 +1,3 @@
-using System.Collections.Immutable;
 using System.Linq;
 
 namespace AutoMappic.Generator.Models;
@@ -51,7 +50,7 @@ internal sealed record DiagnosticInfo(
         };
         try
         {
-            return string.Format(culture ?? global::System.Globalization.CultureInfo.InvariantCulture, format, MessageArgs.ToArray());
+            return string.Format(culture ?? global::System.Globalization.CultureInfo.InvariantCulture, format, [.. MessageArgs]);
         }
         catch { return format; }
     }
@@ -69,7 +68,7 @@ internal sealed record LocationInfo(
 {
     public static LocationInfo Create(Microsoft.CodeAnalysis.Location loc)
     {
-        var span = loc.GetLineSpan();
+        Microsoft.CodeAnalysis.FileLinePositionSpan span = loc.GetLineSpan();
         return new LocationInfo(
             span.Path ?? "",
             span.StartLinePosition.Line,

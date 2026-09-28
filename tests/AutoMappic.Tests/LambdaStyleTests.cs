@@ -1,5 +1,3 @@
-using AutoMappic;
-
 namespace AutoMappic.Tests;
 
 public class LambdaStyleProfile : Profile

@@ -1,10 +1,4 @@
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using AutoMapper;
-using AutoMapper.QueryableExtensions;
 using BenchmarkDotNet.Attributes;
-using BenchmarkDotNet.Running;
 
 namespace AutoMappic.Benchmarks;
 

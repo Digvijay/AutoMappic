@@ -20,7 +20,7 @@ public sealed class EnumMappingTests
     public void Map_Enum_CopiedCorrectly()
     {
         var source = new User { Username = "tester", Status = UserStatus.Pending };
-        var dto = _mapper.Map<User, UserDto>(source);
+        UserDto dto = _mapper.Map<User, UserDto>(source);
 
         Assert.Equal(UserStatus.Pending, dto.Status);
     }
@@ -44,7 +44,7 @@ public sealed class ValueTypeMappingTests
     public void Map_NullableToNonNullable_Theories(int sourceVal, int expected)
     {
         var source = new ValueTypeSource { NonNullableInt = sourceVal };
-        var dto = _mapper.Map<ValueTypeSource, ValueTypeDto>(source);
+        ValueTypeDto dto = _mapper.Map<ValueTypeSource, ValueTypeDto>(source);
         Assert.Equal(expected, dto.NonNullableInt);
     }
 
@@ -53,7 +53,7 @@ public sealed class ValueTypeMappingTests
     public void Map_NullableWithNull_UsesDefault()
     {
         var source = new ValueTypeSource { NonNullableInt = null };
-        var dto = _mapper.Map<ValueTypeSource, ValueTypeDto>(source);
+        ValueTypeDto dto = _mapper.Map<ValueTypeSource, ValueTypeDto>(source);
         Assert.Equal(0, dto.NonNullableInt);
     }
 
@@ -64,7 +64,7 @@ public sealed class ValueTypeMappingTests
     public void Map_Bool_CopiedCorrectly(bool val)
     {
         var source = new ValueTypeSource { Flag = val };
-        var dto = _mapper.Map<ValueTypeSource, ValueTypeDto>(source);
+        ValueTypeDto dto = _mapper.Map<ValueTypeSource, ValueTypeDto>(source);
         Assert.Equal(val, dto.Flag);
     }
 
@@ -73,7 +73,7 @@ public sealed class ValueTypeMappingTests
     public void Map_NonNullableToNullable_CopiedCorrectly()
     {
         var source = new ValueTypeSource { NullableInt = 100 };
-        var dto = _mapper.Map<ValueTypeSource, ValueTypeDto>(source);
+        ValueTypeDto dto = _mapper.Map<ValueTypeSource, ValueTypeDto>(source);
 
         Assert.Equal(100, dto.NullableInt);
     }

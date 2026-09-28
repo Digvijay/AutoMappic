@@ -24,8 +24,8 @@ public class MyProfile : Profile
 {
     public MyProfile() { CreateMap<S, D>(); }
 }";
-        var result = GeneratorTestHelper.RunGenerator(source);
-        var mapSourceFile = result.Sources.First(f => f.HintName.Contains("S") && f.HintName.Contains("_To_") && f.HintName.Contains("D"));
+        GeneratorTestHelper.GeneratorResult result = GeneratorTestHelper.RunGenerator(source);
+        GeneratedSourceResult mapSourceFile = result.Sources.First(f => f.HintName.Contains("S") && f.HintName.Contains("_To_") && f.HintName.Contains("D"));
         string mapSource = mapSourceFile.SourceText.ToString();
 
         Assert.Contains("new global::D(source.Name)", mapSource);
@@ -48,7 +48,7 @@ public class DateToUnixConverter : ITypeConverter<DateTime, long>
 {
     public long Convert(DateTime source) => ((DateTimeOffset)source).ToUnixTimeSeconds();
 }";
-        var result = GeneratorTestHelper.RunGenerator(source);
+        GeneratorTestHelper.GeneratorResult result = GeneratorTestHelper.RunGenerator(source);
         var fileNames = result.Sources.Select(s => s.HintName).ToList();
         string? mapHintName = fileNames.FirstOrDefault(f => f.Contains("DateTime") && f.Contains("_To_"));
 
@@ -71,9 +71,9 @@ public class MyProfile : Profile
 {
     public MyProfile() { CreateMap<S, D>(); }
 }";
-        var result = GeneratorTestHelper.RunGenerator(source);
+        GeneratorTestHelper.GeneratorResult result = GeneratorTestHelper.RunGenerator(source);
         var fileNames = result.Sources.Select(s => s.HintName).ToList();
-        var mapSourceFile = result.Sources.FirstOrDefault(f => f.HintName.Contains("S_") && f.HintName.Contains("_To_") && f.HintName.Contains("_D_"));
+        GeneratedSourceResult mapSourceFile = result.Sources.FirstOrDefault(f => f.HintName.Contains("S_") && f.HintName.Contains("_To_") && f.HintName.Contains("_D_"));
         Assert.NotNull(mapSourceFile, $"Mapping file not found. Hint names: {string.Join(", ", fileNames)}");
         string mapSource = mapSourceFile.SourceText.ToString();
         Assert.Contains("FirstName = source.first_name", mapSource);
@@ -93,11 +93,11 @@ public class MyProfile : Profile
 {
     public MyProfile() { CreateMap(typeof(S<>), typeof(D<>)); }
 }";
-        var result = GeneratorTestHelper.RunGenerator(source);
+        GeneratorTestHelper.GeneratorResult result = GeneratorTestHelper.RunGenerator(source);
         var fileNames = result.Sources.Select(s => s.HintName).ToList();
 
         // Use a looser check for hint name
-        var mapFileResult = result.Sources.FirstOrDefault(f => f.SourceText.ToString().Contains("MapToglobal_D"));
+        GeneratedSourceResult mapFileResult = result.Sources.FirstOrDefault(f => f.SourceText.ToString().Contains("MapToglobal_D"));
         Assert.True(mapFileResult.HintName != null, $"No mapping file generated for S->D. Files: {string.Join(", ", fileNames)}");
         string generatedSource = mapFileResult.SourceText.ToString();
         Assert.True(generatedSource.Contains("S<T>"), "Generated source should contain S<T>");
@@ -108,10 +108,10 @@ public class MyProfile : Profile
     public void Map_WithParenthesizedLambda_Works()
     {
         var config = new MapperConfiguration(cfg => cfg.AddProfile<LambdaStyleProfile>());
-        var mapper = config.CreateMapper();
+        IMapper mapper = config.CreateMapper();
         var source = new LambdaStyleProfile.Source { SourceValue = 42 };
 
-        var dest = mapper.Map<LambdaStyleProfile.Dest>(source);
+        LambdaStyleProfile.Dest dest = mapper.Map<LambdaStyleProfile.Dest>(source);
 
         Assert.True(dest.Value == 42, $"Expected 42 but got {dest.Value}");
     }
@@ -133,9 +133,9 @@ public class StringToIntConverter : ITypeConverter<string, int>
 {
     public int Convert(string source) => int.Parse(source);
 }";
-        var result = GeneratorTestHelper.RunGenerator(source);
+        GeneratorTestHelper.GeneratorResult result = GeneratorTestHelper.RunGenerator(source);
         var fileNames = result.Sources.Select(s => s.HintName).ToList();
-        var mapFile = result.Sources.FirstOrDefault(f => f.HintName.Contains("_To_"));
+        GeneratedSourceResult mapFile = result.Sources.FirstOrDefault(f => f.HintName.Contains("_To_"));
         Assert.NotNull(mapFile, $"No mapping file generated. Found: {string.Join(", ", fileNames)}");
         string mapSource = mapFile.SourceText.ToString();
         Assert.Contains("Cache<StringToIntConverter>.Instance.Convert(source)", mapSource);

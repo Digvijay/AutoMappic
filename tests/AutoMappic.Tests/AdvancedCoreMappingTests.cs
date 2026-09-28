@@ -1,7 +1,3 @@
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using AutoMappic;
 using Prova;
 using Assert = Prova.Assertions.Assert;
 
@@ -44,13 +40,13 @@ public class ExhaustiveMappingTests
     [Description("Exhaustive: Verify mapping for structs and tuples (value types) uniquely.")]
     public void Test_ValueTypes_Exhaustive()
     {
-        var mapper = GetMapper();
+        IMapper mapper = GetMapper();
         var source = new ExhaustiveValueTypeSource
         {
             Tuple = (1, "A"),
             Struct = new ExhaustiveStruct { X = 10, Y = 20 }
         };
-        var result = mapper.Map<ExhaustiveValueTypeDto>(source);
+        ExhaustiveValueTypeDto result = mapper.Map<ExhaustiveValueTypeDto>(source);
 
         Assert.Equal(1, result.Tuple.Item1);
         Assert.Equal("A", result.Tuple.Item2);
@@ -61,9 +57,9 @@ public class ExhaustiveMappingTests
     [Description("Exhaustive: Verify naming convention transformation (snake_case -> PascalCase).")]
     public void Test_Naming_Exhaustive()
     {
-        var mapper = GetMapper();
+        IMapper mapper = GetMapper();
         var source = new ExhaustiveNamingSource { pascal_case = "P", camelCase = "C" };
-        var result = mapper.Map<ExhaustiveNamingDto>(source);
+        ExhaustiveNamingDto result = mapper.Map<ExhaustiveNamingDto>(source);
 
         Assert.Equal("P", result.PascalCase);
         Assert.Equal("C", result.camel_case);
@@ -73,9 +69,9 @@ public class ExhaustiveMappingTests
     [Description("Exhaustive: Verify public field mapping support.")]
     public void Test_FieldMapping_Exhaustive()
     {
-        var mapper = GetMapper();
+        IMapper mapper = GetMapper();
         var source = new ExhaustiveFieldSource { FieldVal = "F", PropertyVal = "P" };
-        var result = mapper.Map<ExhaustiveFieldDto>(source);
+        ExhaustiveFieldDto result = mapper.Map<ExhaustiveFieldDto>(source);
 
         Assert.Equal("F", result.FieldVal);
         Assert.Equal("P", result.PropertyVal);

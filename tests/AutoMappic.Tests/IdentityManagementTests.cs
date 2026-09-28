@@ -1,6 +1,3 @@
-using System;
-using System.Collections.Generic;
-using System.Linq;
 using Microsoft.CodeAnalysis;
 using Prova;
 using Assert = Prova.Assertions.Assert;
@@ -34,7 +31,7 @@ public class MyProfile : Profile
         {
             ["build_property.automappic_enableidentitymanagement"] = "true"
         };
-        var result = GeneratorTestHelper.RunGenerator(source, options);
+        GeneratorTestHelper.GeneratorResult result = GeneratorTestHelper.RunGenerator(source, options);
         string mapSource = result.Sources
             .FirstOrDefault(f => f.HintName.Contains("Entity_") && f.HintName.Contains("_To_") && f.HintName.Contains("EntityDto"))
             .SourceText?.ToString() ?? "";
@@ -57,7 +54,7 @@ public class MyProfile : Profile
 {
     public MyProfile() { CreateMap<S, D>(); }
 }";
-        var result = GeneratorTestHelper.RunGenerator(source);
+        GeneratorTestHelper.GeneratorResult result = GeneratorTestHelper.RunGenerator(source);
         string mapSource = result.Sources
             .FirstOrDefault(f => f.HintName.Contains("S_") && f.HintName.Contains("_To_") && f.HintName.Contains("_D_"))
             .SourceText?.ToString() ?? "";
@@ -90,7 +87,7 @@ public class PatchProfile : Profile
         {
             ["build_property.automappic_enableidentitymanagement"] = "true"
         };
-        var result = GeneratorTestHelper.RunGenerator(source, options);
+        GeneratorTestHelper.GeneratorResult result = GeneratorTestHelper.RunGenerator(source, options);
         string mapSource = result.Sources
             .FirstOrDefault(f => f.HintName.Contains("PatchSource") && f.HintName.Contains("PatchDest"))
             .SourceText?.ToString() ?? "";
@@ -123,7 +120,7 @@ public class MyProfile : Profile
         {
             ["build_property.automappic_enableidentitymanagement"] = "true"
         };
-        var result = GeneratorTestHelper.RunGenerator(source, options);
+        GeneratorTestHelper.GeneratorResult result = GeneratorTestHelper.RunGenerator(source, options);
         var diagIds = result.Diagnostics.Select(d => d.Id).ToList();
 
         Assert.Contains("AM0013", diagIds);
@@ -144,7 +141,7 @@ public class MyProfile : Profile
 {
     public MyProfile() { CreateMap<S, D>(); }
 }";
-        var result = GeneratorTestHelper.RunGenerator(source);
+        GeneratorTestHelper.GeneratorResult result = GeneratorTestHelper.RunGenerator(source);
         var diagIds = result.Diagnostics.Select(d => d.Id).ToList();
 
         Assert.True(!diagIds.Contains("AM0013"),
@@ -170,7 +167,7 @@ public class MyProfile : Profile
         {
             ["build_property.automappic_enableidentitymanagement"] = "true"
         };
-        var result = GeneratorTestHelper.RunGenerator(source, options);
+        GeneratorTestHelper.GeneratorResult result = GeneratorTestHelper.RunGenerator(source, options);
         var diagIds = result.Diagnostics.Select(d => d.Id).ToList();
 
         Assert.True(!diagIds.Contains("AM0013"),
@@ -207,7 +204,7 @@ public class OrderProfile : Profile
         {
             ["build_property.automappic_enableidentitymanagement"] = "true"
         };
-        var result = GeneratorTestHelper.RunGenerator(source, options);
+        GeneratorTestHelper.GeneratorResult result = GeneratorTestHelper.RunGenerator(source, options);
         string mapSource = result.Sources
             .FirstOrDefault(f => f.HintName.Contains("Order_") && f.HintName.Contains("OrderDto") && !f.HintName.Contains("Item"))
             .SourceText?.ToString() ?? "";
@@ -239,7 +236,7 @@ public class MyProfile : Profile
         {
             ["automappic_sourceonly"] = "true"
         };
-        var result = GeneratorTestHelper.RunGenerator(source, options);
+        GeneratorTestHelper.GeneratorResult result = GeneratorTestHelper.RunGenerator(source, options);
 
         // In sourceonly mode, the embedded source should contain AutoMappicConverterAttribute
         var embeddedSource = result.Sources
@@ -270,10 +267,10 @@ public class MyProfile : Profile
 {
     public MyProfile() { CreateMap<Money, MoneyView>(); }
 }";
-        var result = GeneratorTestHelper.RunGenerator(source);
+        GeneratorTestHelper.GeneratorResult result = GeneratorTestHelper.RunGenerator(source);
 
         // Should generate a map file for Money -> MoneyView
-        var mapFile = result.Sources
+        GeneratedSourceResult mapFile = result.Sources
             .FirstOrDefault(f => f.HintName.Contains("Money") && f.HintName.Contains("MoneyView"));
 
         // The converter should produce a generated mapping file
@@ -298,7 +295,7 @@ public class MyProfile : Profile
 {
     public MyProfile() { CreateMap<Entity, Entity>(); }
 }";
-        var result = GeneratorTestHelper.RunGenerator(source);
+        GeneratorTestHelper.GeneratorResult result = GeneratorTestHelper.RunGenerator(source);
         string mapSource = result.Sources
             .FirstOrDefault(f => f.HintName.Contains("Entity_") && f.HintName.Contains("_To_") && f.HintName.Contains("Entity_"))
             .SourceText?.ToString() ?? "";
@@ -316,7 +313,7 @@ public class MyProfile : Profile
     public void Runtime_StandardMapping_StillWorks()
     {
         var config = new MapperConfiguration(cfg => cfg.AddProfile<CoreFunctionalityProfile>());
-        var mapper = config.CreateMapper();
+        IMapper mapper = config.CreateMapper();
 
         var source = new SuperComplexSource
         {
@@ -326,7 +323,7 @@ public class MyProfile : Profile
             Items = [new() { Value = 99 }]
         };
 
-        var result = mapper.Map<SuperComplexDto>(source);
+        SuperComplexDto result = mapper.Map<SuperComplexDto>(source);
 
         Assert.Equal(42, result.Id);
         Assert.Equal("Test", result.Header);
@@ -344,10 +341,10 @@ public class MyProfile : Profile
     public void Runtime_PrimitiveCollections_MapCorrectly()
     {
         var config = new MapperConfiguration(cfg => cfg.AddProfile<InterfaceProfile>());
-        var mapper = config.CreateMapper();
+        IMapper mapper = config.CreateMapper();
 
         var source = new InterfaceCollSource();
-        var result = mapper.Map<InterfaceCollDto>(source);
+        InterfaceCollDto result = mapper.Map<InterfaceCollDto>(source);
 
         Assert.Equal(3, result.List.Count);
         Assert.Equal(1, result.List[0]);
@@ -360,10 +357,10 @@ public class MyProfile : Profile
     public void Runtime_HashSetDedup_Works()
     {
         var config = new MapperConfiguration(cfg => cfg.AddProfile<InterfaceProfile>());
-        var mapper = config.CreateMapper();
+        IMapper mapper = config.CreateMapper();
 
         var source = new SpecializedContainerSource();
-        var result = mapper.Map<SpecializedContainerDto>(source);
+        SpecializedContainerDto result = mapper.Map<SpecializedContainerDto>(source);
 
         Assert.Equal(2, result.Values.Count);
         Assert.True(result.Values.Contains(1));
@@ -379,18 +376,18 @@ public class MyProfile : Profile
     public void Runtime_DeepNestedCollections_PreservesStructure()
     {
         var config = new MapperConfiguration(cfg => cfg.AddProfile<DeepProfile>());
-        var mapper = config.CreateMapper();
+        IMapper mapper = config.CreateMapper();
 
         var source = new S
         {
             Data =
             [
-                new List<SChild> { new() { Value = 10 }, new() { Value = 20 } },
-                new List<SChild> { new() { Value = 30 } }
+                [new() { Value = 10 }, new() { Value = 20 }],
+                [new() { Value = 30 }]
             ]
         };
 
-        var result = mapper.Map<D>(source);
+        D result = mapper.Map<D>(source);
 
         Assert.NotNull(result.Data);
         Assert.Equal(2, result.Data.Count);

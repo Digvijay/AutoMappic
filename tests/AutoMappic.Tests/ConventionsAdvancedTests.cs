@@ -36,11 +36,11 @@ public sealed class IgnoredPropertyTests
     [Fact]
     public void Map_WithIgnoredMembers_DoesNotCopyThem()
     {
-        var mapper = new MapperConfiguration(cfg => cfg.AddProfile<IgnoreProfile>())
+        IMapper mapper = new MapperConfiguration(cfg => cfg.AddProfile<IgnoreProfile>())
             .CreateMapper();
 
         var source = new User { Id = 1, Username = "secret", Email = "hide@me.com" };
-        var dto = mapper.Map<User, SecretUserDto>(source);
+        SecretUserDto dto = mapper.Map<User, SecretUserDto>(source);
 
         Assert.Equal(1, dto.Id);
         Assert.Equal(string.Empty, dto.Username);
@@ -59,12 +59,12 @@ public sealed class MethodMappingTests
     [Fact]
     public void Map_SourceMethod_MapsToDestinationProperty()
     {
-        var mapper = new MapperConfiguration(cfg => cfg.AddProfile<MethodProfile>())
+        IMapper mapper = new MapperConfiguration(cfg => cfg.AddProfile<MethodProfile>())
             .CreateMapper();
 
         var source = new User { Username = "dev", Email = "dev@example.com" };
         // User has GetDisplayName(), DTO has DisplayName
-        var dto = mapper.Map<User, MethodDto>(source);
+        MethodDto dto = mapper.Map<User, MethodDto>(source);
 
         Assert.Equal("dev <dev@example.com>", dto.DisplayName);
     }

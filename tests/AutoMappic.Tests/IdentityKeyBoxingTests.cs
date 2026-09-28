@@ -1,4 +1,3 @@
-using System.Linq;
 using Prova;
 using Assert = Prova.Assertions.Assert;
 
@@ -56,8 +55,8 @@ public class IdentityKeyBoxingTests
 
     private static string GeneratedMappingBody()
     {
-        var result = GeneratorTestHelper.RunGenerator(KeyedMappingSource);
-        var map = result.Sources.FirstOrDefault(s => s.HintName.EndsWith("_Map.g.cs", System.StringComparison.Ordinal));
+        GeneratorTestHelper.GeneratorResult result = GeneratorTestHelper.RunGenerator(KeyedMappingSource);
+        Microsoft.CodeAnalysis.GeneratedSourceResult map = result.Sources.FirstOrDefault(s => s.HintName.EndsWith("_Map.g.cs", System.StringComparison.Ordinal));
         return map.SourceText?.ToString() ?? string.Empty;
     }
 

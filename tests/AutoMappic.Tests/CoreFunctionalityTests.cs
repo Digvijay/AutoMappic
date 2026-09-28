@@ -1,7 +1,3 @@
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using AutoMappic;
 using Prova;
 using Assert = Prova.Assertions.Assert;
 
@@ -83,9 +79,9 @@ public class CoreFunctionalityTests
     [Description("Core: Test mapping for C# 9 Record types with primary constructors.")]
     public void Test_RecordMapping()
     {
-        var mapper = GetMapper();
+        IMapper mapper = GetMapper();
         var source = new FeatureRecord(42, "Stelar");
-        var result = mapper.Map<FeatureDto>(source);
+        FeatureDto result = mapper.Map<FeatureDto>(source);
 
         Assert.Equal(42, result.Id);
         Assert.Equal("Stelar", result.Title);
@@ -95,7 +91,7 @@ public class CoreFunctionalityTests
     [Description("Core: Test complex mapping with flattening and nested collection projection.")]
     public void Test_ComplexDeepMapping()
     {
-        var mapper = GetMapper();
+        IMapper mapper = GetMapper();
         var source = new SuperComplexSource
         {
             Id = 101,
@@ -104,7 +100,7 @@ public class CoreFunctionalityTests
             Items = [new() { Value = 1 }, new() { Value = 2 }]
         };
 
-        var result = mapper.Map<SuperComplexDto>(source);
+        SuperComplexDto result = mapper.Map<SuperComplexDto>(source);
 
         Assert.Equal(101, result.Id);
         Assert.Equal("Super", result.Header);
@@ -118,9 +114,9 @@ public class CoreFunctionalityTests
     [Description("Core: Test lifecycle hooks execution order.")]
     public void Test_LifecycleHooks()
     {
-        var mapper = GetMapper();
+        IMapper mapper = GetMapper();
         var source = new SuperLifecycleSource { Input = "hello" };
-        var result = mapper.Map<SuperLifecycleDto>(source);
+        SuperLifecycleDto result = mapper.Map<SuperLifecycleDto>(source);
 
         Assert.True(result.BeforeCalled, "BeforeMap should be called");
         Assert.True(result.AfterCalled, "AfterMap should be called");
@@ -131,7 +127,7 @@ public class CoreFunctionalityTests
     [Description("Core: Test ProjectTo with complex nested types and flattened paths.")]
     public void Test_ProjectTo_Deep()
     {
-        var sourceList = new List<SuperComplexSource>
+        IQueryable<SuperComplexSource> sourceList = new List<SuperComplexSource>
         {
             new() {
                 Id = 1, Sub = new SuperSubSource { Detail = "D1" },

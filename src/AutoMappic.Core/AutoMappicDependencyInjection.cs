@@ -23,7 +23,10 @@ public static class AutoMappicDependencyInjection
         {
             var config = new MapperConfiguration(cfg =>
             {
-                foreach (var profile in profiles) cfg.AddProfile(profile);
+                foreach (Profile profile in profiles)
+                {
+                    cfg.AddProfile(profile);
+                }
             });
             return config.CreateMapper();
         }, lifetime);
@@ -41,7 +44,10 @@ public static class AutoMappicDependencyInjection
         {
             var config = new MapperConfiguration(cfg =>
             {
-                foreach (var profile in profiles) cfg.AddProfile(profile);
+                foreach (Profile profile in profiles)
+                {
+                    cfg.AddProfile(profile);
+                }
             });
             return config.CreateMapper();
         }, lifetime);

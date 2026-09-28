@@ -1,5 +1,3 @@
-using System.Collections.Generic;
-using System.Threading.Tasks;
 using Prova;
 using Assert = Prova.Assertions.Assert;
 
@@ -17,10 +15,10 @@ public sealed class AsyncDeepTests
     [Fact]
     public async Task MapAsync_CollectionOfAsyncObjects_Works()
     {
-        var mapper = CreateMapper<DeepAsyncCollProfile>();
+        IMapper mapper = CreateMapper<DeepAsyncCollProfile>();
         var source = new CollParentSource { Children = [new() { Val = "a" }, new() { Val = "b" }] };
 
-        var result = await mapper.MapAsync<CollParentSource, CollParentDest>(source);
+        CollParentDest result = await mapper.MapAsync<CollParentSource, CollParentDest>(source);
 
         Assert.Equal(2, result.Children.Count);
         Assert.Equal("A-A", result.Children[0].Val);

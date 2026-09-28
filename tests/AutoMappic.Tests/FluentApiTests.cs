@@ -1,4 +1,3 @@
-using AutoMappic;
 using Microsoft.Extensions.DependencyInjection;
 using Prova;
 
@@ -20,13 +19,13 @@ public class FluentApiTests
     {
         var services = new ServiceCollection();
         services.AddAutoMappicFromAutoMappic_Tests();
-        var sp = services.BuildServiceProvider();
-        var mapper = sp.GetRequiredService<IMapper>();
+        ServiceProvider sp = services.BuildServiceProvider();
+        IMapper mapper = sp.GetRequiredService<IMapper>();
 
         var source = new Source { Name = "Fluent" };
 
         // This should use the intercepted extension method
-        var dest = source.MapTo<Dest>(mapper);
+        Dest dest = source.MapTo<Dest>(mapper);
 
         Prova.Assertions.Assert.Equal("Fluent", dest.Name);
     }

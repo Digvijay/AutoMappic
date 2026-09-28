@@ -30,7 +30,7 @@ public sealed class MapperConfigurationTests
     {
         var user = new User { Id = 42, Username = "alice", Email = "alice@example.com" };
 
-        var dto = _mapper.Map<User, UserDto>(user);
+        UserDto dto = _mapper.Map<User, UserDto>(user);
 
         Assert.Equal(42, dto.Id);
         Assert.Equal("alice", dto.Username);
@@ -52,7 +52,7 @@ public sealed class MapperConfigurationTests
         var user = new User { Id = 7, Username = "bob", Email = "bob@example.com" };
         var existing = new UserDto { Id = 0, Username = "stale" };
 
-        var result = _mapper.Map<User, UserDto>(user, existing);
+        UserDto result = _mapper.Map<User, UserDto>(user, existing);
 
         Assert.Same(existing, result);
         Assert.Equal(7, existing.Id);
@@ -65,7 +65,7 @@ public sealed class MapperConfigurationTests
     {
         var user = new User { Id = 1, Username = "carol", Email = "carol@example.com" };
 
-        var summary = _mapper.Map<User, UserSummaryDto>(user);
+        UserSummaryDto summary = _mapper.Map<User, UserSummaryDto>(user);
 
         Assert.Equal("carol", summary.Username);
         Assert.Equal("carol@example.com", summary.Email);
@@ -80,10 +80,10 @@ public sealed class MapperConfigurationFactoryTests
     public void AddProfile_ByInstance_IsRegistered()
     {
         var config = new MapperConfiguration(cfg => cfg.AddProfile(new UserProfile()));
-        var mapper = config.CreateMapper();
+        IMapper mapper = config.CreateMapper();
 
         var user = new User { Id = 1, Username = "dave" };
-        var dto = mapper.Map<User, UserDto>(user);
+        UserDto dto = mapper.Map<User, UserDto>(user);
 
         Assert.Equal(1, dto.Id);
     }

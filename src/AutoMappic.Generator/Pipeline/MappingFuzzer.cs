@@ -16,8 +16,15 @@ public static class MappingFuzzer
     /// </summary>
     public static double GetSimilarity(string source, string target)
     {
-        if (string.IsNullOrEmpty(source) || string.IsNullOrEmpty(target)) return 0;
-        if (source == target) return 1.0;
+        if (string.IsNullOrEmpty(source) || string.IsNullOrEmpty(target))
+        {
+            return 0;
+        }
+
+        if (source == target)
+        {
+            return 1.0;
+        }
 
         int stepsToSame = ComputeLevenshteinDistance(source, target);
         return 1.0 - ((double)stepsToSame / Math.Max(source.Length, target.Length));
@@ -33,7 +40,10 @@ public static class MappingFuzzer
         int n = source.Length;
         int m = target.Length;
 
-        if (m == 0) return n;
+        if (m == 0)
+        {
+            return n;
+        }
 
         // High-performance strategy: Use only two rows (O(M) space) and ArrayPool for large strings.
         int rowSize = m + 1;
@@ -56,10 +66,13 @@ public static class MappingFuzzer
 
         try
         {
-            var prev = combined.Slice(0, rowSize);
-            var curr = combined.Slice(rowSize, rowSize);
+            Span<int> prev = combined.Slice(0, rowSize);
+            Span<int> curr = combined.Slice(rowSize, rowSize);
 
-            for (int j = 0; j <= m; j++) prev[j] = j;
+            for (int j = 0; j <= m; j++)
+            {
+                prev[j] = j;
+            }
 
             for (int i = 1; i <= n; i++)
             {

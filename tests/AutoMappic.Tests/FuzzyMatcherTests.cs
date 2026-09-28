@@ -130,7 +130,7 @@ public sealed class FuzzyMatcherTests
     {
         double score = MappingFuzzer.GetSimilarity("Email", "EmailAddress");
         // Levenshtein = 7, Max = 12 → 1 - 7/12 ≈ 0.4167
-        Assert.True(score > 0.4 && score < 0.5);
+        Assert.True(score is > 0.4 and < 0.5);
     }
 
     // ─── Case Sensitivity ────────────────────────────────────────────────

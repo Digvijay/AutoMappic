@@ -14,15 +14,15 @@ using Microsoft.Extensions.DependencyInjection;
 // ── Setup (Zero-Reflection / AOT-Friendly Registration) ──
 var services = new Microsoft.Extensions.DependencyInjection.ServiceCollection();
 services.AddAutoMappic(); // Discovers Profiles AND [AutoMap] candidates
-var serviceProvider = services.BuildServiceProvider();
+ServiceProvider serviceProvider = services.BuildServiceProvider();
 IMapper mapper = serviceProvider.GetRequiredService<IMapper>();
 
 // ── Simulate services ─────────────────────────────────────────────────────────
 var service = new UserService(mapper);
 var orderService = new OrderService(mapper);
 
-var userDto = service.GetUser(1);
-var _ = orderService.GetOrder(42);
+UserDto userDto = service.GetUser(1);
+OrderDto _ = orderService.GetOrder(42);
 
 Console.WriteLine("=== AutoMappic v0.7.0 \"The Ultimate\" Sample ===");
 Console.WriteLine();
@@ -36,14 +36,14 @@ Console.WriteLine();
 
 // ── New in v0.6: High-Performance LINQ Projections ─────────────────────────
 Console.WriteLine("LINQ Projections (ProjectTo):");
-var mockDb = MockDatabase.Users.AsQueryable();
+IQueryable<User> mockDb = MockDatabase.Users.AsQueryable();
 
 // ProjectTo<T> translates the mapping directly to the LINQ provider (IQueryable).
 // This is ultra-performant as it avoids mapping entire source objects into memory.
 var projectedUsers = mockDb.ProjectTo<UserDto>().ToList();
 Console.WriteLine($"  Projected {projectedUsers.Count} users efficiently from IQueryable");
 
-foreach (var u in projectedUsers)
+foreach (UserDto? u in projectedUsers)
 {
     Console.WriteLine($"  - {u.Username} ({u.AddressCity})");
 }
@@ -54,7 +54,7 @@ Console.WriteLine("Attribute-Based Mapping ([AutoMap]):");
 var profile = new ProfileItem { Name = "Full Access", CreatedAt = DateTime.Now };
 
 // ProfileDto is mapped via [AutoMap] attribute below — no Profile class needed!
-var profileDto = mapper.Map<ProfileDto>(profile);
+ProfileDto profileDto = mapper.Map<ProfileDto>(profile);
 Console.WriteLine($"  Profile: {profileDto.Name} (Created: {profileDto.CreatedAt})");
 Console.WriteLine();
 

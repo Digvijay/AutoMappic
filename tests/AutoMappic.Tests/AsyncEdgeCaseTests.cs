@@ -1,6 +1,3 @@
-using System;
-using System.Collections.Generic;
-using System.Threading.Tasks;
 using Prova;
 using Assert = Prova.Assertions.Assert;
 
@@ -18,10 +15,10 @@ public sealed class AsyncEdgeCaseTests
     [Fact]
     public async Task MapAsync_MultipleResolvers_Works()
     {
-        var mapper = CreateMapper<MultiAsyncProfile>();
+        IMapper mapper = CreateMapper<MultiAsyncProfile>();
         var source = new MultiSource { A = "a", B = "b", C = "c" };
 
-        var result = await mapper.MapAsync<MultiSource, MultiDest>(source);
+        MultiDest result = await mapper.MapAsync<MultiSource, MultiDest>(source);
 
         Assert.Equal("A-VAL", result.A);
         Assert.Equal("B-VAL", result.B);
@@ -32,10 +29,10 @@ public sealed class AsyncEdgeCaseTests
     [Fact]
     public async Task MapAsync_DeepNesting_Works()
     {
-        var mapper = CreateMapper<DeepAsyncProfile>();
+        IMapper mapper = CreateMapper<DeepAsyncProfile>();
         var source = new ParentSource { Child = new ChildSource { Value = "inner" } };
 
-        var result = await mapper.MapAsync<ParentSource, ParentDest>(source);
+        ParentDest result = await mapper.MapAsync<ParentSource, ParentDest>(source);
 
         Assert.NotNull(result.Child);
         Assert.Equal("INNER", result.Child.Value);
@@ -45,10 +42,10 @@ public sealed class AsyncEdgeCaseTests
     [Fact]
     public async Task MapAsync_CollectionMember_Works()
     {
-        var mapper = CreateMapper<CollectionAsyncProfile>();
+        IMapper mapper = CreateMapper<CollectionAsyncProfile>();
         var source = new CollSource { Items = ["one", "two"] };
 
-        var result = await mapper.MapAsync<CollSource, CollDest>(source);
+        CollDest result = await mapper.MapAsync<CollSource, CollDest>(source);
 
         Assert.Equal(2, result.Items.Count);
         Assert.Contains("one", result.Items);
@@ -59,10 +56,10 @@ public sealed class AsyncEdgeCaseTests
     [Fact]
     public async Task MapAsync_FailingResolver_Throws()
     {
-        var mapper = CreateMapper<FailingAsyncProfile>();
+        IMapper mapper = CreateMapper<FailingAsyncProfile>();
         var source = new FailingSource { Value = "fail" };
 
-        var task = mapper.MapAsync<FailingSource, FailingDest>(source);
+        Task<FailingDest> task = mapper.MapAsync<FailingSource, FailingDest>(source);
 
         // C# Task.Wait() or await will throw. Prova's Assert.Throws is sync, 
         // but we can use try-catch or await it.

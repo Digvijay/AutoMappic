@@ -4,8 +4,7 @@
 // The type is defined here so the compiler can resolve it without a framework reference.
 
 // ReSharper disable once CheckNamespace
-namespace System.Runtime.CompilerServices
-{
-    // Must be internal to avoid conflicts if the consuming project already defines it.
-    internal static class IsExternalInit { }
-}
+namespace System.Runtime.CompilerServices;
+
+// Must be internal to avoid conflicts if the consuming project already defines it.
+internal static class IsExternalInit { }

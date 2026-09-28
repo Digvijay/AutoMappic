@@ -1,5 +1,3 @@
-using System.Collections.Generic;
-using System.Linq;
 using System.Reflection;
 using Prova;
 using Assert = Prova.Assertions.Assert;
@@ -48,8 +46,8 @@ public class MappingContextParityTests
             }
             """;
 
-        var result = GeneratorTestHelper.RunGenerator(trivial, SourceOnly);
-        var context = result.Sources.FirstOrDefault(s => s.HintName == "MappingContext.g.cs");
+        GeneratorTestHelper.GeneratorResult result = GeneratorTestHelper.RunGenerator(trivial, SourceOnly);
+        Microsoft.CodeAnalysis.GeneratedSourceResult context = result.Sources.FirstOrDefault(s => s.HintName == "MappingContext.g.cs");
         return context.SourceText?.ToString() ?? string.Empty;
     }
 

@@ -61,7 +61,7 @@ public sealed class CollectionMaterialisationTests
     [Fact]
     public void Concrete_list_destination_is_populated()
     {
-        var dto = CreateMapper().Map<ListHolder, ListHolderDto>(Source());
+        ListHolderDto dto = CreateMapper().Map<ListHolder, ListHolderDto>(Source());
 
         Assert.Equal(2, dto.Items.Count);
         Assert.Equal("alice", dto.Items[0].Username);
@@ -72,7 +72,7 @@ public sealed class CollectionMaterialisationTests
     [Fact]
     public void Array_destination_is_populated()
     {
-        var dto = CreateMapper().Map<ListHolder, ArrayHolderDto>(Source());
+        ArrayHolderDto dto = CreateMapper().Map<ListHolder, ArrayHolderDto>(Source());
 
         Assert.Equal(2, dto.Items.Length);
         Assert.Equal("alice", dto.Items[0].Username);
@@ -82,7 +82,7 @@ public sealed class CollectionMaterialisationTests
     [Fact]
     public void Enumerable_destination_is_populated()
     {
-        var dto = CreateMapper().Map<ListHolder, EnumerableHolderDto>(Source());
+        EnumerableHolderDto dto = CreateMapper().Map<ListHolder, EnumerableHolderDto>(Source());
 
         Assert.Equal(2, dto.Items.Count());
         Assert.Equal("alice", dto.Items.First().Username);
@@ -92,7 +92,7 @@ public sealed class CollectionMaterialisationTests
     [Fact]
     public void ReadOnlyList_destination_is_populated()
     {
-        var dto = CreateMapper().Map<ListHolder, ReadOnlyListHolderDto>(Source());
+        ReadOnlyListHolderDto dto = CreateMapper().Map<ListHolder, ReadOnlyListHolderDto>(Source());
 
         Assert.Equal(2, dto.Items.Count);
         Assert.Equal("bob", dto.Items[1].Username);
@@ -104,7 +104,7 @@ public sealed class CollectionMaterialisationTests
     {
         var source = new ValueHolder { Numbers = [1, 2, 3] };
 
-        var dto = CreateMapper().Map<ValueHolder, ValueHolderDto>(source);
+        ValueHolderDto dto = CreateMapper().Map<ValueHolder, ValueHolderDto>(source);
 
         Assert.Equal(3, dto.Numbers.Count);
         Assert.Equal(1, dto.Numbers[0]);
@@ -117,7 +117,7 @@ public sealed class CollectionMaterialisationTests
     {
         var source = new ValueDictHolder { Scores = new Dictionary<int, int> { [1] = 10, [2] = 20 } };
 
-        var dto = CreateMapper().Map<ValueDictHolder, ValueDictHolderDto>(source);
+        ValueDictHolderDto dto = CreateMapper().Map<ValueDictHolder, ValueDictHolderDto>(source);
 
         Assert.Equal(2, dto.Scores.Count);
         Assert.Equal(10, dto.Scores[1]);

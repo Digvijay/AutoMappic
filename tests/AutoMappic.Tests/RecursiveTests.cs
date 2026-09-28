@@ -1,4 +1,4 @@
-using AutoMappic.Tests.Fixtures;
+using System.Reflection;
 using Prova;
 using Assert = Prova.Assertions.Assert;
 
@@ -31,7 +31,7 @@ public sealed class CircularReferenceTests
     [Fact]
     public void Map_CircularReference_DoesNotStackOverflowInFallback()
     {
-        var mapper = new MapperConfiguration(cfg => cfg.AddProfile<NodeProfile>())
+        IMapper mapper = new MapperConfiguration(cfg => cfg.AddProfile<NodeProfile>())
             .CreateMapper();
 
         var node = new Node { Name = "Child" };
@@ -39,7 +39,7 @@ public sealed class CircularReferenceTests
         node.Parent = parent;
         // Circular: parent.Parent = node;
 
-        var dto = mapper.Map<Node, NodeDto>(node);
+        NodeDto dto = mapper.Map<Node, NodeDto>(node);
 
         Assert.Equal("Child", dto.Name);
         Assert.Null(dto.Parent); // Parent is null because we ignored it to break the circular reference
@@ -51,7 +51,7 @@ public sealed class CircularReferenceTests
         var services = new Microsoft.Extensions.DependencyInjection.ServiceCollection();
         // Manually build configuration to avoid AM0006 during full build if needed
         var config = new MapperConfiguration(cfg => cfg.AddProfile<UnsafeProfile>());
-        var mapper = config.CreateMapper();
+        IMapper mapper = config.CreateMapper();
 
         var node = new Node { Name = "A" };
         var other = new Node { Name = "B" };
@@ -61,8 +61,8 @@ public sealed class CircularReferenceTests
         try
         {
             // Bypass interceptor to trigger runtime fallback tracker
-            var mapperType = typeof(global::AutoMappic.IMapper);
-            var mapMethod = mapperType.GetMethods().First(m => m.Name == "MapAsync" && m.GetGenericArguments().Length == 2 && m.GetParameters().Length == 2);
+            Type mapperType = typeof(global::AutoMappic.IMapper);
+            MethodInfo mapMethod = mapperType.GetMethods().First(m => m.Name == "MapAsync" && m.GetGenericArguments().Length == 2 && m.GetParameters().Length == 2);
             mapMethod = mapMethod.MakeGenericMethod(typeof(Node), typeof(NodeDto));
             var task = (System.Threading.Tasks.Task<NodeDto>)mapMethod.Invoke(mapper, [(object)node, (object)global::System.Threading.CancellationToken.None])!;
             await task;

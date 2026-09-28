@@ -1,7 +1,3 @@
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using AutoMappic;
 using Prova;
 using Assert = Prova.Assertions.Assert;
 
@@ -71,9 +67,9 @@ public class MatrixMappingTestSuite
     [Fact]
     public void Test_KitchenSink_Matrix()
     {
-        var mapper = GetMapper();
+        IMapper mapper = GetMapper();
         var source = new KitchenSinkSource();
-        var result = mapper.Map<KitchenSinkDto>(source);
+        KitchenSinkDto result = mapper.Map<KitchenSinkDto>(source);
 
         Assert.Equal("S", result.S);
         Assert.Equal(1, result.I);
@@ -88,9 +84,9 @@ public class MatrixMappingTestSuite
     [Fact]
     public void Test_EnumNumeric_Matrix()
     {
-        var mapper = GetMapper();
+        IMapper mapper = GetMapper();
         var source = new EnumNumericSource { E = MatrixEnum.V1, Numeric = 2 };
-        var result = mapper.Map<EnumNumericDto>(source);
+        EnumNumericDto result = mapper.Map<EnumNumericDto>(source);
 
         Assert.Equal(1, result.E);
         Assert.Equal((int)MatrixEnum.V2, (int)result.Numeric);
@@ -100,10 +96,10 @@ public class MatrixMappingTestSuite
     [Fact]
     public void Test_DeepFlattening_Matrix()
     {
-        var mapper = GetMapper();
+        IMapper mapper = GetMapper();
         var source = new DeepFlattenedSource();
         source.Nav1.Nav2.Nav3.TargetValue = "FinalDest";
-        var result = mapper.Map<DeepFlattenedDto>(source);
+        DeepFlattenedDto result = mapper.Map<DeepFlattenedDto>(source);
 
         Assert.Equal("FinalDest", result.Nav1Nav2Nav3TargetValue);
     }
@@ -112,9 +108,9 @@ public class MatrixMappingTestSuite
     [Fact]
     public void Test_MultiGeneric_Matrix()
     {
-        var mapper = GetMapper();
+        IMapper mapper = GetMapper();
         var source = new MultiGenericSource<int, string> { V1 = 5, V2 = "Five" };
-        var result = mapper.Map<MultiGenericDto<int, string>>(source);
+        MultiGenericDto<int, string> result = mapper.Map<MultiGenericDto<int, string>>(source);
 
         Assert.Equal(5, result.V1);
         Assert.Equal("Five", result.V2);

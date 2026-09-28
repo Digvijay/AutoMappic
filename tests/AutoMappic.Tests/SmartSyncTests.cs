@@ -1,4 +1,3 @@
-using System.Collections.Generic;
 using Prova;
 using Assert = Prova.Assertions.Assert;
 
@@ -63,7 +62,7 @@ public sealed class SmartSyncTests
             Items = [destItem1]
         };
 
-        var mapper = CreateMapper();
+        IMapper mapper = CreateMapper();
         mapper.Map(src, dest);
 
         // Existing item updated in place

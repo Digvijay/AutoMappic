@@ -1,7 +1,6 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
-using System.Linq;
 
 namespace AutoMappic.Generator.Models;
 
@@ -32,13 +31,27 @@ internal sealed class EquatableArray<T>(IEnumerable<T> items) : IEquatable<Equat
     /// <inheritdoc />
     public bool Equals(EquatableArray<T>? other)
     {
-        if (other is null) return false;
-        if (ReferenceEquals(this, other)) return true;
-        if (_items.Length != other._items.Length) return false;
+        if (other is null)
+        {
+            return false;
+        }
+
+        if (ReferenceEquals(this, other))
+        {
+            return true;
+        }
+
+        if (_items.Length != other._items.Length)
+        {
+            return false;
+        }
 
         for (int i = 0; i < _items.Length; i++)
         {
-            if (!_items[i].Equals(other._items[i])) return false;
+            if (!_items[i].Equals(other._items[i]))
+            {
+                return false;
+            }
         }
 
         return true;
@@ -54,8 +67,11 @@ internal sealed class EquatableArray<T>(IEnumerable<T> items) : IEquatable<Equat
         unchecked
         {
             int hash = 17;
-            foreach (var item in _items)
+            foreach (T item in _items)
+            {
                 hash = (hash * 31) + (item?.GetHashCode() ?? 0);
+            }
+
             return hash;
         }
     }

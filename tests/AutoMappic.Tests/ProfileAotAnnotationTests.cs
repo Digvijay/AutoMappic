@@ -1,5 +1,4 @@
 using System.Diagnostics.CodeAnalysis;
-using System.Linq;
 using System.Reflection;
 using Prova;
 using Assert = Prova.Assertions.Assert;
@@ -42,7 +41,7 @@ public class ProfileAotAnnotationTests
     [Fact]
     public void Generic_CreateMap_is_not_marked_as_requiring_dynamic_code()
     {
-        var method = GenericCreateMap();
+        MethodInfo method = GenericCreateMap();
 
         Assert.Null(method.GetCustomAttribute<RequiresDynamicCodeAttribute>());
     }
@@ -66,14 +65,14 @@ public class ProfileAotAnnotationTests
     [Fact]
     public void Generic_CreateMap_constrains_its_type_parameters_instead_of_requiring_unreferenced_code()
     {
-        var method = GenericCreateMap();
+        MethodInfo method = GenericCreateMap();
 
         Assert.Null(method.GetCustomAttribute<RequiresUnreferencedCodeAttribute>());
 
-        var parameters = method.GetGenericArguments();
-        foreach (var parameter in parameters)
+        Type[] parameters = method.GetGenericArguments();
+        foreach (Type parameter in parameters)
         {
-            var dam = parameter.GetCustomAttribute<DynamicallyAccessedMembersAttribute>();
+            DynamicallyAccessedMembersAttribute? dam = parameter.GetCustomAttribute<DynamicallyAccessedMembersAttribute>();
             Assert.NotNull(dam);
             Assert.True(
                 dam!.MemberTypes.HasFlag(DynamicallyAccessedMemberTypes.PublicProperties),
@@ -83,7 +82,7 @@ public class ProfileAotAnnotationTests
                 parameter.Name + " must preserve public methods for the runtime fallback.");
         }
 
-        var destination = parameters.Single(p => p.Name == "TDestination");
+        Type destination = parameters.Single(p => p.Name == "TDestination");
         Assert.True(
             destination.GetCustomAttribute<DynamicallyAccessedMembersAttribute>()!
                 .MemberTypes.HasFlag(DynamicallyAccessedMemberTypes.PublicParameterlessConstructor),
@@ -108,17 +107,17 @@ public class ProfileAotAnnotationTests
     [Fact]
     public void Type_based_CreateMap_names_its_requirements_with_DAM()
     {
-        var method = typeof(Profile)
+        MethodInfo method = typeof(Profile)
             .GetMethods(BindingFlags.Instance | BindingFlags.NonPublic | BindingFlags.Public)
             .Single(m => m.Name == "CreateMap" && !m.IsGenericMethodDefinition);
 
         Assert.Null(method.GetCustomAttribute<RequiresDynamicCodeAttribute>());
         Assert.Null(method.GetCustomAttribute<RequiresUnreferencedCodeAttribute>());
 
-        var parameters = method.GetParameters();
-        foreach (var parameter in parameters)
+        ParameterInfo[] parameters = method.GetParameters();
+        foreach (ParameterInfo parameter in parameters)
         {
-            var dam = parameter.GetCustomAttribute<DynamicallyAccessedMembersAttribute>();
+            DynamicallyAccessedMembersAttribute? dam = parameter.GetCustomAttribute<DynamicallyAccessedMembersAttribute>();
             Assert.NotNull(dam);
             Assert.True(
                 dam!.MemberTypes.HasFlag(DynamicallyAccessedMemberTypes.PublicProperties),
@@ -128,7 +127,7 @@ public class ProfileAotAnnotationTests
                 parameter.Name + " must preserve public methods for the runtime fallback.");
         }
 
-        var destination = parameters.Single(p => p.Name == "destinationType");
+        ParameterInfo destination = parameters.Single(p => p.Name == "destinationType");
         Assert.True(
             destination.GetCustomAttribute<DynamicallyAccessedMembersAttribute>()!
                 .MemberTypes.HasFlag(DynamicallyAccessedMemberTypes.PublicParameterlessConstructor),
@@ -162,7 +161,7 @@ public class ProfileAotAnnotationTests
 
         Assert.True(methods.Count > 0, "Expected IMapper to expose Map/MapAsync methods.");
 
-        foreach (var method in methods)
+        foreach (MethodInfo? method in methods)
         {
             Assert.Null(method.GetCustomAttribute<RequiresUnreferencedCodeAttribute>());
             Assert.Null(method.GetCustomAttribute<RequiresDynamicCodeAttribute>());

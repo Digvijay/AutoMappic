@@ -1,4 +1,3 @@
-using System.Threading.Tasks;
 using AutoMappic;
 
 namespace MapToTest;
@@ -18,11 +17,11 @@ public class TestRunner
         var user = new User("Alice", 30);
 
         // Fluent MapTo
-        var dto = user.MapTo<UserDto>(mapper);
+        UserDto dto = user.MapTo<UserDto>(mapper);
         System.Console.WriteLine($"MapTo: {dto.Name}, {dto.Age}");
 
         // MapTo with explicit types
-        var dto2 = user.MapTo<User, UserDto>(mapper);
+        UserDto dto2 = user.MapTo<User, UserDto>(mapper);
         System.Console.WriteLine($"MapTo<S,D>: {dto2.Name}, {dto2.Age}");
     }
 }
