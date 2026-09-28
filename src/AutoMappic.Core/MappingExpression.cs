@@ -288,9 +288,10 @@ internal sealed class MemberConfigurationExpression<TSource, TDestination, TMemb
     public void MapFrom<TResolver>() where TResolver : IValueResolver<TSource, TMember>, new() => MapFromExpression = src => new TResolver().Resolve(src);
 
     /// <inheritdoc />
+    // The runtime fallback blocks on the async resolver. That is not something to imitate,
+    // but this path only runs when no mapping was generated, which a published AOT app
+    // never reaches.
     public void MapFromAsync<TResolver>() where TResolver : IAsyncValueResolver<TSource, TMember>, new() =>
-        // For runtime fallback, we use Task.Run/Result which is NOT recommended but 
-        // this path is only for un-generated fallback/testing.
         MapFromExpression = src => new TResolver().ResolveAsync(src).GetAwaiter().GetResult();
 
     /// <inheritdoc />
