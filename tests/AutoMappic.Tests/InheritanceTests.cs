@@ -31,10 +31,7 @@ public sealed class InheritanceMappingTests
 {
     private sealed class EmployeeProfile : Profile
     {
-        public EmployeeProfile()
-        {
-            CreateMap<Employee, EmployeeDto>();
-        }
+        public EmployeeProfile() => CreateMap<Employee, EmployeeDto>();
     }
 
     /// <summary>Verify that properties from base classes are correctly mapped into the destination DTO</summary>

@@ -6,12 +6,12 @@ namespace AutoMappic.Tests;
 
 public class DictSource
 {
-    public Dictionary<string, User> Users { get; set; } = new();
+    public Dictionary<string, User> Users { get; set; } = [];
 }
 
 public class DictDto
 {
-    public Dictionary<string, UserSummaryDto> Users { get; set; } = new();
+    public Dictionary<string, UserSummaryDto> Users { get; set; } = [];
 }
 
 public sealed class DictionaryMappingTests
@@ -27,8 +27,8 @@ public sealed class DictionaryMappingTests
     }
 
     public class MyDict : Dictionary<string, int> { }
-    public class CustomDictSource { public MyDict Stats { get; set; } = new(); }
-    public class CustomDictDto { public Dictionary<string, int> Stats { get; set; } = new(); }
+    public class CustomDictSource { public MyDict Stats { get; set; } = []; }
+    public class CustomDictDto { public Dictionary<string, int> Stats { get; set; } = []; }
 
     /// <summary> Confirm that dictionary values are correctly transformed while maintaining their associated keys </summary>
     [Fact]

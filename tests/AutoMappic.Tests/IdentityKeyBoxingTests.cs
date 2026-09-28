@@ -65,7 +65,7 @@ public class IdentityKeyBoxingTests
     [Fact]
     public void Generated_map_still_emits_the_identity_lookup()
     {
-        var body = GeneratedMappingBody();
+        string body = GeneratedMappingBody();
 
         Assert.True(body.Contains("__keyVal", System.StringComparison.Ordinal),
             "Expected the generated mapping to keep its identity-map key. Removing it entirely would "
@@ -78,7 +78,7 @@ public class IdentityKeyBoxingTests
     [Fact]
     public void Key_is_only_boxed_when_tracking_is_enabled()
     {
-        var body = GeneratedMappingBody();
+        string body = GeneratedMappingBody();
 
         Assert.True(body.Contains("context.IsTracking ? (object?)", System.StringComparison.Ordinal),
             "Expected the key cast to be guarded by context.IsTracking so that a non-tracking map "
@@ -89,7 +89,7 @@ public class IdentityKeyBoxingTests
     [Fact]
     public void Generated_map_never_boxes_the_key_unconditionally()
     {
-        var body = GeneratedMappingBody();
+        string body = GeneratedMappingBody();
 
         Assert.False(body.Contains("var __keyVal = (object?)", System.StringComparison.Ordinal),
             "The generated mapping boxes its key unconditionally again. This allocates on every "

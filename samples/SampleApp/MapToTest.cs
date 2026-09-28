@@ -8,10 +8,7 @@ public record UserDto(string Name, int Age);
 
 public class MapToProfile : Profile
 {
-    public MapToProfile()
-    {
-        CreateMap<User, UserDto>();
-    }
+    public MapToProfile() => CreateMap<User, UserDto>();
 }
 
 public class TestRunner

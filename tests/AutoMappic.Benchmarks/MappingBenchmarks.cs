@@ -52,10 +52,7 @@ public partial class BenchMapperlyMapper
 
 public sealed class BenchAutoMappicProfile : AutoMappic.Profile
 {
-    public BenchAutoMappicProfile()
-    {
-        CreateMap<BenchUser, BenchUserDto>();
-    }
+    public BenchAutoMappicProfile() => CreateMap<BenchUser, BenchUserDto>();
 }
 
 // ─── Manual mapping (gold standard) ──────────────────────────────────────────

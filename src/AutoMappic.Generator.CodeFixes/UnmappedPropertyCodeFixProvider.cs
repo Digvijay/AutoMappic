@@ -18,7 +18,7 @@ namespace AutoMappic.Generator.CodeFixes
     [ExportCodeFixProvider(LanguageNames.CSharp, Name = nameof(UnmappedPropertyCodeFixProvider)), Shared]
     internal sealed class UnmappedPropertyCodeFixProvider : CodeFixProvider
     {
-        public override ImmutableArray<string> FixableDiagnosticIds => ImmutableArray.Create("AM0001");
+        public override ImmutableArray<string> FixableDiagnosticIds => ["AM0001"];
 
         public override FixAllProvider GetFixAllProvider() => WellKnownFixAllProviders.BatchFixer;
 
@@ -49,7 +49,7 @@ namespace AutoMappic.Generator.CodeFixes
 
             // 2. Profile CreateMap Call - Chain .ForMemberIgnore()
             var invocation = node?.AncestorsAndSelf().OfType<InvocationExpressionSyntax>().FirstOrDefault();
-            if (invocation != null && diagnostic.Properties.TryGetValue("TargetProperty", out var targetProp))
+            if (invocation != null && diagnostic.Properties.TryGetValue("TargetProperty", out string? targetProp))
             {
                 context.RegisterCodeFix(
                     CodeAction.Create(

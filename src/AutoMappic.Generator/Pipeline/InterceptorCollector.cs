@@ -9,10 +9,7 @@ namespace AutoMappic.Generator.Pipeline;
 /// <summary> Finds all call sites and attempts to intercept them if they match AutoMappic patterns. </summary>
 internal static class InterceptorCollector
 {
-    public static bool IsInvocationCandidate(SyntaxNode node, System.Threading.CancellationToken _)
-    {
-        return node is InvocationExpressionSyntax;
-    }
+    public static bool IsInvocationCandidate(SyntaxNode node, System.Threading.CancellationToken _) => node is InvocationExpressionSyntax;
 
     public static InterceptLocation? ExtractInterceptLocation(
         GeneratorSyntaxContext context,
@@ -34,7 +31,7 @@ internal static class InterceptorCollector
             return null;
         }
 
-        var name = symbol.Name;
+        string name = symbol.Name;
         bool isProjectTo = name == "ProjectTo";
         bool isMap = name == "Map" || name == "MapAsync" || name == "MapTo" || name == "MapToAsync";
 
@@ -49,7 +46,7 @@ internal static class InterceptorCollector
             return null;
         }
 
-        var fullContainingType = containingType.ToDisplayString();
+        string fullContainingType = containingType.ToDisplayString();
         InterceptKind kind;
 
         if (isProjectTo)
@@ -70,7 +67,7 @@ internal static class InterceptorCollector
         }
 
         // Verify it belongs to AutoMappic directly or implements IMapper
-        var isAutoMappic = fullContainingType.StartsWith("AutoMappic", System.StringComparison.Ordinal) ||
+        bool isAutoMappic = fullContainingType.StartsWith("AutoMappic", System.StringComparison.Ordinal) ||
                           containingType.AllInterfaces.Any(i => i.Name == "IMapper" && (i.ContainingNamespace?.ToDisplayString() ?? "").StartsWith("AutoMappic", System.StringComparison.Ordinal));
 
         if (!isAutoMappic)
@@ -145,7 +142,7 @@ internal static class InterceptorCollector
         }
         else if (kind == InterceptKind.DataReaderMap || kind == InterceptKind.DataReaderMapAsync)
         {
-            var metaName = kind == InterceptKind.DataReaderMap ? "System.Data.IDataReader" : "System.Data.Common.DbDataReader";
+            string metaName = kind == InterceptKind.DataReaderMap ? "System.Data.IDataReader" : "System.Data.Common.DbDataReader";
             callSiteSource = context.SemanticModel.Compilation.GetTypeByMetadataName(metaName);
         }
 
@@ -211,10 +208,10 @@ internal static class InterceptorCollector
 
     private static string BuildSignatureKey(IMethodSymbol method)
     {
-        var typeArgs = method.TypeArguments.Length > 0
+        string typeArgs = method.TypeArguments.Length > 0
             ? $"<{string.Join(", ", method.TypeArguments.Select(t => SourceEmitter.GetDisplayString(t)))}>"
             : string.Empty;
-        var paramTypes = string.Join(", ", method.Parameters.Select(p => SourceEmitter.GetDisplayString(p.Type)));
+        string paramTypes = string.Join(", ", method.Parameters.Select(p => SourceEmitter.GetDisplayString(p.Type)));
         return $"{method.Name}{typeArgs}({paramTypes})";
     }
 
@@ -233,8 +230,8 @@ internal static class InterceptorCollector
         // Named generics: List<T>, IList<T>, IEnumerable<T>, ICollection<T>, etc.
         if (type is INamedTypeSymbol named && named.IsGenericType && named.TypeArguments.Length == 1)
         {
-            var name = named.Name;
-            var ns = named.ContainingNamespace?.ToDisplayString() ?? "";
+            _ = named.Name;
+            string ns = named.ContainingNamespace?.ToDisplayString() ?? "";
 
             // System.Collections.Generic types
             if (ns == "System.Collections.Generic" || ns.StartsWith("System.Collections.Generic", System.StringComparison.Ordinal))

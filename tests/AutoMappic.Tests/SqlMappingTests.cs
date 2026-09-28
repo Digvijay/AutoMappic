@@ -43,10 +43,7 @@ public class SqlMappingTests
         dt.Rows.Add(2, "Bob", DBNull.Value); // Test DBNull -> null
 
         // 2. Setup AutoMappic
-        var config = new MapperConfiguration(cfg =>
-        {
-            cfg.AddProfile<SqlProfile>();
-        });
+        var config = new MapperConfiguration(cfg => cfg.AddProfile<SqlProfile>());
 
         using var reader = dt.CreateDataReader();
 
@@ -89,10 +86,7 @@ public class SqlMappingTests
         dt.Rows.Add(2, "Bob", null);
 
         // 2. Setup AutoMappic
-        var config = new MapperConfiguration(cfg =>
-        {
-            cfg.AddProfile<SqlProfile>();
-        });
+        var config = new MapperConfiguration(cfg => cfg.AddProfile<SqlProfile>());
 
         using var reader = dt.CreateDataReader();
 

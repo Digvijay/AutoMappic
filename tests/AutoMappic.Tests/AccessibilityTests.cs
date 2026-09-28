@@ -29,10 +29,7 @@ public sealed class AccessibilityTests
 {
     private sealed class AccessProfile : Profile
     {
-        public AccessProfile()
-        {
-            CreateMap<AccessSource, AccessDto>();
-        }
+        public AccessProfile() => CreateMap<AccessSource, AccessDto>();
     }
 
     /// <summary> Verify that AutoMappic respects member accessibility and correctly skips internal or private members that it cannot access </summary>

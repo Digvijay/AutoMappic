@@ -50,17 +50,14 @@ public class DataReaderMappingTests
 
     public class DataReaderProfile : Profile
     {
-        public DataReaderProfile() { CreateMap<IDataReader, Dest>(); }
+        public DataReaderProfile() => CreateMap<IDataReader, Dest>();
     }
 
     [Fact]
     [Prova.Description("Verify that DataReader.Map works when a profile exists.")]
     public void DataReader_Map_ExecutesWithoutError()
     {
-        var config = new MapperConfiguration(cfg =>
-        {
-            cfg.AddProfile<DataReaderProfile>();
-        });
+        var config = new MapperConfiguration(cfg => cfg.AddProfile<DataReaderProfile>());
 
         using var reader = new MockDataReader();
         var results = reader.Map<Dest>().ToList();

@@ -18,7 +18,7 @@ public sealed class PascalCaseNamingConvention : INamingConvention
 
     /// <inheritdoc />
     public string[] Split(string name) =>
-        Splitter.Matches(name).Cast<Match>().Select(m => m.Value).ToArray();
+        [.. Splitter.Matches(name).Cast<Match>().Select(m => m.Value)];
 }
 
 /// <summary>A naming convention for camelCase names (e.g. "customerName").</summary>
@@ -28,13 +28,13 @@ public sealed class CamelCaseNamingConvention : INamingConvention
 
     /// <inheritdoc />
     public string[] Split(string name) =>
-        Splitter.Matches(name).Cast<Match>().Select(m => m.Value).ToArray();
+        [.. Splitter.Matches(name).Cast<Match>().Select(m => m.Value)];
 }
 
 /// <summary>A naming convention for snake_case names (e.g. "customer_name").</summary>
 public sealed class LowerUnderscoreNamingConvention : INamingConvention
 {
-    private static readonly char[] Separator = { '_' };
+    private static readonly char[] Separator = ['_'];
 
     /// <inheritdoc />
     public string[] Split(string name) => name.Split(Separator, StringSplitOptions.RemoveEmptyEntries);
@@ -43,7 +43,7 @@ public sealed class LowerUnderscoreNamingConvention : INamingConvention
 /// <summary>A naming convention for kebab-case names (e.g. "customer-name").</summary>
 public sealed class KebabCaseNamingConvention : INamingConvention
 {
-    private static readonly char[] Separator = { '-' };
+    private static readonly char[] Separator = ['-'];
 
     /// <inheritdoc />
     public string[] Split(string name) => name.Split(Separator, StringSplitOptions.RemoveEmptyEntries);

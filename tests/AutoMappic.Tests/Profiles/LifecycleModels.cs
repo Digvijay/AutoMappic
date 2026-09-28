@@ -8,5 +8,5 @@ public class LifecycleDest
     public bool WasBeforeAsyncCalled { get; set; }
     public bool WasAfterCalled { get; set; }
     public bool WasAfterAsyncCalled { get; set; }
-    public System.Collections.Generic.List<string> HookOrder { get; } = new();
+    public System.Collections.Generic.List<string> HookOrder { get; } = [];
 }

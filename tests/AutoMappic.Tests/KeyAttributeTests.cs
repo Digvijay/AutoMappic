@@ -11,7 +11,7 @@ public class KeyAttributeTests
     [Fact]
     public void Generator_Key_Attribute_Detection()
     {
-        var source = @"
+        string source = @"
 using AutoMappic;
 using System.ComponentModel.DataAnnotations;
 
@@ -30,7 +30,7 @@ public class KASource { public int SSN { get; set; } public string Name { get; s
 public class KADest { [Key] public int SSN { get; set; } public string Name { get; set; } }
 ";
         var result = GeneratorTestHelper.RunGenerator(source);
-        var mapSource = result.Sources.First(f => f.HintName.Contains("KASource") && f.HintName.Contains("KADest")).SourceText.ToString();
+        string mapSource = result.Sources.First(f => f.HintName.Contains("KASource") && f.HintName.Contains("KADest")).SourceText.ToString();
 
         // Should use SSN for identity management, but only pay for boxing when the context is
         // actually tracking. See MappingContextParityTests / IdentityKeyBoxingTests.
@@ -43,7 +43,7 @@ public class KADest { [Key] public int SSN { get; set; } public string Name { ge
     [Fact]
     public void Generator_AutoMappicKey_Attribute_Detection()
     {
-        var source = @"
+        string source = @"
 using AutoMappic;
 
 [AutoMappicProfile]
@@ -61,7 +61,7 @@ public class AMKSource { public string Code { get; set; } }
 public class AMKDest { [AutoMappicKey] public string Code { get; set; } }
 ";
         var result = GeneratorTestHelper.RunGenerator(source);
-        var mapSource = result.Sources.First(f => f.HintName.Contains("AMKSource") && f.HintName.Contains("AMKDest")).SourceText.ToString();
+        string mapSource = result.Sources.First(f => f.HintName.Contains("AMKSource") && f.HintName.Contains("AMKDest")).SourceText.ToString();
 
         Assert.Contains("var __keyVal = context.IsTracking ? (object?)source.Code : null;", mapSource);
     }
@@ -70,7 +70,7 @@ public class AMKDest { [AutoMappicKey] public string Code { get; set; } }
     [Fact]
     public void Generator_SmartSync_Collection_KeyAttribute()
     {
-        var source = @"
+        string source = @"
 using AutoMappic;
 using System.ComponentModel.DataAnnotations;
 using System.Collections.Generic;
@@ -98,7 +98,7 @@ public class SSItemDto { [Key] public int InternalCode { get; set; } public stri
         var diagnostic = result.Diagnostics.FirstOrDefault(d => d.Id == "AM0014");
         Assert.True(diagnostic == null, "Generated AM0014 even though [Key] was present on InternalCode");
 
-        var mapSource = result.Sources.First(f => f.SourceText.ToString().Contains("existingMap")).SourceText.ToString();
+        string mapSource = result.Sources.First(f => f.SourceText.ToString().Contains("existingMap")).SourceText.ToString();
         Assert.Contains("existingMap.TryGetValue(__sKey, out var existingItem)", mapSource);
         Assert.Contains("sItem.InternalCode", mapSource);
     }

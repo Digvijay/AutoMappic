@@ -6,8 +6,8 @@ namespace AutoMappic.Tests;
 
 public class SChild { public int Value { get; set; } }
 public class DChild { public int Value { get; set; } }
-public class S { public List<List<SChild>> Data { get; set; } = new(); }
-public class D { public List<List<DChild>> Data { get; set; } = new(); }
+public class S { public List<List<SChild>> Data { get; set; } = []; }
+public class D { public List<List<DChild>> Data { get; set; } = []; }
 
 public class DeepProfile : Profile
 {
@@ -25,7 +25,7 @@ public class RecursiveMappingTests
     [Prova.Description("Verify that deeply nested collections like List<List<T>> are correctly mapped.")]
     public void Map_DeepNestedCollections_Works()
     {
-        var sourceCode = @"
+        string sourceCode = @"
 using AutoMappic;
 using System.Collections.Generic;
 
@@ -51,7 +51,7 @@ public class DeepProfile : Profile
             throw new System.Exception("S_To_D_Map not found. Found: " + string.Join(", ", fileNames));
         }
 
-        var mapCode = mapFile.SourceText.ToString();
+        string mapCode = mapFile.SourceText.ToString();
         Assert.Contains("x.MapToglobal_DChild_", mapCode);
         Assert.Contains("(context.Next())", mapCode);
         Assert.Contains(".ToList()", mapCode);
@@ -61,11 +61,11 @@ public class DeepProfile : Profile
 
         var source = new S
         {
-            Data = new List<List<SChild>>
-            {
-                new List<SChild> { new SChild { Value = 1 }, new SChild { Value = 2 } },
-                new List<SChild> { new SChild { Value = 3 } }
-            }
+            Data =
+            [
+                new List<SChild> { new() { Value = 1 }, new() { Value = 2 } },
+                new List<SChild> { new() { Value = 3 } }
+            ]
         };
 
         var dest = mapper.Map<D>(source);

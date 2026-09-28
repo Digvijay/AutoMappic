@@ -46,7 +46,7 @@ public sealed class AsyncEdgeCaseTests
     public async Task MapAsync_CollectionMember_Works()
     {
         var mapper = CreateMapper<CollectionAsyncProfile>();
-        var source = new CollSource { Items = new List<string> { "one", "two" } };
+        var source = new CollSource { Items = ["one", "two"] };
 
         var result = await mapper.MapAsync<CollSource, CollDest>(source);
 
@@ -88,8 +88,8 @@ public sealed class AsyncEdgeCaseTests
     public class ParentDest { public ChildDest Child { get; set; } = new(); }
     public class ChildDest { public string Value { get; set; } = ""; }
 
-    public class CollSource { public List<string> Items { get; set; } = new(); }
-    public class CollDest { public List<string> Items { get; set; } = new(); }
+    public class CollSource { public List<string> Items { get; set; } = []; }
+    public class CollDest { public List<string> Items { get; set; } = []; }
 
     public class FailingSource { public string Value { get; set; } = ""; }
     public class FailingDest { public string Value { get; set; } = ""; }
@@ -119,10 +119,7 @@ public sealed class AsyncEdgeCaseTests
 
     public class CollectionAsyncProfile : Profile
     {
-        public CollectionAsyncProfile()
-        {
-            CreateMap<CollSource, CollDest>();
-        }
+        public CollectionAsyncProfile() => CreateMap<CollSource, CollDest>();
     }
 
     public class FailingAsyncProfile : Profile

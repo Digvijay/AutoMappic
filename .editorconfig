@@ -10,6 +10,12 @@ insert_final_newline = true
 trim_trailing_whitespace = true
 indent_style = space
 
+# .gitattributes normalizes every text file to LF on checkout, on every platform. Without
+# this line end_of_line is unset, so IDE0055 falls back to the platform default and expects
+# CRLF on Windows - which made the Windows leg of CI fail to build files the Linux leg
+# accepted. Formatting must not depend on which OS the build runs on.
+end_of_line = lf
+
 # Code files
 [*.{cs,csx,vb,vbx}]
 indent_size = 4

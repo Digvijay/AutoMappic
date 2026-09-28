@@ -14,10 +14,7 @@ public sealed class AdvancedFlatteningTests
 {
     private sealed class DeepProfile : Profile
     {
-        public DeepProfile()
-        {
-            CreateMap<DeepOrder, DeepOrderDto>();
-        }
+        public DeepProfile() => CreateMap<DeepOrder, DeepOrderDto>();
     }
 
     /// <summary> Verify that complex multi-level flattening (3 levels) works correctly for deep property resolution </summary>

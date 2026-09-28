@@ -6,11 +6,12 @@ namespace AutoMappic
     ///   Explicitly declares a mapping configuration on the destination class itself,
     ///   making it a "standalone" mapping discovered by the source generator without a Profile.
     /// </summary>
+    /// <inheritdoc/>
     [AttributeUsage(AttributeTargets.Class, AllowMultiple = true)]
-    public sealed class AutoMapAttribute : Attribute
+    public sealed class AutoMapAttribute(Type sourceType) : Attribute
     {
         /// <summary>The source type to map from.</summary>
-        public Type SourceType { get; }
+        public Type SourceType { get; } = sourceType;
 
         /// <summary>Naming strategy for source member names (defaults to <see cref="PascalCaseNamingConvention" />).</summary>
         public Type? SourceNamingConvention { get; set; }
@@ -29,11 +30,5 @@ namespace AutoMappic
 
         /// <summary>When true, suppresses all AM0001 (unmapped) and AM0015 (smart-match) errors for this mapping.</summary>
         public bool IgnoreUnmapped { get; set; }
-
-        /// <inheritdoc/>
-        public AutoMapAttribute(Type sourceType)
-        {
-            SourceType = sourceType;
-        }
     }
 }

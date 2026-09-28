@@ -37,24 +37,24 @@ public sealed class CollectionMaterialisationTests
         }
     }
 
-    public sealed class ListHolder { public List<User> Items { get; set; } = new(); }
-    public sealed class ListHolderDto { public List<UserSummaryDto> Items { get; set; } = new(); }
-    public sealed class ArrayHolderDto { public UserSummaryDto[] Items { get; set; } = Array.Empty<UserSummaryDto>(); }
-    public sealed class EnumerableHolderDto { public IEnumerable<UserSummaryDto> Items { get; set; } = Array.Empty<UserSummaryDto>(); }
-    public sealed class ReadOnlyListHolderDto { public IReadOnlyList<UserSummaryDto> Items { get; set; } = Array.Empty<UserSummaryDto>(); }
+    public sealed class ListHolder { public List<User> Items { get; set; } = []; }
+    public sealed class ListHolderDto { public List<UserSummaryDto> Items { get; set; } = []; }
+    public sealed class ArrayHolderDto { public UserSummaryDto[] Items { get; set; } = []; }
+    public sealed class EnumerableHolderDto { public IEnumerable<UserSummaryDto> Items { get; set; } = []; }
+    public sealed class ReadOnlyListHolderDto { public IReadOnlyList<UserSummaryDto> Items { get; set; } = []; }
 
-    public sealed class ValueHolder { public List<int> Numbers { get; set; } = new(); }
-    public sealed class ValueHolderDto { public List<int> Numbers { get; set; } = new(); }
+    public sealed class ValueHolder { public List<int> Numbers { get; set; } = []; }
+    public sealed class ValueHolderDto { public List<int> Numbers { get; set; } = []; }
 
-    public sealed class ValueDictHolder { public Dictionary<int, int> Scores { get; set; } = new(); }
-    public sealed class ValueDictHolderDto { public Dictionary<int, int> Scores { get; set; } = new(); }
+    public sealed class ValueDictHolder { public Dictionary<int, int> Scores { get; set; } = []; }
+    public sealed class ValueDictHolderDto { public Dictionary<int, int> Scores { get; set; } = []; }
 
     private static IMapper CreateMapper() =>
         new MapperConfiguration(cfg => cfg.AddProfile<MaterialisationProfile>()).CreateMapper();
 
     private static ListHolder Source() => new()
     {
-        Items = new List<User> { new() { Username = "alice" }, new() { Username = "bob" } },
+        Items = [new() { Username = "alice" }, new() { Username = "bob" }],
     };
 
     /// <summary> A concrete List destination is activated directly rather than rebuilt generically </summary>
@@ -102,7 +102,7 @@ public sealed class CollectionMaterialisationTests
     [Fact]
     public void Value_type_collection_is_populated()
     {
-        var source = new ValueHolder { Numbers = new List<int> { 1, 2, 3 } };
+        var source = new ValueHolder { Numbers = [1, 2, 3] };
 
         var dto = CreateMapper().Map<ValueHolder, ValueHolderDto>(source);
 

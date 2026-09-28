@@ -26,14 +26,14 @@ internal static class SourceEmitter
         sb.AppendLine();
         sb.AppendLine("namespace AutoMappic.Generated;");
         sb.AppendLine();
-        var typeParamsStr = "";
+        string typeParamsStr = "";
         if (model.TypeParameters != null && model.TypeParameters.Count > 0)
         {
             typeParamsStr = "<" + string.Join(", ", model.TypeParameters) + ">";
         }
 
-        var sourceTypeNameFixed = ApplyTypeParameters(model.SourceTypeFullName, model.TypeParameters);
-        var destTypeNameFixed = ApplyTypeParameters(model.DestinationTypeFullName, model.TypeParameters);
+        string sourceTypeNameFixed = ApplyTypeParameters(model.SourceTypeFullName, model.TypeParameters);
+        string destTypeNameFixed = ApplyTypeParameters(model.DestinationTypeFullName, model.TypeParameters);
 
         sb.AppendLine($"/// <summary>Generated static mapping class for {model.HintName}.</summary>");
         sb.AppendLine($"internal static partial class {model.HintName}_Map");
@@ -41,8 +41,8 @@ internal static class SourceEmitter
         sb.AppendLine("    /// <summary>Internal cache for converter instances.</summary>");
         sb.AppendLine("    private static class Cache<T> where T : new() { public static readonly T Instance = new T(); }");
 
-        var methodName = $"MapTo{Sanitise(model.DestinationTypeFullName, true)}";
-        var isAsync = IsMappingAsync(model.SourceTypeFullName, model.DestinationTypeFullName, mappings);
+        string methodName = $"MapTo{Sanitise(model.DestinationTypeFullName, true)}";
+        bool isAsync = IsMappingAsync(model.SourceTypeFullName, model.DestinationTypeFullName, mappings);
 
         // 1. Synchronous instance mapping
         sb.AppendLine($"    /// <summary>Maps a {GetSeeTag(model.SourceTypeFullName)} to a new {GetSeeTag(model.DestinationTypeFullName)} instance.</summary>");
@@ -154,7 +154,7 @@ internal static class SourceEmitter
         }
 
         // 6. SQL Projection Expression (v0.6.0 Pillar)
-        var hasProjRuntimeFeatures = model.Properties.Any(p => !string.IsNullOrEmpty(p.ConditionBody) || p.IsReadOnly) ||
+        bool hasProjRuntimeFeatures = model.Properties.Any(p => !string.IsNullOrEmpty(p.ConditionBody) || p.IsReadOnly) ||
                                  !string.IsNullOrEmpty(model.BeforeMapBody) ||
                                  !string.IsNullOrEmpty(model.AfterMapBody) ||
                                  !string.IsNullOrEmpty(model.ConstructionBody) ||
@@ -166,7 +166,7 @@ internal static class SourceEmitter
             sb.AppendLine($"    /// <summary>SQL-translatable projection expression for {model.SourceTypeName} -> {model.DestinationTypeName}.</summary>");
             // We only suppress warnings for the projection expression because it is not executed as C# but translated to SQL.
             sb.AppendLine("    #pragma warning disable CS8602, CS8603, CS8604");
-            var ctorCall = model.ProjectionConstructorArguments.Any(c => c.Kind != PropertyMapKind.Suggested)
+            string ctorCall = model.ProjectionConstructorArguments.Any(c => c.Kind != PropertyMapKind.Suggested)
                 ? $"new {destTypeNameFixed}({string.Join(", ", model.ProjectionConstructorArguments.Where(c => c.Kind != PropertyMapKind.Suggested).Select(c => ToProjectionExpression(c.SourceExpression)))})"
                 : $"new {destTypeNameFixed}()";
 
@@ -178,7 +178,7 @@ internal static class SourceEmitter
                 {
                     if (!string.IsNullOrEmpty(prop.SourceExpression))
                     {
-                        var expr = ToProjectionExpression(prop.SourceExpression);
+                        string expr = ToProjectionExpression(prop.SourceExpression);
                         sb.AppendLine($"        {prop.DestinationProperty} = {expr},");
                     }
                 }
@@ -214,7 +214,7 @@ internal static class SourceEmitter
         var ctorArgExpressions = new List<string>();
         foreach (var arg in model.ConstructorArguments.Where(p => p.Kind != PropertyMapKind.Suggested))
         {
-            var expression = arg.SourceExpression;
+            string? expression = arg.SourceExpression;
             if (arg.IsCollection)
             {
                 expression = arg.SourceExpression;
@@ -222,7 +222,7 @@ internal static class SourceEmitter
             ctorArgExpressions.Add(expression!);
         }
 
-        var ctorCall = string.Join(", ", ctorArgExpressions);
+        string ctorCall = string.Join(", ", ctorArgExpressions);
         var initOnlyProps = model.Properties.Where(p => p.IsInitOnly && p.Kind != PropertyMapKind.Ignored && p.Kind != PropertyMapKind.Suggested).ToList();
         var otherProps = model.Properties.Where(p => !p.IsInitOnly && p.Kind != PropertyMapKind.Ignored && p.Kind != PropertyMapKind.Suggested).ToList();
 
@@ -245,7 +245,7 @@ internal static class SourceEmitter
             sb.AppendLine("        {");
             foreach (var prop in initOnlyProps)
             {
-                var expression = prop.SourceExpression;
+                string? expression = prop.SourceExpression;
                 sb.AppendLine($"            {prop.DestinationProperty} = {expression}, // {prop.Kind}");
             }
             sb.AppendLine("        };");
@@ -300,7 +300,7 @@ internal static class SourceEmitter
 
         foreach (var prop in otherProps)
         {
-            var expression = prop.SourceExpression;
+            string? expression = prop.SourceExpression;
             if (prop.ConditionBody != null)
             {
                 sb.AppendLine($"        if ({prop.ConditionBody})");
@@ -312,7 +312,7 @@ internal static class SourceEmitter
             {
                 if (prop.IsCollection && !prop.IsArray)
                 {
-                    var dNestedName = prop.NestedDestTypeFullName ?? "object";
+                    string dNestedName = prop.NestedDestTypeFullName ?? "object";
                     sb.AppendLine($"        var target{prop.DestinationProperty} = result.{prop.DestinationProperty};");
                     sb.AppendLine($"        if (target{prop.DestinationProperty} is global::System.Collections.Generic.ICollection<{dNestedName}> {{ IsReadOnly: false }} mutableTarget)");
                     sb.AppendLine("        {");
@@ -328,7 +328,7 @@ internal static class SourceEmitter
 
             if (model.EnablePerformanceProfiling)
             {
-                var suffix = prop.ConditionBody != null ? " (if condition met)" : "";
+                string suffix = prop.ConditionBody != null ? " (if condition met)" : "";
                 sb.AppendLine($"        global::System.Diagnostics.Debug.WriteLine($\"AutoMappic Profiler ({model.SourceTypeName} -> {model.DestinationTypeName}): processed {prop.DestinationProperty}{suffix} in {{sw.ElapsedTicks}} ticks\");");
                 sb.AppendLine("        sw.Restart();");
             }
@@ -354,7 +354,7 @@ internal static class SourceEmitter
 
     private static void EmitInPlaceBody(StringBuilder sb, MappingModel model, bool isAsync, IReadOnlyDictionary<string, MappingModel> mappings)
     {
-        var destTypeNameFixed = ApplyTypeParameters(model.DestinationTypeFullName, model.TypeParameters);
+        string destTypeNameFixed = ApplyTypeParameters(model.DestinationTypeFullName, model.TypeParameters);
         sb.AppendLine("        var result = destination;");
 
         var keyProp = model.Properties.FirstOrDefault(p => p.IsKey && p.Kind != PropertyMapKind.Ignored && p.Kind != PropertyMapKind.Suggested);
@@ -388,7 +388,7 @@ internal static class SourceEmitter
         foreach (var prop in model.Properties)
         {
             if (prop.Kind == PropertyMapKind.Ignored || prop.Kind == PropertyMapKind.Suggested || prop.IsInitOnly) continue;
-            var expression = prop.SourceExpression;
+            string? expression = prop.SourceExpression;
             if (prop.ConditionBody != null)
             {
                 sb.AppendLine($"        if ({prop.ConditionBody})");
@@ -397,23 +397,23 @@ internal static class SourceEmitter
 
             if (prop.IsCollection && !prop.IsArray && model.EnableEntitySync && prop.NestedDestKeyProperty != null && prop.SourceRawExpression != null && prop.NestedDestTypeFullName != null)
             {
-                var dName = prop.NestedDestTypeFullName;
-                var dShortName = Sanitise(dName, true);
+                string dName = prop.NestedDestTypeFullName;
+                string dShortName = Sanitise(dName, true);
 
                 sb.AppendLine($"        var target{prop.DestinationProperty} = result.{prop.DestinationProperty};");
                 sb.AppendLine($"        if (target{prop.DestinationProperty} != null)");
                 sb.AppendLine("        {");
-                var keyType = prop.NestedDestKeyTypeFullName ?? "object";
-                var nullCheck = prop.IsNestedDestKeyValueType ? "" : "if (__tKey != null) ";
+                string keyType = prop.NestedDestKeyTypeFullName ?? "object";
+                string nullCheck = prop.IsNestedDestKeyValueType ? "" : "if (__tKey != null) ";
                 sb.AppendLine($"            var existingMap = new global::System.Collections.Generic.Dictionary<{keyType}, {dName}>();");
                 sb.AppendLine($"            foreach (var tItem in target{prop.DestinationProperty}) {{ var __tKey = tItem.{prop.NestedDestKeyProperty}; {nullCheck}existingMap.TryAdd(__tKey, tItem); }}");
                 sb.AppendLine($"            if (target{prop.DestinationProperty} is global::System.Collections.Generic.ICollection<{dName}> {{ IsReadOnly: false }} mutableTarget)");
                 sb.AppendLine("            {");
-                var childIsAsync = IsMappingAsync(prop.NestedSourceTypeFullName, prop.NestedDestTypeFullName, mappings);
-                var awaitStr = childIsAsync ? (isAsync ? "await " : $"((global::System.Threading.Tasks.Task<{dName}>) ") : "";
-                var asyncSuffix = childIsAsync ? "Async" : "";
-                var ctArg = childIsAsync ? (isAsync ? "ct, " : "global::System.Threading.CancellationToken.None, ") : "";
-                var taskResultSuffix = childIsAsync && !isAsync ? ").GetAwaiter().GetResult()" : "";
+                bool childIsAsync = IsMappingAsync(prop.NestedSourceTypeFullName, prop.NestedDestTypeFullName, mappings);
+                string awaitStr = childIsAsync ? (isAsync ? "await " : $"((global::System.Threading.Tasks.Task<{dName}>) ") : "";
+                string asyncSuffix = childIsAsync ? "Async" : "";
+                string ctArg = childIsAsync ? (isAsync ? "ct, " : "global::System.Threading.CancellationToken.None, ") : "";
+                string taskResultSuffix = childIsAsync && !isAsync ? ").GetAwaiter().GetResult()" : "";
 
                 sb.AppendLine($"            var sourceList = {prop.SourceRawExpression};");
                 sb.AppendLine("            if (sourceList != null)");
@@ -423,18 +423,18 @@ internal static class SourceEmitter
                 sb.AppendLine("                {");
                 sb.AppendLine("                    if (sItem == null) continue;");
                 sb.AppendLine($"                    var __sKey = sItem.{prop.NestedDestKeyProperty};");
-                var __hasKeyStr = prop.IsNestedDestKeyValueType ? "true" : "__sKey != null";
+                string __hasKeyStr = prop.IsNestedDestKeyValueType ? "true" : "__sKey != null";
                 sb.AppendLine($"                    if ({__hasKeyStr} && __seenKeys.Add(__sKey))");
                 sb.AppendLine("                    {");
                 sb.AppendLine("                        if (existingMap.TryGetValue(__sKey, out var existingItem))");
                 sb.AppendLine("                        {");
-                var asyncArgs = childIsAsync ? $"existingItem, {ctArg}context.Next()" : "existingItem, context.Next()";
+                string asyncArgs = childIsAsync ? $"existingItem, {ctArg}context.Next()" : "existingItem, context.Next()";
                 // Update existing item in-place - no Add() needed
                 sb.AppendLine($"                            {awaitStr}sItem.MapTo{dShortName}{asyncSuffix}({asyncArgs}){taskResultSuffix};");
                 sb.AppendLine("                        }");
                 sb.AppendLine("                        else");
                 sb.AppendLine("                        {");
-                var asyncArgsNew = childIsAsync ? $"{ctArg}context.Next()" : "context.Next()";
+                string asyncArgsNew = childIsAsync ? $"{ctArg}context.Next()" : "context.Next()";
                 sb.AppendLine($"                            mutableTarget.Add({awaitStr}sItem.MapTo{dShortName}{asyncSuffix}({asyncArgsNew}){taskResultSuffix});");
                 sb.AppendLine("                        }");
                 sb.AppendLine("                    }");
@@ -471,7 +471,7 @@ internal static class SourceEmitter
             {
                 if (prop.IsCollection && !prop.IsArray)
                 {
-                    var dName = prop.NestedDestTypeFullName ?? "object";
+                    string dName = prop.NestedDestTypeFullName ?? "object";
                     sb.AppendLine($"        var target{prop.DestinationProperty} = result.{prop.DestinationProperty};");
                     sb.AppendLine($"        if (target{prop.DestinationProperty} is global::System.Collections.Generic.ICollection<{dName}> {{ IsReadOnly: false }} mutableTarget)");
                     sb.AppendLine("        {");
@@ -482,7 +482,7 @@ internal static class SourceEmitter
             }
             else if (true && prop.SourceCanBeNull)
             {
-                string? nullCheckExpr = (prop.SourceRawExpression ?? expression);
+                string? nullCheckExpr = prop.SourceRawExpression ?? expression;
                 if (nullCheckExpr != null && !nullCheckExpr.Contains("??"))
                 {
                     sb.AppendLine($"        if (({nullCheckExpr}) != null) result.{prop.DestinationProperty} = {expression};");
@@ -498,7 +498,7 @@ internal static class SourceEmitter
             }
             if (model.EnablePerformanceProfiling)
             {
-                var suffix = prop.ConditionBody != null ? " (if condition met)" : "";
+                string suffix = prop.ConditionBody != null ? " (if condition met)" : "";
                 sb.AppendLine($"        global::System.Diagnostics.Debug.WriteLine($\"AutoMappic Profiler ({model.SourceTypeName} -> {model.DestinationTypeName}): processed {prop.DestinationProperty}{suffix} in {{sw.ElapsedTicks}} ticks\");");
                 sb.AppendLine("        sw.Restart();");
             }
@@ -536,10 +536,10 @@ internal static class SourceEmitter
     }
     private static void EmitCollectionHelper(StringBuilder sb, PropertyMap helper)
     {
-        var sItem = helper.NestedSourceTypeFullName!;
-        var dItem = helper.NestedDestTypeFullName!;
-        var dType = helper.NestedFullDestTypeFullName ?? (helper.IsArray ? $"{dItem}[]" : $"global::System.Collections.Generic.List<{dItem}>");
-        var returnExpr = helper.IsArray ? "list.ToArray()" : "list";
+        string sItem = helper.NestedSourceTypeFullName!;
+        string dItem = helper.NestedDestTypeFullName!;
+        string dType = helper.NestedFullDestTypeFullName ?? (helper.IsArray ? $"{dItem}[]" : $"global::System.Collections.Generic.List<{dItem}>");
+        string returnExpr = helper.IsArray ? "list.ToArray()" : "list";
 
         if (helper.NestedFullDestTypeFullName != null && helper.NestedFullDestTypeFullName.Contains("HashSet<"))
             returnExpr = "list.ToHashSet()";
@@ -547,20 +547,19 @@ internal static class SourceEmitter
             returnExpr = "new " + helper.NestedFullDestTypeFullName + "(list)";
         else if (helper.NestedFullDestTypeFullName != null && helper.NestedFullDestTypeFullName.Contains("Queue<"))
             returnExpr = "new " + helper.NestedFullDestTypeFullName + "(list)";
-        var dName = dItem;
-        var innerLogic = helper.NestedExpression ?? $"x.MapTo{Sanitise(dName, true)}(context)";
+        string dName = dItem;
+        string innerLogic = helper.NestedExpression ?? $"x.MapTo{Sanitise(dName, true)}(context)";
 
-        var dNull = helper.IsArray ? $"global::System.Array.Empty<{dItem}>()" : $"new {dType}(0)";
+        string dNull = helper.IsArray ? $"global::System.Array.Empty<{dItem}>()" : $"new {dType}(0)";
         if (dType.Contains("HashSet")) dNull = $"new {dType}()";
         else if (dType.Contains("Stack")) dNull = $"new {dType}()";
         else if (dType.Contains("Queue")) dNull = $"new {dType}()";
         else if (helper.NestedFullDestTypeFullName != null && !helper.IsArray)
         {
             // If dType is an interface, we must instantiate a concrete type
-            if (dType.Contains("IReadOnlyList") || dType.Contains("IList") || dType.Contains("IEnumerable") || dType.Contains("ICollection"))
-                dNull = $"new global::System.Collections.Generic.List<{dItem}>(0)";
-            else
-                dNull = $"new {dType}()";
+            dNull = dType.Contains("IReadOnlyList") || dType.Contains("IList") || dType.Contains("IEnumerable") || dType.Contains("ICollection")
+                ? $"new global::System.Collections.Generic.List<{dItem}>(0)"
+                : $"new {dType}()";
         }
 
         sb.AppendLine();
@@ -655,15 +654,15 @@ internal static class SourceEmitter
         foreach (var group in locations.GroupBy(l => new { l.MethodSignatureKey, l.DestinationTypeFullName, l.SourceTypeFullName, l.ParameterSourceTypeFullName, l.Kind, l.IsCollectionMapping, l.IsDestinationMapped, l.IsExtensionMap, l.EffectiveSourceTypeFullName, l.EffectiveDestTypeFullName, l.GenericParameters, l.ExtraParameters }))
         {
             var item = group.Key;
-            var mappingKey = $"{Sanitise(item.SourceTypeFullName)}_To_{Sanitise(item.DestinationTypeFullName)}";
-            var effectiveMappingKey = item.IsCollectionMapping
+            string mappingKey = $"{Sanitise(item.SourceTypeFullName)}_To_{Sanitise(item.DestinationTypeFullName)}";
+            string effectiveMappingKey = item.IsCollectionMapping
                 ? $"{Sanitise(item.EffectiveSourceTypeFullName ?? item.SourceTypeFullName)}_To_{Sanitise(item.EffectiveDestTypeFullName ?? item.DestinationTypeFullName)}"
                 : mappingKey;
 
             if (!mappingsByKey.TryGetValue(effectiveMappingKey, out var model))
             {
                 // Fallback for open generics: try looking up by unbound names
-                var unboundKey = GetUnboundMappingKey(item.EffectiveSourceTypeFullName ?? item.SourceTypeFullName, item.EffectiveDestTypeFullName ?? item.DestinationTypeFullName);
+                string unboundKey = GetUnboundMappingKey(item.EffectiveSourceTypeFullName ?? item.SourceTypeFullName, item.EffectiveDestTypeFullName ?? item.DestinationTypeFullName);
                 if (unboundKey != effectiveMappingKey)
                 {
                     mappingsByKey.TryGetValue(unboundKey, out model);
@@ -672,38 +671,38 @@ internal static class SourceEmitter
 
             if (item.Kind == InterceptKind.Map && model == null) continue;
 
-            var shimName = $"MapShim_{Sanitise($"{item.Kind}_{mappingKey}_{item.MethodSignatureKey}")}";
+            string shimName = $"MapShim_{Sanitise($"{item.Kind}_{mappingKey}_{item.MethodSignatureKey}")}";
             var shimSb = new StringBuilder();
 
             if (item.Kind == InterceptKind.Map)
             {
-                var isAsyncShim = item.MethodSignatureKey.StartsWith("MapAsync", StringComparison.Ordinal);
-                var destName = model != null ? Sanitise(model.DestinationTypeFullName, true) : Sanitise(item.DestinationTypeFullName, true);
-                var sourceAccess = item.ParameterSourceTypeFullName == item.SourceTypeFullName ? "source" : $"(({item.SourceTypeFullName})(object)source!)";
-                var isDestinationMapped = item.IsDestinationMapped;
+                bool isAsyncShim = item.MethodSignatureKey.StartsWith("MapAsync", StringComparison.Ordinal);
+                string destName = model != null ? Sanitise(model.DestinationTypeFullName, true) : Sanitise(item.DestinationTypeFullName, true);
+                string sourceAccess = item.ParameterSourceTypeFullName == item.SourceTypeFullName ? "source" : $"(({item.SourceTypeFullName})(object)source!)";
+                bool isDestinationMapped = item.IsDestinationMapped;
 
                 if (item.IsCollectionMapping)
                 {
-                    var sItem = item.EffectiveSourceTypeFullName;
-                    var dItem = item.EffectiveDestTypeFullName;
-                    var dType = item.DestinationTypeFullName;
-                    var sType = item.ParameterSourceTypeFullName;
-                    var isModelAsync = IsMappingAsync(item.EffectiveSourceTypeFullName ?? item.SourceTypeFullName, item.EffectiveDestTypeFullName ?? item.DestinationTypeFullName, mappingsByKey);
-                    var method = isModelAsync ? $"MapTo{destName}Async" : $"MapTo{destName}";
-                    var awaiter = isModelAsync ? "await " : "";
-                    var configure = isModelAsync ? ".ConfigureAwait(false)" : "";
-                    var collectionSourceAccess = sType == item.SourceTypeFullName ? "source" : $"(({item.SourceTypeFullName})(object)source!)";
+                    string? sItem = item.EffectiveSourceTypeFullName;
+                    string? dItem = item.EffectiveDestTypeFullName;
+                    string dType = item.DestinationTypeFullName;
+                    string sType = item.ParameterSourceTypeFullName;
+                    bool isModelAsync = IsMappingAsync(item.EffectiveSourceTypeFullName ?? item.SourceTypeFullName, item.EffectiveDestTypeFullName ?? item.DestinationTypeFullName, mappingsByKey);
+                    string method = isModelAsync ? $"MapTo{destName}Async" : $"MapTo{destName}";
+                    string awaiter = isModelAsync ? "await " : "";
+                    string configure = isModelAsync ? ".ConfigureAwait(false)" : "";
+                    string collectionSourceAccess = sType == item.SourceTypeFullName ? "source" : $"(({item.SourceTypeFullName})(object)source!)";
 
-                    var ctParam = isAsyncShim ? ", global::System.Threading.CancellationToken ct = default" : "";
-                    var tArgs = item.GenericParameters ?? string.Empty;
-                    var paramsList = item.IsExtensionMap
+                    string ctParam = isAsyncShim ? ", global::System.Threading.CancellationToken ct = default" : "";
+                    string tArgs = item.GenericParameters ?? string.Empty;
+                    string paramsList = item.IsExtensionMap
                         ? $"this {sType} source, global::AutoMappic.IMapper mapper{ctParam}"
                         : $"this global::AutoMappic.IMapper mapper, {sType} source{ctParam}";
                     shimSb.AppendLine($"        /// <summary>Collection mapping for {GetSeeTag(sType)} to {GetSeeTag(dType)}.</summary>");
                     shimSb.AppendLine($"        public static {(isAsyncShim ? "async global::System.Threading.Tasks.Task<" : "")}{dType}{(isAsyncShim ? ">" : "")} {shimName}{tArgs}({paramsList})");
                     shimSb.AppendLine("        {");
                     shimSb.AppendLine("            if (source is null) return null!;");
-                    var countExpr = $"{collectionSourceAccess} is global::System.Collections.Generic.IReadOnlyCollection<{sItem}> roc ? roc.Count : ({collectionSourceAccess} is global::System.Collections.Generic.ICollection<{sItem}> coll ? coll.Count : 0)";
+                    string countExpr = $"{collectionSourceAccess} is global::System.Collections.Generic.IReadOnlyCollection<{sItem}> roc ? roc.Count : ({collectionSourceAccess} is global::System.Collections.Generic.ICollection<{sItem}> coll ? coll.Count : 0)";
                     shimSb.AppendLine($"            var list = new global::System.Collections.Generic.List<{dItem}>({countExpr});");
 
                     if (model?.EnablePerformanceProfiling == true)
@@ -711,8 +710,8 @@ internal static class SourceEmitter
                         shimSb.AppendLine("            var sw = global::System.Diagnostics.Stopwatch.StartNew();");
                     }
 
-                    var isIdentity = model?.EnableIdentityManagement == true;
-                    var trackingArg = isIdentity ? "true" : "false";
+                    bool isIdentity = model?.EnableIdentityManagement == true;
+                    string trackingArg = isIdentity ? "true" : "false";
                     shimSb.AppendLine($"            var ctx = new global::AutoMappic.Generated.MappingContext({trackingArg});");
 
                     shimSb.AppendLine($"            if ({collectionSourceAccess} is global::System.Collections.Generic.IList<{sItem}> listSource)");
@@ -721,7 +720,7 @@ internal static class SourceEmitter
                     shimSb.AppendLine("                for (var i = 0; i < count; i++)");
                     shimSb.AppendLine("                {");
                     shimSb.AppendLine("                    var element = listSource[i];");
-                    var ctArg2 = isModelAsync ? "ct" : "";
+                    string ctArg2 = isModelAsync ? "ct" : "";
                     shimSb.AppendLine($"                    list.Add({awaiter}element.{method}({ctArg2}{(string.IsNullOrEmpty(ctArg2) ? "" : ", ")}ctx){configure});");
                     shimSb.AppendLine("                }");
                     shimSb.AppendLine("            }");
@@ -729,7 +728,7 @@ internal static class SourceEmitter
                     shimSb.AppendLine("            {");
                     shimSb.AppendLine($"                foreach (var element in (global::System.Collections.Generic.IEnumerable<{sItem}>){collectionSourceAccess})");
                     shimSb.AppendLine("                {");
-                    var ctArg = isModelAsync ? "ct" : "";
+                    string ctArg = isModelAsync ? "ct" : "";
                     shimSb.AppendLine($"                    list.Add({awaiter}element.{method}({ctArg}{(string.IsNullOrEmpty(ctArg) ? "" : ", ")}ctx){configure});");
                     shimSb.AppendLine("                }");
                     shimSb.AppendLine("            }");
@@ -745,35 +744,35 @@ internal static class SourceEmitter
                 }
                 else if (isAsyncShim)
                 {
-                    var isModelAsync = IsMappingAsync(item.EffectiveSourceTypeFullName ?? item.SourceTypeFullName, item.EffectiveDestTypeFullName ?? item.DestinationTypeFullName, mappingsByKey);
-                    var method = isModelAsync ? $"MapTo{destName}Async" : $"MapTo{destName}";
-                    var awaiter = isModelAsync ? "await " : "";
-                    var configure = isModelAsync ? ".ConfigureAwait(false)" : "";
-                    var tArgsMatched = item.GenericParameters ?? string.Empty;
+                    bool isModelAsync = IsMappingAsync(item.EffectiveSourceTypeFullName ?? item.SourceTypeFullName, item.EffectiveDestTypeFullName ?? item.DestinationTypeFullName, mappingsByKey);
+                    string method = isModelAsync ? $"MapTo{destName}Async" : $"MapTo{destName}";
+                    string awaiter = isModelAsync ? "await " : "";
+                    string configure = isModelAsync ? ".ConfigureAwait(false)" : "";
+                    string tArgsMatched = item.GenericParameters ?? string.Empty;
 
                     if (isDestinationMapped)
                     {
-                        var ctArg = isModelAsync ? ", ct" : "";
-                        var paramsList = item.IsExtensionMap
+                        string ctArg = isModelAsync ? ", ct" : "";
+                        string paramsList = item.IsExtensionMap
                             ? $"this {item.ParameterSourceTypeFullName} source, {item.DestinationTypeFullName} destination, global::AutoMappic.IMapper mapper, global::System.Threading.CancellationToken ct = default"
                             : $"this global::AutoMappic.IMapper mapper, {item.ParameterSourceTypeFullName} source, {item.DestinationTypeFullName} destination, global::System.Threading.CancellationToken ct = default";
                         shimSb.AppendLine($"        /// <summary>Asynchronously maps {GetSeeTag(item.ParameterSourceTypeFullName)} onto an existing {GetSeeTag(item.DestinationTypeFullName)} instance.</summary>");
                         shimSb.AppendLine($"        public static async global::System.Threading.Tasks.Task<{item.DestinationTypeFullName}> {shimName}{tArgsMatched}({paramsList})");
                         shimSb.AppendLine("        {");
-                        var isIdentity = model?.EnableIdentityManagement == true;
+                        bool isIdentity = model?.EnableIdentityManagement == true;
                         shimSb.AppendLine($"            if (source is null) throw new global::System.ArgumentNullException(nameof(source));");
                         shimSb.AppendLine($"            return {awaiter}{sourceAccess}.{method}(destination{ctArg}, new global::AutoMappic.Generated.MappingContext({(isIdentity ? "true" : "false")})){configure};");
                         shimSb.AppendLine("        }");
                     }
                     else
                     {
-                        var ctArg = isModelAsync ? "ct" : "";
-                        var paramsList = item.IsExtensionMap
+                        string ctArg = isModelAsync ? "ct" : "";
+                        string paramsList = item.IsExtensionMap
                             ? $"this {item.ParameterSourceTypeFullName} source, global::AutoMappic.IMapper mapper, global::System.Threading.CancellationToken ct = default"
                             : $"this global::AutoMappic.IMapper mapper, {item.ParameterSourceTypeFullName} source, global::System.Threading.CancellationToken ct = default";
                         shimSb.AppendLine($"        public static async global::System.Threading.Tasks.Task<{item.DestinationTypeFullName}> {shimName}{tArgsMatched}({paramsList})");
                         shimSb.AppendLine("        {");
-                        var isIdentity = model?.EnableIdentityManagement == true;
+                        bool isIdentity = model?.EnableIdentityManagement == true;
                         shimSb.AppendLine($"            if (source is null) throw new global::System.ArgumentNullException(nameof(source));");
                         shimSb.AppendLine($"            return {awaiter}{sourceAccess}.{method}({ctArg}{(string.IsNullOrEmpty(ctArg) ? "" : ", ")}new global::AutoMappic.Generated.MappingContext({(isIdentity ? "true" : "false")})){configure};");
                         shimSb.AppendLine("        }");
@@ -783,26 +782,26 @@ internal static class SourceEmitter
                 {
                     if (isDestinationMapped)
                     {
-                        var tArgs = item.GenericParameters ?? string.Empty;
-                        var paramsList = item.IsExtensionMap
+                        string tArgs = item.GenericParameters ?? string.Empty;
+                        string paramsList = item.IsExtensionMap
                             ? $"this {item.ParameterSourceTypeFullName} source, {item.DestinationTypeFullName} destination, global::AutoMappic.IMapper mapper"
                             : $"this global::AutoMappic.IMapper mapper, {item.ParameterSourceTypeFullName} source, {item.DestinationTypeFullName} destination";
                         shimSb.AppendLine($"        public static {item.DestinationTypeFullName} {shimName}{tArgs}({paramsList})");
                         shimSb.AppendLine("        {");
-                        var isIdentity = model?.EnableIdentityManagement == true;
+                        bool isIdentity = model?.EnableIdentityManagement == true;
                         shimSb.AppendLine($"            if (source is null) throw new global::System.ArgumentNullException(nameof(source));");
                         shimSb.AppendLine($"            return {sourceAccess}.MapTo{destName}(destination, new global::AutoMappic.Generated.MappingContext({(isIdentity ? "true" : "false")}));");
                         shimSb.AppendLine("        }");
                     }
                     else
                     {
-                        var tArgs = item.GenericParameters ?? string.Empty;
-                        var paramsList = item.IsExtensionMap
+                        string tArgs = item.GenericParameters ?? string.Empty;
+                        string paramsList = item.IsExtensionMap
                             ? $"this {item.ParameterSourceTypeFullName} source, global::AutoMappic.IMapper mapper"
                             : $"this global::AutoMappic.IMapper mapper, {item.ParameterSourceTypeFullName} source";
                         shimSb.AppendLine($"        public static {item.DestinationTypeFullName} {shimName}{tArgs}({paramsList})");
                         shimSb.AppendLine("        {");
-                        var isIdentity = model?.EnableIdentityManagement == true;
+                        bool isIdentity = model?.EnableIdentityManagement == true;
                         shimSb.AppendLine($"            if (source is null) throw new global::System.ArgumentNullException(nameof(source));");
                         shimSb.AppendLine($"            return {sourceAccess}.MapTo{destName}(new global::AutoMappic.Generated.MappingContext({(isIdentity ? "true" : "false")}));");
                         shimSb.AppendLine("        }");
@@ -811,7 +810,7 @@ internal static class SourceEmitter
             }
             else if (item.Kind == InterceptKind.ProjectTo)
             {
-                var hasProjRuntimeFeatures = model != null && (model.Properties.Any(p => !string.IsNullOrEmpty(p.ConditionBody) || p.IsReadOnly) ||
+                bool hasProjRuntimeFeatures = model != null && (model.Properties.Any(p => !string.IsNullOrEmpty(p.ConditionBody) || p.IsReadOnly) ||
                                          !string.IsNullOrEmpty(model.BeforeMapBody) ||
                                          !string.IsNullOrEmpty(model.AfterMapBody) ||
                                          !string.IsNullOrEmpty(model.ConstructionBody) ||
@@ -829,10 +828,10 @@ internal static class SourceEmitter
                 }
                 else
                 {
-                    var sType = item.ParameterSourceTypeFullName;
-                    var fullSource = $"global::System.Linq.IQueryable<{item.SourceTypeFullName}>";
-                    var tArgs = item.GenericParameters ?? string.Empty;
-                    var extraParams = item.ExtraParameters != null ? string.Concat(item.ExtraParameters.Select((p, i) => $", {p} p{i}")) : "";
+                    string sType = item.ParameterSourceTypeFullName;
+                    string fullSource = $"global::System.Linq.IQueryable<{item.SourceTypeFullName}>";
+                    string tArgs = item.GenericParameters ?? string.Empty;
+                    string extraParams = item.ExtraParameters != null ? string.Concat(item.ExtraParameters.Select((p, i) => $", {p} p{i}")) : "";
 
                     shimSb.AppendLine($"        public static global::System.Linq.IQueryable<{item.DestinationTypeFullName}> {shimName}{tArgs}(this {sType} source{extraParams})");
                     shimSb.AppendLine("        {");
@@ -867,7 +866,7 @@ internal static class SourceEmitter
                             shimSb.AppendLine("             {");
                             foreach (var prop in targetProps.Where(p => p.Kind != PropertyMapKind.Ignored))
                             {
-                                var expr = prop.SourceExpression?.Replace("?.", ".");
+                                string? expr = prop.SourceExpression?.Replace("?.", ".");
                                 if (!string.IsNullOrEmpty(expr))
                                 {
                                     expr = expr!.TrimEnd('!') + "!";
@@ -885,7 +884,7 @@ internal static class SourceEmitter
             {
                 if (model != null && string.IsNullOrEmpty(model.BeforeMapBody) && string.IsNullOrEmpty(model.AfterMapBody) && string.IsNullOrEmpty(model.ConstructionBody))
                 {
-                    var destName = model.DestinationTypeName;
+                    string destName = model.DestinationTypeName;
                     shimSb.AppendLine($"        public static global::System.Collections.Generic.IEnumerable<{item.DestinationTypeFullName}> {shimName}(this global::System.Data.IDataReader reader)");
                     shimSb.AppendLine("        {");
                     var ordinals = new global::System.Collections.Generic.Dictionary<string, string>(global::System.StringComparer.Ordinal);
@@ -893,7 +892,7 @@ internal static class SourceEmitter
                     {
                         if (prop.DataReaderColumn != null && !ordinals.ContainsKey(prop.DataReaderColumn))
                         {
-                            var ordVar = $"_ord_{Sanitise(prop.DataReaderColumn)}";
+                            string ordVar = $"_ord_{Sanitise(prop.DataReaderColumn)}";
                             ordinals.Add(prop.DataReaderColumn, ordVar);
                             shimSb.AppendLine($"            var {ordVar} = reader.GetOrdinal(\"{prop.DataReaderColumn}\");");
                         }
@@ -902,7 +901,7 @@ internal static class SourceEmitter
                     {
                         if (arg.DataReaderColumn != null && !ordinals.ContainsKey(arg.DataReaderColumn))
                         {
-                            var ordVar = $"_ord_{Sanitise(arg.DataReaderColumn)}";
+                            string ordVar = $"_ord_{Sanitise(arg.DataReaderColumn)}";
                             ordinals.Add(arg.DataReaderColumn, ordVar);
                             shimSb.AppendLine($"            var {ordVar} = reader.GetOrdinal(\"{arg.DataReaderColumn}\");");
                         }
@@ -912,13 +911,13 @@ internal static class SourceEmitter
                     shimSb.AppendLine("            while (reader.Read())");
                     shimSb.AppendLine("            {");
 
-                    var ctorArgs = "";
+                    string ctorArgs = "";
                     if (model.ConstructorArguments.Count > 0)
                     {
                         var args = new global::System.Collections.Generic.List<string>();
                         foreach (var arg in model.ConstructorArguments)
                         {
-                            var expr = arg.SourceExpression?.Replace($"source.GetOrdinal(\"{arg.DataReaderColumn}\")", $"_ord_{Sanitise(arg.DataReaderColumn)}").Replace("source.", "reader.");
+                            string? expr = arg.SourceExpression?.Replace($"source.GetOrdinal(\"{arg.DataReaderColumn}\")", $"_ord_{Sanitise(arg.DataReaderColumn)}").Replace("source.", "reader.");
                             args.Add(expr ?? "default!");
                         }
                         ctorArgs = string.Join(", ", args);
@@ -930,8 +929,8 @@ internal static class SourceEmitter
                     {
                         if (prop.DataReaderColumn != null && prop.SourceExpression != null)
                         {
-                            var ordVar = $"_ord_{Sanitise(prop.DataReaderColumn)}";
-                            var optimizedExpr = prop.SourceExpression.Replace($"source.GetOrdinal(\"{prop.DataReaderColumn}\")", ordVar).Replace("source.", "reader.");
+                            string ordVar = $"_ord_{Sanitise(prop.DataReaderColumn)}";
+                            string optimizedExpr = prop.SourceExpression.Replace($"source.GetOrdinal(\"{prop.DataReaderColumn}\")", ordVar).Replace("source.", "reader.");
                             shimSb.AppendLine($"                    {prop.DestinationProperty} = reader.IsDBNull({ordVar}) ? (default!) : {optimizedExpr},");
                         }
                     }
@@ -952,7 +951,7 @@ internal static class SourceEmitter
                     {
                         if (prop.DataReaderColumn != null && !ordinals.ContainsKey(prop.DataReaderColumn))
                         {
-                            var ordVar = $"_ord_{Sanitise(prop.DataReaderColumn)}";
+                            string ordVar = $"_ord_{Sanitise(prop.DataReaderColumn)}";
                             ordinals.Add(prop.DataReaderColumn, ordVar);
                             shimSb.AppendLine($"            var {ordVar} = reader.GetOrdinal(\"{prop.DataReaderColumn}\");");
                         }
@@ -961,7 +960,7 @@ internal static class SourceEmitter
                     {
                         if (arg.DataReaderColumn != null && !ordinals.ContainsKey(arg.DataReaderColumn))
                         {
-                            var ordVar = $"_ord_{Sanitise(arg.DataReaderColumn)}";
+                            string ordVar = $"_ord_{Sanitise(arg.DataReaderColumn)}";
                             ordinals.Add(arg.DataReaderColumn, ordVar);
                             shimSb.AppendLine($"            var {ordVar} = reader.GetOrdinal(\"{arg.DataReaderColumn}\");");
                         }
@@ -971,13 +970,13 @@ internal static class SourceEmitter
                     shimSb.AppendLine("            while (await reader.ReadAsync(cancellationToken).ConfigureAwait(false))");
                     shimSb.AppendLine("            {");
 
-                    var ctorArgs = "";
+                    string ctorArgs = "";
                     if (model.ConstructorArguments.Count > 0)
                     {
                         var args = new global::System.Collections.Generic.List<string>();
                         foreach (var arg in model.ConstructorArguments)
                         {
-                            var expr = arg.SourceExpression?.Replace($"source.GetOrdinal(\"{arg.DataReaderColumn}\")", $"_ord_{Sanitise(arg.DataReaderColumn)}").Replace("source.", "reader.");
+                            string? expr = arg.SourceExpression?.Replace($"source.GetOrdinal(\"{arg.DataReaderColumn}\")", $"_ord_{Sanitise(arg.DataReaderColumn)}").Replace("source.", "reader.");
                             args.Add(expr ?? "default!");
                         }
                         ctorArgs = string.Join(", ", args);
@@ -989,8 +988,8 @@ internal static class SourceEmitter
                     {
                         if (prop.DataReaderColumn != null && prop.SourceExpression != null)
                         {
-                            var ordVar = $"_ord_{Sanitise(prop.DataReaderColumn)}";
-                            var optimizedExpr = prop.SourceExpression.Replace($"source.GetOrdinal(\"{prop.DataReaderColumn}\")", ordVar).Replace("source.", "reader.");
+                            string ordVar = $"_ord_{Sanitise(prop.DataReaderColumn)}";
+                            string optimizedExpr = prop.SourceExpression.Replace($"source.GetOrdinal(\"{prop.DataReaderColumn}\")", ordVar).Replace("source.", "reader.");
                             shimSb.AppendLine($"                    {prop.DestinationProperty} = await reader.IsDBNullAsync({ordVar}, cancellationToken).ConfigureAwait(false) ? (default!) : {optimizedExpr},");
                         }
                     }
@@ -1006,8 +1005,8 @@ internal static class SourceEmitter
                     sb.AppendLine($"        [global::System.Runtime.CompilerServices.InterceptsLocation(@\"{EscapePath(loc.FilePath)}\", {loc.Line}, {loc.Column})]");
                 sb.Append(shimSb.ToString());
 
-                var isAsyncShim = item.MethodSignatureKey.StartsWith("MapAsync", global::System.StringComparison.Ordinal);
-                var regKey = $"{item.ParameterSourceTypeFullName}_{item.DestinationTypeFullName}";
+                bool isAsyncShim = item.MethodSignatureKey.StartsWith("MapAsync", global::System.StringComparison.Ordinal);
+                string regKey = $"{item.ParameterSourceTypeFullName}_{item.DestinationTypeFullName}";
                 if (registeredShims.Add(regKey) && item.Kind == InterceptKind.Map && !item.IsCollectionMapping && !isAsyncShim && string.IsNullOrEmpty(item.GenericParameters))
                 {
                     string callArgs = item.IsExtensionMap
@@ -1036,7 +1035,7 @@ internal static class SourceEmitter
     public static (string HintName, string Source) EmitRegistration(string assemblyName, ImmutableArray<string?> profiles, ImmutableArray<MappingModel> localMappings, ImmutableArray<string> referencedAssemblies, bool isEntryPoint)
     {
         var sb = new StringBuilder();
-        var sanitized = Sanitise(assemblyName, false);
+        string sanitized = Sanitise(assemblyName, false);
         sb.AppendLine("// <auto-generated/>");
         sb.AppendLine("#nullable enable");
         sb.AppendLine("#pragma warning disable CS8600, CS8601, CS8602, CS8603, CS8604 // Suppress nullability warnings in registration code");
@@ -1056,8 +1055,8 @@ internal static class SourceEmitter
                 continue;
             }
 
-            var src = GetUnbound(m.SourceTypeFullName);
-            var dest = GetUnbound(m.DestinationTypeFullName);
+            string src = GetUnbound(m.SourceTypeFullName);
+            string dest = GetUnbound(m.DestinationTypeFullName);
             // Only emit global:: references. Plain 'S' or 'D' or single-character type parameters should be skipped.
             if (src.StartsWith("global::", StringComparison.Ordinal) && !src.EndsWith("::S", StringComparison.Ordinal) && !src.EndsWith("::D", StringComparison.Ordinal) &&
                 dest.StartsWith("global::", StringComparison.Ordinal) && !dest.EndsWith("::S", StringComparison.Ordinal) && !dest.EndsWith("::D", StringComparison.Ordinal) &&
@@ -1068,7 +1067,7 @@ internal static class SourceEmitter
                 sb.AppendLine($"[assembly: global::AutoMappic.MappingDiscoveryAttribute(typeof({src}), typeof({dest}))]");
             }
         }
-        var pList = profiles.IsDefaultOrEmpty ? "" : string.Join(", ", profiles.Distinct().Where(p => p != null).Select(p => $"typeof({(p!.StartsWith("global::", StringComparison.Ordinal) ? p : $"global::{p}")})"));
+        string pList = profiles.IsDefaultOrEmpty ? "" : string.Join(", ", profiles.Distinct().Where(p => p != null).Select(p => $"typeof({(p!.StartsWith("global::", StringComparison.Ordinal) ? p : $"global::{p}")})"));
         if (!string.IsNullOrEmpty(pList))
             sb.AppendLine($"[assembly: global::AutoMappic.HasAutoMappicProfilesAttribute({pList})]");
         sb.AppendLine();
@@ -1090,8 +1089,8 @@ internal static class SourceEmitter
         sb.AppendLine($"            if (global::System.Linq.Enumerable.Any(services, d => d.ServiceType == typeof(global::AutoMappic.Generated.Marker_{sanitized}))) return;");
         sb.AppendLine($"            services.AddSingleton<global::AutoMappic.Generated.Marker_{sanitized}>();");
         sb.AppendLine();
-        foreach (var r in referencedAssemblies.Distinct()) sb.AppendLine($"            global::AutoMappic.Generated.{Sanitise(r, false)}_Registration.AddProfiles(services);");
-        foreach (var p in profiles.Distinct().Where(x => x != null)) sb.AppendLine($"            services.AddSingleton<global::AutoMappic.Profile, global::{p}>();");
+        foreach (string? r in referencedAssemblies.Distinct()) sb.AppendLine($"            global::AutoMappic.Generated.{Sanitise(r, false)}_Registration.AddProfiles(services);");
+        foreach (string? p in profiles.Distinct().Where(x => x != null)) sb.AppendLine($"            services.AddSingleton<global::AutoMappic.Profile, global::{p}>();");
         sb.AppendLine("        }");
         sb.AppendLine("    }");
         sb.AppendLine("}");
@@ -1134,10 +1133,7 @@ internal static class SourceEmitter
         return type.WithNullableAnnotation(NullableAnnotation.None).ToDisplayString(TypeFormat);
     }
 
-    private static string GetUnboundMappingKey(string sourceName, string destName)
-    {
-        return $"{Sanitise(GetUnbound(sourceName))}_To_{Sanitise(GetUnbound(destName))}";
-    }
+    private static string GetUnboundMappingKey(string sourceName, string destName) => $"{Sanitise(GetUnbound(sourceName))}_To_{Sanitise(GetUnbound(destName))}";
 
     internal static string GetUnbound(string typeName)
     {
@@ -1148,11 +1144,11 @@ internal static class SourceEmitter
         int endAngle = typeName.LastIndexOf('>');
         if (endAngle < angleIndex) return typeName.StartsWith("global::", StringComparison.Ordinal) ? typeName : $"global::{typeName}";
 
-        var prefix = typeName.Substring(0, angleIndex + 1);
+        string prefix = typeName.Substring(0, angleIndex + 1);
         if (!prefix.StartsWith("global::", StringComparison.Ordinal) && !prefix.Contains("::")) prefix = $"global::{prefix}";
 
-        var inner = typeName.Substring(angleIndex + 1, endAngle - angleIndex - 1);
-        var commas = inner.Count(c => c == ',');
+        string inner = typeName.Substring(angleIndex + 1, endAngle - angleIndex - 1);
+        int commas = inner.Count(c => c == ',');
         return prefix + new string(',', commas) + ">";
     }
 
@@ -1178,7 +1174,7 @@ internal static class SourceEmitter
     {
         if (string.IsNullOrEmpty(sourceExpression)) return string.Empty;
 
-        var expr = sourceExpression!
+        string expr = sourceExpression!
             .Replace("?.", ".")
             .Replace("(context)", "()")
             .Replace(", context)", ")");
@@ -1197,7 +1193,7 @@ internal static class SourceEmitter
         if (string.IsNullOrEmpty(name)) return "Default";
 
         // 1. Structural replacement for complex types (nested, tuples, generics)
-        var structural = name!
+        string structural = name!
             .Replace("global::", "global_")
             .Replace(".", "_")
             .Replace("+", "_")
@@ -1221,7 +1217,7 @@ internal static class SourceEmitter
         // "class AutoMappic_Extension_VikingAir_Benchmarks-DefaultJob-1", which the compiler parsed
         // as a subtraction expression and reported as CS0116/CS1106/CS0548.
         var res = new StringBuilder();
-        foreach (var c in structural)
+        foreach (char c in structural)
         {
             if (char.IsLetterOrDigit(c)) res.Append(c);
             else res.Append('_');
@@ -1232,7 +1228,7 @@ internal static class SourceEmitter
 
         if (!includeHash) return res.ToString();
 
-        var hash = GetStableHash(name!);
+        uint hash = GetStableHash(name!);
         return $"{res}_{hash:X}";
     }
     private static string EscapeXml(string value)
@@ -1242,19 +1238,12 @@ internal static class SourceEmitter
         // If it's a tuple like (A, B), it's not a valid cref.
         // If it contains spaces, it might not be a valid cref.
         // We fallback to manual summary text if it doesn't look like a standard identifier/generic.
-        if (value.Contains("(") || value.Contains(")") || value.Contains(","))
-        {
-            return value.Replace("<", "&lt;").Replace(">", "&gt;");
-        }
-
-        return value.Replace("<", "{").Replace(">", "}");
+        return value.Contains("(") || value.Contains(")") || value.Contains(",")
+            ? value.Replace("<", "&lt;").Replace(">", "&gt;")
+            : value.Replace("<", "{").Replace(">", "}");
     }
 
-    private static string GetSeeTag(string typeFullName)
-    {
-        if (string.IsNullOrEmpty(typeFullName)) return "unknown";
-        return typeFullName.Replace("<", "&lt;").Replace(">", "&gt;");
-    }
+    private static string GetSeeTag(string typeFullName) => string.IsNullOrEmpty(typeFullName) ? "unknown" : typeFullName.Replace("<", "&lt;").Replace(">", "&gt;");
     private static string EscapePath(string path) => path.Replace("\"", "\\\"");
 
     internal static uint GetStableHash(string str)
@@ -1274,22 +1263,23 @@ internal static class SourceEmitter
         var paramList = parameters.ToList();
         if (paramList.Count == 0) return typeName;
 
-        var openIdx = typeName.IndexOf('<');
+        int openIdx = typeName.IndexOf('<');
         if (openIdx < 0) return typeName;
 
-        var closeIdx = typeName.LastIndexOf('>');
+        int closeIdx = typeName.LastIndexOf('>');
         if (closeIdx < openIdx) return typeName;
 
-        var content = typeName.Substring(openIdx + 1, closeIdx - openIdx - 1);
+        string content = typeName.Substring(openIdx + 1, closeIdx - openIdx - 1);
         // If it's already bound (contains more than just commas), return as is.
-        if (content.Any(c => char.IsLetterOrDigit(c))) return typeName;
-        return typeName.Substring(0, openIdx + 1) + string.Join(", ", parameters) + typeName.Substring(closeIdx);
+        return content.Any(c => char.IsLetterOrDigit(c))
+            ? typeName
+            : typeName.Substring(0, openIdx + 1) + string.Join(", ", parameters) + typeName.Substring(closeIdx);
     }
 
     private static bool IsMappingAsync(string? sourceFull, string? destFull, IReadOnlyDictionary<string, MappingModel> mappings, HashSet<string>? seen = null)
     {
         if (sourceFull == null || destFull == null) return false;
-        var key = GetMappingKey(sourceFull, destFull);
+        string key = GetMappingKey(sourceFull, destFull);
 
         seen ??= new HashSet<string>(System.StringComparer.Ordinal);
         if (!seen.Add(key)) return false;
@@ -1307,9 +1297,9 @@ internal static class SourceEmitter
         }
 
         // Try unbound generic fallback
-        var unboundSource = GetUnbound(sourceFull);
-        var unboundDest = GetUnbound(destFull);
-        var unboundKey = GetMappingKey(unboundSource, unboundDest);
+        string unboundSource = GetUnbound(sourceFull);
+        string unboundDest = GetUnbound(destFull);
+        string unboundKey = GetMappingKey(unboundSource, unboundDest);
         if (unboundKey != key && mappings.TryGetValue(unboundKey, out var unboundModel))
         {
             if (unboundModel.IsAsync) return true;
@@ -1325,8 +1315,5 @@ internal static class SourceEmitter
         return false;
     }
 
-    private static string GetMappingKey(string sourceFull, string destFull)
-    {
-        return $"{Sanitise(sourceFull, true)}_To_{Sanitise(destFull, true)}";
-    }
+    private static string GetMappingKey(string sourceFull, string destFull) => $"{Sanitise(sourceFull, true)}_To_{Sanitise(destFull, true)}";
 }

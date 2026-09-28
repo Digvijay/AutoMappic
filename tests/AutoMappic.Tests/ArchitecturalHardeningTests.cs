@@ -7,17 +7,14 @@ namespace AutoMappic.Tests;
 
 public class ArchitecturalHardeningTests
 {
-    public class Blog { public int Id { get; set; } public string Name { get; set; } = ""; public global::System.Collections.Generic.List<Post> Posts { get; set; } = new(); }
+    public class Blog { public int Id { get; set; } public string Name { get; set; } = ""; public global::System.Collections.Generic.List<Post> Posts { get; set; } = []; }
     public class Post { public int Id { get; set; } public string Title { get; set; } = ""; }
-    public class BlogDto { public int Id { get; set; } public string Name { get; set; } = ""; public global::System.Collections.Generic.List<PostDto> Posts { get; set; } = new(); }
+    public class BlogDto { public int Id { get; set; } public string Name { get; set; } = ""; public global::System.Collections.Generic.List<PostDto> Posts { get; set; } = []; }
     public class PostDto { public int Id { get; set; } public string Title { get; set; } = ""; }
 
     public class PostAsyncResolver : IAsyncValueResolver<Post, string>
     {
-        public global::System.Threading.Tasks.Task<string> ResolveAsync(Post source)
-        {
-            return global::System.Threading.Tasks.Task.FromResult(source.Title + " (Async)");
-        }
+        public global::System.Threading.Tasks.Task<string> ResolveAsync(Post source) => global::System.Threading.Tasks.Task.FromResult(source.Title + " (Async)");
     }
 
     public class HardenedProfile : Profile
@@ -35,7 +32,7 @@ public class ArchitecturalHardeningTests
     [Fact]
     public async Task TransitiveAsyncPropagation_Works()
     {
-        var blog = new Blog { Id = 1, Name = "Test Blog", Posts = new global::System.Collections.Generic.List<Post> { new Post { Id = 101, Title = "Post 1" } } };
+        var blog = new Blog { Id = 1, Name = "Test Blog", Posts = [new Post { Id = 101, Title = "Post 1" }] };
         IMapper mapper = new MapperConfiguration(cfg => cfg.AddProfile<HardenedProfile>()).CreateMapper();
 
         // This would have failed to compile/run correctly before the fix
@@ -63,17 +60,17 @@ public class ArchitecturalHardeningTests
         var blog = new Blog
         {
             Id = 1,
-            Posts = new global::System.Collections.Generic.List<Post> {
+            Posts = [
                 new Post { Id = 101, Title = "Original 1" },
                 new Post { Id = 101, Title = "Original 2 (Collision)" }
-            }
+            ]
         };
         var update = new BlogDto
         {
             Id = 1,
-            Posts = new global::System.Collections.Generic.List<PostDto> {
+            Posts = [
                 new PostDto { Id = 101, Title = "Updated" }
-            }
+            ]
         };
 
         IMapper mapper = new MapperConfiguration(cfg => cfg.AddProfile<SyncHardeningProfile>()).CreateMapper();
@@ -93,7 +90,7 @@ public class ArchitecturalHardeningTests
     public void SmartSync_ReadOnlyCollection_PreventsCrash()
     {
         var blog = new ReadOnlyBlog();
-        var update = new BlogDto { Posts = new global::System.Collections.Generic.List<PostDto> { new PostDto { Id = 1, Title = "Test" } } };
+        var update = new BlogDto { Posts = [new PostDto { Id = 1, Title = "Test" }] };
 
         IMapper mapper = new MapperConfiguration(cfg => cfg.AddProfile<SyncHardeningProfile>()).CreateMapper();
 

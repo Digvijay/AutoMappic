@@ -10,7 +10,7 @@ public sealed class NegativeDiagnosticTests
     [Fact]
     public void Generator_ReportAM0001_WhenPropertyIsMissingInSource()
     {
-        var source = @"
+        string source = @"
 using AutoMappic;
 
 public class S { public int Id { get; set; } }
@@ -32,7 +32,7 @@ public class MyProfile : Profile
     [Fact]
     public void Generator_ReportAM0005_WhenDestConstructorIsInvalid()
     {
-        var source = @"
+        string source = @"
 using AutoMappic;
 using System;
 
@@ -55,7 +55,7 @@ public class MyProfile : Profile
     [Fact]
     public void Generator_ReportAM0003_WhenCreateMapIsOutsideProfile()
     {
-        var source = @"
+        string source = @"
 using AutoMappic;
 
 public class MyService
@@ -87,7 +87,7 @@ public class D { }
     [Fact]
     public void Generator_ReportAM0010_WhenNestedCollectionIsMapped()
     {
-        var source = @"
+        string source = @"
 using AutoMappic;
 using System.Collections.Generic;
 
@@ -107,7 +107,7 @@ public class MyProfile : Profile
     [Fact]
     public void Generator_ReportAM0013_WhenRequiredPropertyIsMappedFromNullable()
     {
-        var source = @"
+        string source = @"
 using AutoMappic;
 
 public class S { public string? Name { get; set; } }
@@ -130,7 +130,7 @@ public class MyProfile : Profile
     [Fact]
     public void Generator_ReportAM0011_WhenMultiSourceProjectToIsUsed()
     {
-        var source = @"
+        string source = @"
 using AutoMappic;
 using System.Linq;
 
@@ -159,7 +159,7 @@ public class Usage
     [Fact]
     public void Generator_ReportAM0004_WhenUnresolvedMapCallExists()
     {
-        var source = @"
+        string source = @"
 using AutoMappic;
 
 public class S { }

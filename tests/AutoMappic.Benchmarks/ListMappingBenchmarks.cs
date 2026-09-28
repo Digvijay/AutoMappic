@@ -20,12 +20,12 @@ public class ListMappingBenchmarks
 
     private sealed class BenchProfile : AutoMappic.Profile
     {
-        public BenchProfile() { CreateMap<PointSource, PointDto>(); }
+        public BenchProfile() => CreateMap<PointSource, PointDto>();
     }
 
     private sealed class AMProfile : global::AutoMapper.Profile
     {
-        public AMProfile() { CreateMap<PointSource, PointDto>(); }
+        public AMProfile() => CreateMap<PointSource, PointDto>();
     }
 
     [Params(100, 1000)]
@@ -43,7 +43,7 @@ public class ListMappingBenchmarks
         _autoMappic = new global::AutoMappic.MapperConfiguration(cfg => cfg.AddProfile<BenchProfile>())
             .CreateMapper();
 
-        _source = Enumerable.Range(0, Count).Select(i => new PointSource { X = i, Y = i }).ToList();
+        _source = [.. Enumerable.Range(0, Count).Select(i => new PointSource { X = i, Y = i })];
     }
 
     [Benchmark(Baseline = true)]

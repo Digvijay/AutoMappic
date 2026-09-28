@@ -20,8 +20,8 @@ public sealed class AutoMappicGenerator : IIncrementalGenerator
         // -- Pipeline 0: Source-Only Injection ------------------------------------
         context.RegisterSourceOutput(context.AnalyzerConfigOptionsProvider, static (spc, options) =>
         {
-            options.GlobalOptions.TryGetValue("build_property.automappic_sourceonly", out var v1);
-            options.GlobalOptions.TryGetValue("automappic_sourceonly", out var v2);
+            options.GlobalOptions.TryGetValue("build_property.automappic_sourceonly", out string? v1);
+            options.GlobalOptions.TryGetValue("automappic_sourceonly", out string? v2);
 
             if ("true".Equals(v1, System.StringComparison.OrdinalIgnoreCase) ||
                 "true".Equals(v2, System.StringComparison.OrdinalIgnoreCase))
@@ -52,15 +52,15 @@ public sealed class AutoMappicGenerator : IIncrementalGenerator
             .Select(static (pair, _) =>
             {
                 var (result, options) = pair;
-                options.GlobalOptions.TryGetValue("build_property.automappic_enableidentitymanagement", out var idFlagStr);
+                options.GlobalOptions.TryGetValue("build_property.automappic_enableidentitymanagement", out string? idFlagStr);
                 bool enableIdentity = "true".Equals(idFlagStr, System.StringComparison.OrdinalIgnoreCase);
 
-                options.GlobalOptions.TryGetValue("build_property.automappic_enableentitysync", out var syncFlagStr);
+                options.GlobalOptions.TryGetValue("build_property.automappic_enableentitysync", out string? syncFlagStr);
                 bool enableSync = "true".Equals(syncFlagStr, System.StringComparison.OrdinalIgnoreCase);
 
-                options.GlobalOptions.TryGetValue("build_property.automappic_smartmatchthreshold", out var thresholdStr);
+                options.GlobalOptions.TryGetValue("build_property.automappic_smartmatchthreshold", out string? thresholdStr);
                 double threshold = 0.4;
-                if (!string.IsNullOrEmpty(thresholdStr) && double.TryParse(thresholdStr, global::System.Globalization.NumberStyles.Any, global::System.Globalization.CultureInfo.InvariantCulture, out var parsedThreshold))
+                if (!string.IsNullOrEmpty(thresholdStr) && double.TryParse(thresholdStr, global::System.Globalization.NumberStyles.Any, global::System.Globalization.CultureInfo.InvariantCulture, out double parsedThreshold))
                 {
                     threshold = parsedThreshold;
                 }
@@ -69,8 +69,8 @@ public sealed class AutoMappicGenerator : IIncrementalGenerator
                 {
                     var diags = new List<DiagnosticInfo>(result.Diagnostics);
                     diags.RemoveAll(d => d.DescriptorId == "AM0015" &&
-                                         d.Properties.TryGetValue("Score", out var scrStr) &&
-                                         double.TryParse(scrStr, global::System.Globalization.NumberStyles.Any, global::System.Globalization.CultureInfo.InvariantCulture, out var score) &&
+                                         d.Properties.TryGetValue("Score", out string? scrStr) &&
+                                         double.TryParse(scrStr, global::System.Globalization.NumberStyles.Any, global::System.Globalization.CultureInfo.InvariantCulture, out double score) &&
                                          score < threshold);
 
                     if (enableIdentity)
@@ -167,7 +167,7 @@ public sealed class AutoMappicGenerator : IIncrementalGenerator
             // 1. Local mappings
             foreach (var m in models)
             {
-                var fullKey = $"{m.SourceTypeFullName}_To_{m.DestinationTypeFullName}";
+                string fullKey = $"{m.SourceTypeFullName}_To_{m.DestinationTypeFullName}";
                 if (collisionCheck.TryGetValue(fullKey, out var existing))
                 {
                     spc.ReportDiagnostic(Diagnostic.Create(
@@ -181,14 +181,14 @@ public sealed class AutoMappicGenerator : IIncrementalGenerator
                     collisionCheck.Add(fullKey, m);
                 }
 
-                var key = $"{SourceEmitter.Sanitise(m.SourceTypeFullName)}_To_{SourceEmitter.Sanitise(m.DestinationTypeFullName)}";
+                string key = $"{SourceEmitter.Sanitise(m.SourceTypeFullName)}_To_{SourceEmitter.Sanitise(m.DestinationTypeFullName)}";
                 if (!mappingsByKey.ContainsKey(key))
                 {
                     mappingsByKey[key] = m;
                 }
 
                 // Also add an unbound fallback key
-                var unboundKey = $"{SourceEmitter.Sanitise(SourceEmitter.GetUnbound(m.SourceTypeFullName))}_To_{SourceEmitter.Sanitise(SourceEmitter.GetUnbound(m.DestinationTypeFullName))}";
+                string unboundKey = $"{SourceEmitter.Sanitise(SourceEmitter.GetUnbound(m.SourceTypeFullName))}_To_{SourceEmitter.Sanitise(SourceEmitter.GetUnbound(m.DestinationTypeFullName))}";
                 if (unboundKey != key && !mappingsByKey.ContainsKey(unboundKey))
                 {
                     mappingsByKey[unboundKey] = m;
@@ -204,9 +204,9 @@ public sealed class AutoMappicGenerator : IIncrementalGenerator
                         attr.ConstructorArguments[0].Value is INamedTypeSymbol src &&
                         attr.ConstructorArguments[1].Value is INamedTypeSymbol dest)
                     {
-                        var srcFull = Pipeline.SourceEmitter.GetDisplayString(src);
-                        var destFull = Pipeline.SourceEmitter.GetDisplayString(dest);
-                        var key = $"{Pipeline.SourceEmitter.Sanitise(srcFull)}_To_{Pipeline.SourceEmitter.Sanitise(destFull)}";
+                        string srcFull = Pipeline.SourceEmitter.GetDisplayString(src);
+                        string destFull = Pipeline.SourceEmitter.GetDisplayString(dest);
+                        string key = $"{Pipeline.SourceEmitter.Sanitise(srcFull)}_To_{Pipeline.SourceEmitter.Sanitise(destFull)}";
 
                         if (!mappingsByKey.ContainsKey(key))
                         {
@@ -230,7 +230,7 @@ public sealed class AutoMappicGenerator : IIncrementalGenerator
             {
                 changed = false;
                 var keys = mappingsByKey.Keys.ToList();
-                foreach (var key in keys)
+                foreach (string? key in keys)
                 {
                     var m = mappingsByKey[key];
                     if (m.IsAsync) continue;
@@ -239,8 +239,8 @@ public sealed class AutoMappicGenerator : IIncrementalGenerator
                     {
                         if (prop.IsCollection || (prop.NestedDestTypeFullName != null && prop.NestedSourceTypeFullName != null))
                         {
-                            var sType = prop.NestedSourceTypeFullName ?? m.SourceTypeFullName;
-                            var childKey = $"{Pipeline.SourceEmitter.Sanitise(sType, true)}_To_{Pipeline.SourceEmitter.Sanitise(prop.NestedDestTypeFullName!, true)}";
+                            string sType = prop.NestedSourceTypeFullName ?? m.SourceTypeFullName;
+                            string childKey = $"{Pipeline.SourceEmitter.Sanitise(sType, true)}_To_{Pipeline.SourceEmitter.Sanitise(prop.NestedDestTypeFullName!, true)}";
                             if (mappingsByKey.TryGetValue(childKey, out var child) && child.IsAsync)
                             {
                                 var firstNonIgnored = m.Properties.FirstOrDefault(p => p.Kind != PropertyMapKind.Ignored);
@@ -262,7 +262,7 @@ public sealed class AutoMappicGenerator : IIncrementalGenerator
             // 3. Report Interceptor Diagnostics (Unresolved or Unsupported)
             foreach (var loc in locations)
             {
-                var key = $"{SourceEmitter.Sanitise(loc.EffectiveSourceTypeFullName)}_To_{SourceEmitter.Sanitise(loc.EffectiveDestTypeFullName)}";
+                string key = $"{SourceEmitter.Sanitise(loc.EffectiveSourceTypeFullName)}_To_{SourceEmitter.Sanitise(loc.EffectiveDestTypeFullName)}";
                 if (!mappingsByKey.TryGetValue(key, out var model))
                 {
                     // AM0004: Unresolved interceptor (reflective fallback)
@@ -332,8 +332,7 @@ public sealed class AutoMappicGenerator : IIncrementalGenerator
             transform: static (ctx, ct) =>
             {
                 var classDecl = (Microsoft.CodeAnalysis.CSharp.Syntax.ClassDeclarationSyntax)ctx.Node;
-                var symbol = ctx.SemanticModel.GetDeclaredSymbol(classDecl, ct) as INamedTypeSymbol;
-                if (symbol is null) return null;
+                if (ctx.SemanticModel.GetDeclaredSymbol(classDecl, ct) is not INamedTypeSymbol symbol) return null;
 
                 if (ProfileExtractor.InheritsFromProfile(symbol))
                 {
@@ -359,7 +358,7 @@ public sealed class AutoMappicGenerator : IIncrementalGenerator
         {
             var (pair, localMappings) = data;
             var (profiles, compilation) = pair;
-            var assemblyName = compilation.AssemblyName ?? "Unknown";
+            string assemblyName = compilation.AssemblyName ?? "Unknown";
 
             // Find referenced assemblies with marker attributes (Sannr-style metadata discovery).
             var referencedRegistrations = new List<string>();
@@ -380,7 +379,7 @@ public sealed class AutoMappicGenerator : IIncrementalGenerator
                 assemblyName,
                 profiles,
                 localMappings,
-                referencedRegistrations.ToImmutableArray(),
+                [.. referencedRegistrations],
                 compilation.GetEntryPoint(spc.CancellationToken) != null);
 
             spc.AddSource(hintName, source);
@@ -398,8 +397,7 @@ public sealed class AutoMappicGenerator : IIncrementalGenerator
             (MappingModel Model, EquatableArray<DiagnosticInfo> Diagnostics) y)
         {
             if (x.Model is null && y.Model is null) return x.Diagnostics.Equals(y.Diagnostics);
-            if (x.Model is null || y.Model is null) return false;
-            return x.Model.Equals(y.Model) && x.Diagnostics.Equals(y.Diagnostics);
+            return x.Model is null || y.Model is null ? false : x.Model.Equals(y.Model) && x.Diagnostics.Equals(y.Diagnostics);
         }
 
         public int GetHashCode(
@@ -408,8 +406,8 @@ public sealed class AutoMappicGenerator : IIncrementalGenerator
             unchecked
             {
                 int hash = 17;
-                hash = hash * 31 + (obj.Model?.GetHashCode() ?? 0);
-                hash = hash * 31 + obj.Diagnostics.GetHashCode();
+                hash = (hash * 31) + (obj.Model?.GetHashCode() ?? 0);
+                hash = (hash * 31) + obj.Diagnostics.GetHashCode();
                 return hash;
             }
         }

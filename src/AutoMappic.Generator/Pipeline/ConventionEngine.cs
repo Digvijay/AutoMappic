@@ -81,7 +81,7 @@ internal static class ConventionEngine
 
             var constructorParamNames = new HashSet<string>(constructorArgs.Select(a => a.DestinationProperty), StringComparer.OrdinalIgnoreCase);
 
-            foreach (var memberName in destMembers.Keys)
+            foreach (string memberName in destMembers.Keys)
             {
                 var member = destMembers[memberName];
                 if (member.GetAttributes().Any(a => a.AttributeClass?.Name == "AutoMappicIgnoreAttribute"))
@@ -181,7 +181,7 @@ internal static class ConventionEngine
             for (int i = 0; i < tupleSource.TupleElements.Length; i++)
             {
                 var element = tupleSource.TupleElements[i];
-                var subMap = ResolveSourceForMember(element.Type, targetName, targetType, explicitMaps, Array.Empty<string>(), profileLocation, destMemberLocation, reportDiagnostic, mappingStack, sourceNaming, destNaming, $"{sourceAccess}.Item{i + 1}", destTypeName, identityManagementEnabled, isProjection);
+                var subMap = ResolveSourceForMember(element.Type, targetName, targetType, explicitMaps, [], profileLocation, destMemberLocation, reportDiagnostic, mappingStack, sourceNaming, destNaming, $"{sourceAccess}.Item{i + 1}", destTypeName, identityManagementEnabled, isProjection);
                 if (subMap is not null)
                 {
                     if (subMap.Kind != PropertyMapKind.Ignored && subMap.Kind != PropertyMapKind.Suggested)
@@ -217,14 +217,14 @@ internal static class ConventionEngine
         // IDataReader projection
         if (source.Name == "IDataReader" || source.Name == "DataRow" || source.Name == "SqlDataReader" || source.Name == "DbDataReader" || source.Name == "DataTableReader")
         {
-            var keyName = targetName;
+            string keyName = targetName;
             if (sourceNaming?.Contains("Kebab") == true)
                 keyName = NamingUtility.ToKebabCase(targetName);
             else if (sourceNaming?.Contains("LowerUnderscore") == true || sourceNaming?.Contains("Snake") == true)
                 keyName = NamingUtility.ToSnakeCase(targetName);
 
             var unwrapped = UnwrapNullable(targetType);
-            var method = unwrapped.SpecialType switch
+            string method = unwrapped.SpecialType switch
             {
                 SpecialType.System_String => "GetString",
                 SpecialType.System_Int32 => "GetInt32",
@@ -239,13 +239,13 @@ internal static class ConventionEngine
                 _ => "GetValue"
             };
 
-            var ordinal = $"{sourceAccess}.GetOrdinal(\"{keyName}\")";
-            var expr = $"{sourceAccess}.{method}({ordinal})";
+            string ordinal = $"{sourceAccess}.GetOrdinal(\"{keyName}\")";
+            string expr = $"{sourceAccess}.{method}({ordinal})";
             if (method == "GetValue" || unwrapped.TypeKind == TypeKind.Enum)
                 expr = $"({unwrapped.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat)}){expr}";
 
-            var typeStr = targetType.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat);
-            var isNullable = targetType.IsReferenceType || (targetType.IsValueType && targetType.NullableAnnotation == NullableAnnotation.Annotated);
+            string typeStr = targetType.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat);
+            bool isNullable = targetType.IsReferenceType || (targetType.IsValueType && targetType.NullableAnnotation == NullableAnnotation.Annotated);
             if (isNullable)
                 expr = $"{sourceAccess}.IsDBNull({ordinal}) ? (default!) : {expr}";
 
@@ -255,13 +255,13 @@ internal static class ConventionEngine
         // Dictionary -> Object indexer projection
         if (IsDictionary(source, out var srcKey, out var srcValue) && srcKey.SpecialType == SpecialType.System_String)
         {
-            var keyName = targetName;
+            string keyName = targetName;
             if (sourceNaming?.Contains("Kebab") == true)
                 keyName = NamingUtility.ToKebabCase(targetName);
             else if (sourceNaming?.Contains("LowerUnderscore") == true || sourceNaming?.Contains("Snake") == true)
                 keyName = NamingUtility.ToSnakeCase(targetName);
 
-            var sourceExpr = $"{sourceAccess} != null && {sourceAccess}.ContainsKey(\"{keyName}\") ? {sourceAccess}[\"{keyName}\"] : default!";
+            string sourceExpr = $"{sourceAccess} != null && {sourceAccess}.ContainsKey(\"{keyName}\") ? {sourceAccess}[\"{keyName}\"] : default!";
             var (nE, nS, nD, iC, iA, iE, rE, nCond, nKey, nKeyType, nKeyVal) = WrapWithNestedMapper(sourceExpr, srcValue, targetType, profileLocation, destMemberLocation, reportDiagnostic, mappingStack, targetName, identityManagementEnabled, 0, isProjection);
             return new PropertyMap(targetName, nE, PropertyMapKind.Direct, NestedSourceTypeFullName: nS, NestedDestTypeFullName: nD, NestedFullDestTypeFullName: targetType.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat), IsCollection: iC, IsArray: iA, NestedExpression: iE, SourceRawExpression: rE, ConditionBody: conditionBody ?? nCond, NestedDestKeyProperty: nKey, NestedDestKeyTypeFullName: nKeyType, IsNestedDestKeyValueType: nKeyVal, SourceCanBeNull: CanBeNull(srcValue));
         }
@@ -279,7 +279,7 @@ internal static class ConventionEngine
             string.Equals(NamingUtility.Normalize(m.Name), NamingUtility.Normalize("Get" + targetName), StringComparison.OrdinalIgnoreCase)).ToList();
 
         // Flattening
-        var flatPath = ResolveFlattenedPath(source, targetName, sourceNaming, destNaming, targetType);
+        string? flatPath = ResolveFlattenedPath(source, targetName, sourceNaming, destNaming, targetType);
 
         // Ambiguity Detection: Check if direct/method matches and a flattened path both exist
         if ((directMatches.Count + methodMatches.Count > 0) && flatPath != null)
@@ -293,7 +293,7 @@ internal static class ConventionEngine
         if (directMatch is not null || methodMatch is not null)
         {
             var sourceType = directMatch is not null ? GetMemberType(directMatch) : methodMatch!.ReturnType;
-            var sourceExpr = directMatch is not null ? $"{sourceAccess}.{directMatch.Name}" : $"{sourceAccess}.{methodMatch!.Name}()";
+            string sourceExpr = directMatch is not null ? $"{sourceAccess}.{directMatch.Name}" : $"{sourceAccess}.{methodMatch!.Name}()";
 
             var (nestedExpr, nSrc, nDest, isColl, isArr, itemExpr, rawExpr, nCond, nKey, nKeyType, nKeyVal) = WrapWithNestedMapper(sourceExpr, sourceType, targetType, profileLocation, destMemberLocation, reportDiagnostic, mappingStack, targetName, identityManagementEnabled, 0, isProjection);
             return new PropertyMap(targetName, nestedExpr, PropertyMapKind.Direct,
@@ -314,10 +314,10 @@ internal static class ConventionEngine
         // performance safeguard for pathological build times
         if (readableMembers.Count <= 200)
         {
-            var targetNormalized = NamingUtility.Normalize(targetName);
+            string targetNormalized = NamingUtility.Normalize(targetName);
             foreach (var m in readableMembers)
             {
-                var sourceNormalized = NamingUtility.Normalize(m.Name);
+                string sourceNormalized = NamingUtility.Normalize(m.Name);
                 if (Math.Abs(sourceNormalized.Length - targetNormalized.Length) > Math.Max(sourceNormalized.Length, targetNormalized.Length) / 2)
                     continue;
 
@@ -423,7 +423,7 @@ internal static class ConventionEngine
                 reportDiag(DiagnosticInfo.Create(AutoMappicDiagnostics.PerformanceHotpath, destMemberLocation ?? profileLoc ?? Location.None, sBase.Name, dBase.Name));
             }
 
-            var isArr = destType.TypeKind == TypeKind.Array || destType.ToDisplayString().Contains("[]");
+            bool isArr = destType.TypeKind == TypeKind.Array || destType.ToDisplayString().Contains("[]");
             var itemMap = WrapWithNestedMapper("x", sItem, dItem, profileLoc, destMemberLocation, reportDiag, stack, targetName + "Item", identityManagementEnabled, nestedLevel + 1, isProjection);
 
             string linq;
@@ -436,7 +436,7 @@ internal static class ConventionEngine
             {
                 if (sourceExprCanBeNull)
                 {
-                    var fallback = $"global::System.Array.Empty<{sItemName}>()";
+                    string fallback = $"global::System.Array.Empty<{sItemName}>()";
                     linq = $"({cast}{expression} ?? {fallback})";
                 }
                 else
@@ -446,7 +446,7 @@ internal static class ConventionEngine
             }
             else
             {
-                var fallback = $"global::System.Array.Empty<{sItemName}>()";
+                string fallback = $"global::System.Array.Empty<{sItemName}>()";
                 string baseLinq = sourceExprCanBeNull ? $"({cast}{expression} ?? {fallback})" : expression;
                 string filter = (sourceItemCanBeNull && !CanBeNull(dItem)) ? ".Where(x => x != null)" : "";
                 linq = $"{baseLinq}{filter}.Select(x => {itemMap.Expression})";
@@ -464,8 +464,7 @@ internal static class ConventionEngine
             else if (isProjection)
             {
                 if (isArr) finalExpr = $"{linq}.ToArray()";
-                else if (destType.Name.Contains("List") || destType.Name.Contains("Collection")) finalExpr = $"{linq}.ToList()";
-                else finalExpr = linq;
+                else finalExpr = destType.Name.Contains("List") || destType.Name.Contains("Collection") ? $"{linq}.ToList()" : linq;
             }
             else if (destType.Name == "ReadOnlyCollection")
                 finalExpr = $"{linq}.ToList().AsReadOnly()";
@@ -488,15 +487,9 @@ internal static class ConventionEngine
                 var dItemProps = GetReadableMembers(dItem);
                 // Key detection: 1. Attributes ([Key] or [AutoMappicKey]) 2. Naming conventions (Id, TypeId)
                 var innerKey = dItemProps.FirstOrDefault(p =>
-                    p.GetAttributes().Any(a => a.AttributeClass?.Name is "KeyAttribute" or "AutoMappicKeyAttribute" or "EntityKeyAttribute" or "Key"));
-
-                if (innerKey == null)
-                {
-                    innerKey = dItemProps.FirstOrDefault(p =>
+                    p.GetAttributes().Any(a => a.AttributeClass?.Name is "KeyAttribute" or "AutoMappicKeyAttribute" or "EntityKeyAttribute" or "Key")) ?? dItemProps.FirstOrDefault(p =>
                         string.Equals(p.Name, "Id", StringComparison.OrdinalIgnoreCase) ||
                         string.Equals(p.Name, nItem.Name + "Id", StringComparison.OrdinalIgnoreCase));
-                }
-
                 if (innerKey != null)
                 {
                     kPropName = innerKey.Name;
@@ -511,7 +504,7 @@ internal static class ConventionEngine
 
                     if (sKeyProp == null && !(sItem is INamedTypeSymbol ns && ns.Name == "IDataReader"))
                     {
-                        var sourceItemTypeName = sItem is INamedTypeSymbol nSource ? nSource.Name : sItem.Name;
+                        string sourceItemTypeName = sItem is INamedTypeSymbol nSource ? nSource.Name : sItem.Name;
                         reportDiag(DiagnosticInfo.Create(AutoMappicDiagnostics.UnmappedPrimaryKey, destMemberLocation ?? profileLoc ?? Location.None, nItem.Name, sourceItemTypeName));
                         kPropName = null; // Prevent smart-sync mapping if key is not on source
                     }
@@ -534,12 +527,12 @@ internal static class ConventionEngine
         else
         {
             // run dry validation to detect deeper indirect cycles
-            Resolve(sBase, dBase, new Dictionary<string, (string? Expression, string? Condition, bool IsAsync)>(), Array.Empty<string>(), profileLoc, destMemberLocation, reportDiag, stack, null, null);
+            Resolve(sBase, dBase, new Dictionary<string, (string? Expression, string? Condition, bool IsAsync)>(), [], profileLoc, destMemberLocation, reportDiag, stack, null, null);
         }
 
         if (isProjection)
         {
-            var (props, ctorArgs) = Resolve(sBase, dBase, new Dictionary<string, (string? Expression, string? Condition, bool IsAsync)>(), Array.Empty<string>(), profileLoc, destMemberLocation, reportDiag, stack, null, null, identityManagementEnabled, true);
+            var (props, ctorArgs) = Resolve(sBase, dBase, new Dictionary<string, (string? Expression, string? Condition, bool IsAsync)>(), [], profileLoc, destMemberLocation, reportDiag, stack, null, null, identityManagementEnabled, true);
             var initSb = new System.Text.StringBuilder();
             if (ctorArgs.Count > 0)
             {
@@ -559,7 +552,7 @@ internal static class ConventionEngine
                 initSb.Append(" }");
             }
 
-            var result = initSb.ToString();
+            string result = initSb.ToString();
             result = result!.Replace("source.", expression + ".");
 
             if (CanBeNull(sourceType) && !isProjection)
@@ -589,11 +582,9 @@ internal static class ConventionEngine
 
     private static ITypeSymbol UnwrapNullable(ITypeSymbol type)
     {
-        if (IsNullableStruct(type) && type is INamedTypeSymbol named && named.TypeArguments.Length == 1)
-        {
-            return named.TypeArguments[0];
-        }
-        return type.WithNullableAnnotation(NullableAnnotation.None);
+        return IsNullableStruct(type) && type is INamedTypeSymbol named && named.TypeArguments.Length == 1
+            ? named.TypeArguments[0]
+            : type.WithNullableAnnotation(NullableAnnotation.None);
     }
 
     private static bool CanBeNull(ITypeSymbol type)
@@ -606,10 +597,7 @@ internal static class ConventionEngine
         };
     }
 
-    private static bool IsNullableStruct(ITypeSymbol type)
-    {
-        return type.IsValueType && type.NullableAnnotation == NullableAnnotation.Annotated;
-    }
+    private static bool IsNullableStruct(ITypeSymbol type) => type.IsValueType && type.NullableAnnotation == NullableAnnotation.Annotated;
 
     private static List<ISymbol> GetReadableMembers(ITypeSymbol type)
     {
@@ -687,14 +675,10 @@ internal static class ConventionEngine
         var sBase = UnwrapNullable(source);
         var dBase = UnwrapNullable(dest);
 
-        var s = sBase.WithNullableAnnotation(NullableAnnotation.None).ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat);
-        var d = dBase.WithNullableAnnotation(NullableAnnotation.None).ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat);
+        string s = sBase.WithNullableAnnotation(NullableAnnotation.None).ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat);
+        string d = dBase.WithNullableAnnotation(NullableAnnotation.None).ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat);
 
-        if (s == d || (IsNumeric(sBase) && IsNumeric(dBase)))
-        {
-            return true;
-        }
-        return false;
+        return s == d || (IsNumeric(sBase) && IsNumeric(dBase));
     }
 
     private static bool IsDictionary(ITypeSymbol type, out ITypeSymbol keyType, out ITypeSymbol valueType)
@@ -764,7 +748,7 @@ internal static class ConventionEngine
     private static string Sanitise(string name)
     {
         var res = new System.Text.StringBuilder();
-        foreach (var c in name)
+        foreach (char c in name)
         {
             if (char.IsLetterOrDigit(c))
             {
@@ -781,10 +765,7 @@ internal static class ConventionEngine
     private static ITypeSymbol GetMemberType(ISymbol symbol) => symbol switch { IPropertySymbol p => p.Type, IFieldSymbol f => f.Type, _ => throw new InvalidOperationException() };
     private static string GetDisplayString(ITypeSymbol type) => type.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat);
 
-    private static string? ResolveFlattenedPath(ITypeSymbol source, string name, string? sEnv, string? dEnv, ITypeSymbol destType)
-    {
-        return TryMatchFlattenedPath(source, name, "", "", destType);
-    }
+    private static string? ResolveFlattenedPath(ITypeSymbol source, string name, string? sEnv, string? dEnv, ITypeSymbol destType) => TryMatchFlattenedPath(source, name, "", "", destType);
 
     private static string? TryMatchFlattenedPath(ITypeSymbol currentType, string targetName, string currentPath, string currentNameMatch, ITypeSymbol destType, int depth = 0)
     {
@@ -795,20 +776,20 @@ internal static class ConventionEngine
             // Do not allow single-level exact matches in flatten logic since they are Direct Matches
             if (depth == 0 && string.Equals(m.Name, targetName, StringComparison.OrdinalIgnoreCase)) continue;
 
-            var nextNameMatch = currentNameMatch + m.Name;
-            var nextPath = string.IsNullOrEmpty(currentPath) ? m.Name : $"{currentPath}?.{m.Name}";
+            string nextNameMatch = currentNameMatch + m.Name;
+            string nextPath = string.IsNullOrEmpty(currentPath) ? m.Name : $"{currentPath}?.{m.Name}";
 
             if (string.Equals(nextNameMatch, targetName, StringComparison.OrdinalIgnoreCase))
             {
                 var t = GetMemberType(m);
-                var fallback = t.SpecialType == SpecialType.System_String ? "\"\"" : "(default!)";
+                string fallback = t.SpecialType == SpecialType.System_String ? "\"\"" : "(default!)";
                 return $"{nextPath} ?? {fallback}";
             }
 
             var tMember = GetMemberType(m);
             if (tMember.TypeKind == TypeKind.Class && tMember.SpecialType == SpecialType.None)
             {
-                var result = TryMatchFlattenedPath(tMember, targetName, nextPath, nextNameMatch, destType, depth + 1);
+                string? result = TryMatchFlattenedPath(tMember, targetName, nextPath, nextNameMatch, destType, depth + 1);
                 if (result != null) return result;
             }
         }

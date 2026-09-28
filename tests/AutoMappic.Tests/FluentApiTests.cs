@@ -11,10 +11,7 @@ public class FluentApiTests
 
     public class FluentProfile : Profile
     {
-        public FluentProfile()
-        {
-            CreateMap<Source, Dest>();
-        }
+        public FluentProfile() => CreateMap<Source, Dest>();
     }
 
     [Fact]

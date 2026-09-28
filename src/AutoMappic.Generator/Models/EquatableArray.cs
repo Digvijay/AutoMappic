@@ -17,17 +17,14 @@ namespace AutoMappic.Generator.Models;
 ///   <see cref="GetHashCode" /> overrides so the pipeline sees "nothing changed."
 /// </remarks>
 /// <typeparam name="T">The element type. Must itself implement value equality.</typeparam>
-internal sealed class EquatableArray<T> : IEquatable<EquatableArray<T>>, IEnumerable<T>
+/// <remarks>Initialises the array from an existing sequence.</remarks>
+internal sealed class EquatableArray<T>(IEnumerable<T> items) : IEquatable<EquatableArray<T>>, IEnumerable<T>
     where T : IEquatable<T>
 {
     /// <summary>An empty <see cref="EquatableArray{T}" />.</summary>
-    public static readonly EquatableArray<T> Empty = new(Array.Empty<T>());
+    public static readonly EquatableArray<T> Empty = new([]);
 
-    private readonly T[] _items;
-
-    /// <summary>Initialises the array from an existing sequence.</summary>
-    public EquatableArray(IEnumerable<T> items) =>
-        _items = items is T[] arr ? arr : items.ToArray();
+    private readonly T[] _items = items is T[] arr ? arr : [.. items];
 
     /// <summary>Gets the number of elements.</summary>
     public int Count => _items.Length;
@@ -39,7 +36,7 @@ internal sealed class EquatableArray<T> : IEquatable<EquatableArray<T>>, IEnumer
         if (ReferenceEquals(this, other)) return true;
         if (_items.Length != other._items.Length) return false;
 
-        for (var i = 0; i < _items.Length; i++)
+        for (int i = 0; i < _items.Length; i++)
         {
             if (!_items[i].Equals(other._items[i])) return false;
         }
@@ -56,9 +53,9 @@ internal sealed class EquatableArray<T> : IEquatable<EquatableArray<T>>, IEnumer
         // Manual hash accumulation -- HashCode is not available in netstandard2.0.
         unchecked
         {
-            var hash = 17;
+            int hash = 17;
             foreach (var item in _items)
-                hash = hash * 31 + (item?.GetHashCode() ?? 0);
+                hash = (hash * 31) + (item?.GetHashCode() ?? 0);
             return hash;
         }
     }

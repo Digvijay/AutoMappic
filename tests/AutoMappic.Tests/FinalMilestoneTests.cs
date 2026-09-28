@@ -59,7 +59,7 @@ public sealed class FinalMilestoneTests
     public void Map_ArrayToList_Complex()
     {
         var sourceUsers = new[] { new User { Username = "alice" }, new User { Username = "bob" } };
-        var source = new CollWrapper { Items = new HashSet<User>(sourceUsers) };
+        var source = new CollWrapper { Items = [.. sourceUsers] };
 
         var dto = _mapper.Map<CollWrapper, CollWrapperDto>(source);
 

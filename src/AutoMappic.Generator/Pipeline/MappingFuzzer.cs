@@ -27,9 +27,7 @@ public static class MappingFuzzer
     {
         if (source.Length < target.Length)
         {
-            var temp = source;
-            source = target;
-            target = temp;
+            (target, source) = (source, target);
         }
 
         int n = source.Length;

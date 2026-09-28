@@ -12,7 +12,7 @@ public class CircularityTests
     [Prova.Description("Verify that circular references in the mapping graph are detected at compile-time and report AM0006.")]
     public void Generator_CircularReference_ReportsError()
     {
-        var sourceCode = @"
+        string sourceCode = @"
 using AutoMappic;
 public class Node { public Node? Next { get; set; } }
 public class NodeDto { public NodeDto? Next { get; set; } }

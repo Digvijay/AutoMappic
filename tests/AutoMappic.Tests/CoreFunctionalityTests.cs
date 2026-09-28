@@ -17,7 +17,7 @@ public class SuperComplexSource
     public int Id { get; set; }
     public string Header { get; set; } = "";
     public SuperSubSource Sub { get; set; } = default!;
-    public List<SuperItemSource> Items { get; set; } = new();
+    public List<SuperItemSource> Items { get; set; } = [];
 }
 
 public class SuperSubSource { public string Detail { get; set; } = ""; public string HiddenVal { get; set; } = ""; }
@@ -28,7 +28,7 @@ public class SuperComplexDto
     public int Id { get; set; }
     public string Header { get; set; } = "";
     public string SubDetail { get; set; } = ""; // Flattened
-    public List<SuperItemDto> Items { get; set; } = new();
+    public List<SuperItemDto> Items { get; set; } = [];
 }
 
 public class SuperItemDto { public int Value { get; set; } }
@@ -101,7 +101,7 @@ public class CoreFunctionalityTests
             Id = 101,
             Header = "Super",
             Sub = new SuperSubSource { Detail = "DetailedValue" },
-            Items = new List<SuperItemSource> { new() { Value = 1 }, new() { Value = 2 } }
+            Items = [new() { Value = 1 }, new() { Value = 2 }]
         };
 
         var result = mapper.Map<SuperComplexDto>(source);
@@ -133,10 +133,9 @@ public class CoreFunctionalityTests
     {
         var sourceList = new List<SuperComplexSource>
         {
-            new SuperComplexSource
-            {
+            new() {
                 Id = 1, Sub = new SuperSubSource { Detail = "D1" },
-                Items = new List<SuperItemSource> { new() { Value = 10 } }
+                Items = [new() { Value = 10 }]
             }
         }.AsQueryable();
 

@@ -13,7 +13,7 @@ internal static class CycleDetector
         foreach (var m in models)
         {
             ct.ThrowIfCancellationRequested();
-            var key = GetKey(m.SourceTypeFullName, m.DestinationTypeFullName);
+            string key = GetKey(m.SourceTypeFullName, m.DestinationTypeFullName);
             if (!modelMap.ContainsKey(key)) modelMap[key] = m;
         }
 
@@ -21,7 +21,7 @@ internal static class CycleDetector
         var stack = new HashSet<string>(System.StringComparer.Ordinal);
         var diagnostics = new List<Diagnostic>();
 
-        foreach (var key in modelMap.Keys)
+        foreach (string key in modelMap.Keys)
         {
             ct.ThrowIfCancellationRequested();
             if (!visited.Contains(key))
@@ -51,7 +51,7 @@ internal static class CycleDetector
             {
                 if (prop.NestedSourceTypeFullName != null && prop.NestedDestTypeFullName != null)
                 {
-                    var childKey = GetKey(prop.NestedSourceTypeFullName, prop.NestedDestTypeFullName);
+                    string childKey = GetKey(prop.NestedSourceTypeFullName, prop.NestedDestTypeFullName);
 
                     if (stack.Contains(childKey))
                     {

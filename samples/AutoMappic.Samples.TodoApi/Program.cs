@@ -35,12 +35,10 @@ app.MapGet("/todo-lists", async (TodoDb db, IMapper mapper) =>
 });
 
 app.MapGet("/todo-lists/projected", (TodoDb db) =>
-{
     // AutoMappic v0.6.0 landmark: ProjectTo<T> translates the mapping 
     // directly to SQL, omitting unused columns from the database wire.
     // Extremely fast, zero allocation beyond the result objects.
-    return db.Lists.ProjectTo<TodoListDto>().ToListAsync();
-});
+    db.Lists.ProjectTo<TodoListDto>().ToListAsync());
 
 app.MapPost("/todo-lists", async (UpdateTodoListDto input, TodoDb db, IMapper mapper) =>
 {
@@ -74,7 +72,7 @@ public class TodoList
 {
     public int Id { get; set; }
     public string Title { get; set; } = string.Empty;
-    public List<TodoItem> Items { get; set; } = new();
+    public List<TodoItem> Items { get; set; } = [];
 }
 
 public class TodoItem
@@ -84,9 +82,8 @@ public class TodoItem
     public bool IsDone { get; set; }
 }
 
-public class TodoDb : DbContext
+public class TodoDb(DbContextOptions<TodoDb> options) : DbContext(options)
 {
-    public TodoDb(DbContextOptions<TodoDb> options) : base(options) { }
     public DbSet<TodoList> Lists => Set<TodoList>();
 }
 
@@ -99,7 +96,7 @@ public partial class TodoListDto
 {
     public int Id { get; set; }
     public string Title { get; set; } = string.Empty;
-    public List<TodoItemDto> Items { get; set; } = new();
+    public List<TodoItemDto> Items { get; set; } = [];
 }
 
 [AutoMap(typeof(TodoItem), ReverseMap = true)]
@@ -113,7 +110,7 @@ public partial class TodoItemDto
 public class UpdateTodoListDto
 {
     public string Title { get; set; } = string.Empty;
-    public List<TodoItemDto> Items { get; set; } = new();
+    public List<TodoItemDto> Items { get; set; } = [];
 }
 
 // === AutoMappic Configuration === //
