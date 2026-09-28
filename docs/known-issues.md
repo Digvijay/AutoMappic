@@ -783,3 +783,72 @@ Removing these 72 does not make viking-air green. Around 60 ILC errors remain, a
 third-party packages - MemoryPack and `Microsoft.Extensions.Caching.Hybrid`/`System.Text.Json` -
 which no change to this codebase can clear. That is tracked separately and should not be closed
 by suppressing it here.
+
+---
+
+## 28. The build was not reproducible across SDK versions, or across operating systems
+
+**Status:** fixed
+**Severity:** high - the same source produced a different verdict depending on where it was built
+
+`Directory.Build.props` sets `AnalysisLevel=latest` alongside `EnforceCodeStyleInBuild=true`
+and warnings as errors. `latest` floats: it means "whatever the installed SDK ships", so the
+*set of rules the build enforces* is not a property of this repository at all. Code that
+compiles cleanly today can fail to compile on the next SDK release without a single line of it
+changing, and nothing in the repository records that it happened.
+
+This was not theoretical. Viking Air runs an advisory `net11.0` leg against a preview SDK, and
+it reported **283 code-style errors**. The natural reading - and the one taken at first - was
+that a preview SDK was mis-reporting. It was not. Every one of the 283 was in this repository,
+and every one was a real violation of a rule that .NET 10 simply had not enabled yet. The
+preview SDK was the only honest reporter in the system.
+
+Three separate defects sat underneath that number.
+
+### 28a. Enforced rules were inherited from the SDK rather than declared
+
+Fixed by naming every enforced rule by ID in `.editorconfig`. The contract now lives in the
+repository. A newer SDK can still introduce rules - finding them is precisely what the advisory
+preview leg is for - but it can no longer change the meaning of an existing build.
+
+Enabling the rules locally is also what made them fixable: the first repair pass cleared only
+283 to 238, because `dotnet format` on the .NET 10 SDK cannot act on rules that are not enabled
+at any severity. With the severities pinned, the remaining violations became visible to the
+local formatter and were fixed.
+
+One rule is deliberately pinned *below* warning. On .NET 11, `IDE0028` also fires on
+constructions that take an argument - `new HashSet<T>(comparer)` - because C# 15 can write them
+as `[with(comparer)]`. This project must keep building on the .NET 10 SDK, so that syntax is
+unavailable and the rule would be unfixable rather than merely unfixed. It is set to
+`suggestion` with that reasoning recorded inline, to be raised when C# 15 is the baseline.
+
+### 28b. Formatting was resolved against the host OS, not the repository
+
+`.gitattributes` declares `* text=auto eol=lf`, so every working tree gets LF. `.editorconfig`
+never set `end_of_line`, so `IDE0055` fell back to the *platform* default and expected CRLF on
+Windows. The result was a file that was correctly formatted on Linux and malformed on Windows:
+CI passed on `ubuntu-latest` and failed on `windows-latest` for the identical commit. Fixed by
+setting `end_of_line = lf`, matching what `.gitattributes` already guarantees.
+
+### 28c. A rule was configured but silently never ran
+
+`IDE0005` (unnecessary usings) only executes at build time when the compiler is also producing
+a documentation file. `AutoMappic.Cli` did not set `GenerateDocumentationFile`, so the rule was
+configured and inert there. The compiler said so - `warning EnableGenerateDocumentationFile` -
+but it was one warning in a build that reported a warning count and no detail, so it survived
+several passes of this review unread. A configured gate that does not run is worse than no
+gate, because it is believed.
+
+### What the pinned rules then found
+
+Turning the rules on surfaced real dead code rather than only formatting noise. `IDE0051`
+identified six unused private members, including `ConventionEngine.Sanitise` - a second,
+divergent copy of `SourceEmitter.Sanitise`, which is the function that derives generated method
+names. Two implementations of a name-mangling routine in one generator, one of them unreachable,
+is a latent correctness hazard: any future edit had even odds of landing in the dead one. All
+six were deleted.
+
+Because ~113 files were rewritten mechanically in a source generator, a green build was not
+accepted as sufficient evidence. `samples/AotBenchmark` was rebuilt under the full gate and
+still emits exactly two `InterceptsLocation` entries, confirming the generator's output is
+byte-for-byte unaffected by the reformatting.

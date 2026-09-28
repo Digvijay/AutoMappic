@@ -17,6 +17,11 @@
     <SymbolPackageFormat>snupkg</SymbolPackageFormat>
     <IsPackable>true</IsPackable>
     <PackageReadmeFile>README.md</PackageReadmeFile>
+    <!-- IDE0005 (remove unnecessary usings) only runs at build time when the compiler is
+         also producing a documentation file; without this it is silently not enforced
+         here even though .editorconfig sets it to warning. The tool is not a reference
+         library, so the generated XML is not packed - it exists to turn the rule on. -->
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
   </PropertyGroup>
 
 

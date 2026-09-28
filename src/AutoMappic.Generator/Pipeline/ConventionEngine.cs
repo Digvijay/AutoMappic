@@ -779,23 +779,6 @@ internal static class ConventionEngine
     }
 
 
-    private static string Sanitise(string name)
-    {
-        var res = new System.Text.StringBuilder();
-        foreach (char c in name)
-        {
-            if (char.IsLetterOrDigit(c))
-            {
-                res.Append(c);
-            }
-            else
-            {
-                res.Append('_');
-            }
-        }
-        return res.ToString();
-    }
-
     private static ITypeSymbol GetMemberType(ISymbol symbol) => symbol switch { IPropertySymbol p => p.Type, IFieldSymbol f => f.Type, _ => throw new InvalidOperationException() };
     private static string GetDisplayString(ITypeSymbol type) => type.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat);
 

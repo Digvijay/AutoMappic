@@ -18,8 +18,6 @@ internal static class ProfileExtractor
     private const string CreateMapMethodName = "CreateMap";
     private const string ForMemberMethodName = "ForMember";
     private const string ForMemberIgnoreMethodName = "ForMemberIgnore";
-    private const string MapFromMethodName = "MapFrom";
-    private const string IgnoreMethodName = "Ignore";
 
     /// <summary>
     ///   High-level extraction for CLI/Test use: Extracts all mapping models from a full compilation.
@@ -917,28 +915,6 @@ internal static class ProfileExtractor
         }
 
         return (src, dest);
-    }
-
-    private static string? GetMemberName(ExpressionSyntax expr)
-    {
-        if (expr is IdentifierNameSyntax id)
-        {
-            return id.Identifier.Text;
-        }
-
-        if (expr is MemberAccessExpressionSyntax ma)
-        {
-            // Handle "this.Property"
-            return ma.Expression is ThisExpressionSyntax ? ma.Name.Identifier.Text : ma.Name.Identifier.Text;
-        }
-        return null;
-    }
-
-    private static string? GetTypeName(TypeSyntax type)
-    {
-        return type is IdentifierNameSyntax id
-            ? id.Identifier.Text
-            : type is QualifiedNameSyntax qn ? qn.Right.Identifier.Text : type is SimpleNameSyntax sn ? sn.Identifier.Text : null;
     }
 
     /// <summary>
