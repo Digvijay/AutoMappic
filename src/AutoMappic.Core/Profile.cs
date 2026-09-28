@@ -77,7 +77,7 @@ public abstract class Profile
     ///   the fallback genuinely safe rather than merely warned about.
     /// </remarks>
     protected internal IMappingExpression<TSource, TDestination> CreateMap<
-        [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicProperties | DynamicallyAccessedMemberTypes.PublicMethods)] TSource,
+        [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicProperties | DynamicallyAccessedMemberTypes.PublicMethods | DynamicallyAccessedMemberTypes.PublicParameterlessConstructor)] TSource,
         [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicProperties | DynamicallyAccessedMemberTypes.PublicMethods | DynamicallyAccessedMemberTypes.PublicParameterlessConstructor)] TDestination>()
     {
         var expression = new MappingExpression<TSource, TDestination>(this);
@@ -91,9 +91,9 @@ public abstract class Profile
     /// <param name="sourceType">The source type (generic or closed).</param>
     /// <param name="destinationType">The destination type (generic or closed).</param>
     /// <returns>A non-generic configuration expression.</returns>
-    [RequiresUnreferencedCode("Runtime mapping configuration requires reflection.")]
-    [RequiresDynamicCode("Runtime mapping configuration requires dynamic code generation.")]
-    protected internal IMappingExpression CreateMap(Type sourceType, Type destinationType)
+    protected internal IMappingExpression CreateMap(
+        [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicMethods | DynamicallyAccessedMemberTypes.PublicProperties)] Type sourceType,
+        [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicParameterlessConstructor | DynamicallyAccessedMemberTypes.PublicMethods | DynamicallyAccessedMemberTypes.PublicProperties)] Type destinationType)
     {
         var expr = new OpenGenericMappingExpression(sourceType, destinationType);
         _mappings.Add(expr);
@@ -125,10 +125,7 @@ internal sealed class OpenGenericMappingExpression(
     public INamingConvention? SourceNaming => null;
     public INamingConvention? DestinationNaming => null;
     public bool SuppressUnmapped { get; private set; }
-
-    [RequiresUnreferencedCode("Runtime mapping configuration requires reflection.")]
-    [RequiresDynamicCode("Runtime mapping configuration requires dynamic code generation.")]
-    public IMappingExpression ConvertUsing(Type converterType)
+    public IMappingExpression ConvertUsing([DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicParameterlessConstructor | DynamicallyAccessedMemberTypes.PublicMethods)] Type converterType)
     {
         ConverterType = converterType;
         return this;
@@ -145,3 +142,5 @@ internal sealed class OpenGenericMappingExpression(
         return this;
     }
 }
+
+
