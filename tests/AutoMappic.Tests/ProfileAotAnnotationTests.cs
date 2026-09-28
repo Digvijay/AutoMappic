@@ -103,23 +103,24 @@ public class ProfileAotAnnotationTests
     }
 
     /// <summary>
-    ///   The reflection-backed mapper still reflects over members a trimmer cannot see, so
-    ///   <c>RequiresUnreferencedCode</c> stays. It no longer constructs closed generic types on
-    ///   the reachable path, so <c>RequiresDynamicCode</c> goes.
+    ///   <see cref="IMapper" />'s mapping methods declare no trimming or AOT requirement, and
+    ///   must stay in step with the <see cref="Mapper" /> implementation.
     /// </summary>
     /// <remarks>
-    ///   The premise this test used to assert - that the mapper "genuinely constructs closed
-    ///   generic types at runtime" - was true of two lines only: <c>MakeGenericType</c> calls
-    ///   building <c>List&lt;&gt;</c> and <c>Dictionary&lt;,&gt;</c>. Both sites already had the
-    ///   closed destination type in hand, so neither call was necessary, and both are gone. What
-    ///   remains is plain reflection, which Native AOT supports.
+    ///   This is parity as much as it is policy. An interface member and its implementation must
+    ///   declare exactly the same requirements or the build fails IL2046/IL3051, so the moment
+    ///   the implementation dropped these attributes the interface had to as well.
     ///
-    ///   Keeping a requirement the code does not have is not the safe choice. It made every
-    ///   consumer's AOT build report an unfixable error, which trains people to suppress the
-    ///   whole category - including the warnings that are real.
+    ///   The requirement was removed rather than suppressed because it stopped being true. The
+    ///   reflective fallback now sits behind a feature switch that ILLink.Substitutions.xml stubs
+    ///   to <c>false</c> when trimming, so the trimmer removes the reflective engine instead of
+    ///   warning about it. Before that change, the annotation made every correct consumer - one
+    ///   whose call sites the generator had intercepted, where no reflection runs at all - see an
+    ///   error they could not act on. An unfixable warning does not make anyone safer; it teaches
+    ///   people to silence the category, and the category is where the real warnings live.
     /// </remarks>
     [Fact]
-    public void IMapper_map_methods_declare_only_the_requirement_that_is_real()
+    public void IMapper_map_methods_declare_no_requirement_and_match_the_implementation()
     {
         var methods = typeof(IMapper)
             .GetMethods()
@@ -130,7 +131,7 @@ public class ProfileAotAnnotationTests
 
         foreach (var method in methods)
         {
-            Assert.NotNull(method.GetCustomAttribute<RequiresUnreferencedCodeAttribute>());
+            Assert.Null(method.GetCustomAttribute<RequiresUnreferencedCodeAttribute>());
             Assert.Null(method.GetCustomAttribute<RequiresDynamicCodeAttribute>());
         }
     }

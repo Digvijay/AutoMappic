@@ -631,6 +631,75 @@ The claim is verified rather than asserted. The `aot-publish-and-run` job publis
 IL. Interception is also directly observable: build with `-p:EmitCompilerGeneratedFiles=true` and
 both call sites appear as `InterceptsLocation` entries in `AutoMappic.Interceptors.g.cs`.
 
+### Correction: the collection path did need dynamic code
+
+The paragraph above claims the collection rewrite left no genuine need for runtime code
+generation. That is wrong, and it is recorded here rather than quietly edited away.
+
+Removing `MakeGenericType` did not remove the requirement, it moved it. Materialising an array for
+an interface-typed destination calls `Array.CreateInstance(Type, int)` for an item type known only
+at runtime, and that API is itself annotated `[RequiresDynamicCode]`. The attribute was removed
+from `MapCore`/`MapCoreAsync` on a premise that only held for the property-copying path.
+
+`RequiresDynamicCode` is therefore restored on `MapCore` and `MapCoreAsync`, which are public and
+can be called directly. It stays off the six `Map`/`MapAsync` overloads for the different reason
+given in issue 26: the branch that reaches the fallback is removed by the trimmer, so no consumer
+who trims or publishes AOT can reach the hazard at all.
+
+The test that asserted the incorrect claim now asserts the corrected one. An annotation test that
+defends a convenient falsehood is worse than having none, because it converts a mistake into a
+regression gate.
+
+---
+
+## 26. The reflective engine was rooted in every AOT binary, and the diagnostics were silenced
+
+Two defects that only make sense together.
+
+**The library could not fail its own trimming claims.** `AutoMappic.Core.csproj` set
+`IsTrimmable`, `IsAotCompatible` and `TreatWarningsAsErrors` - and then set
+`<NoWarn>$(NoWarn);IL2026;IL2046;IL2070;IL2072;IL2075;IL3050;IL3051</NoWarn>`. Those are the
+codes that express precisely what those two properties promise. The package advertised
+trim-safety and AOT-compatibility while suppressing every diagnostic capable of contradicting it,
+so the "Trimming and AOT analyzers" CI job was running against a project that had silenced
+everything it checks. Removing the `NoWarn` produced **37 errors** in a library that had reported
+clean on every previous build. Every "Core is clean" measurement taken before this removal was
+meaningless.
+
+**The fallback was eagerly rooted.** `Mapper`'s constructor called `BuildFallbackDelegate` for
+every registered mapping, unconditionally. Since the constructor runs for any configured mapper,
+the entire reflection-based engine was reachable from every application - including one whose
+call sites the generator had intercepted, where the fallback can never execute. ILC's
+whole-program analysis saw this and failed the AOT publish with trim errors inside
+`BuildFallbackDelegate`'s async state machine. The Roslyn analyzer had not, because it reasons
+method-by-method and cannot follow rooting.
+
+This is the defect that matters most for the project's stated goal. A mapper sold on density and
+low latency was placing its own dead reflective engine in every consumer's native binary.
+
+Fixed with the feature-switch pattern `System.Text.Json` uses for
+`IsReflectionEnabledByDefault`. `AutoMappicFeatures.IsReflectionFallbackEnabled` is a trivial
+expression-bodied static property over `AppContext.TryGetSwitch`, and `ILLink.Substitutions.xml`
+- embedded with `LogicalName=ILLink.Substitutions.xml` - stubs it to `false`. Because
+substitution runs *before* trim analysis, the trimmer folds the guarded branch away, removes the
+reflective engine, and has nothing left to warn about. The hazard is deleted rather than
+declared, which is what made it honest to drop `[RequiresUnreferencedCode]` from the public
+mapping surface at the same time.
+
+The property must stay trivial and expression-bodied. An initialised `{ get; } = ...` property
+introduces a class constructor the trimmer has to keep, and the substitution stops folding.
+
+Three details are load-bearing and easy to break silently, so
+`ReflectionFallbackFeatureSwitch_IsSubstitutable` pins all three: the embedded resource exists
+under its exact logical name, the XML names the same property the code declares, and the switch
+defaults to *enabled* so untrimmed applications keep working. If any one drifts, the build and
+the tests stay green while consumers quietly get the reflective engine back.
+
+Assembly scanning was annotated in the same pass. `AddMaps(params Assembly[])` discovers profile
+types by reflection on both `IMapperConfigurationExpression` and `MapperConfigurationExpression`;
+it now declares `[RequiresUnreferencedCode]` on both and points callers at `AddProfile<TProfile>()`,
+which a trimmer can follow.
+
 ## Supported frameworks
 
 AutoMappic multi-targets `net8.0` (LTS) and `net10.0` (current); `net8.0` was previously skipped
@@ -644,3 +713,4 @@ release.
 
 Security-relevant issues should follow [SECURITY.md](../SECURITY.md) rather than being filed as
 public issues.
+
