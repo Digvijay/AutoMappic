@@ -580,6 +580,57 @@ must now propagate the same `DynamicallyAccessedMembers` constraints.
 encoded the defect, so it now asserts the inverse contract - no `RequiresUnreferencedCode`, and
 the type parameters carry the required member kinds.
 
+## 25. The library demanded dynamic code it never used
+
+Every public mapping entry point - all six `IMapper.Map`/`MapAsync` overloads plus `MapCore` and
+`MapCoreAsync` - declared `[RequiresDynamicCode]`. The runtime fallback never compiles an
+expression tree; it uses `Activator.CreateInstance`, `GetMethod`, `Invoke` and `SetValue`, all of
+which Native AOT supports.
+
+Exactly two lines justified the attribute, and neither needed to exist. The fallback built every
+destination collection as `List<destItemType>` and every destination dictionary as
+`Dictionary<k, v>` through `MakeGenericType`. Closing a generic type over a value type at runtime
+is the one thing AOT genuinely cannot do - but at both sites the destination type was *already
+closed*, so the calls were pure overhead.
+
+The consequence was not cosmetic. `samples/AotBenchmark` exists to demonstrate Native AOT and
+failed its own gate, because there is no way for a consumer to satisfy a `RequiresDynamicCode` on
+the only API the library offers. An annotation that cannot be acted on trains people to suppress
+the whole category, including the warnings that are real.
+
+Fixed by materialising the destination directly: activate the closed destination type, or produce
+an array when the destination is an array or an interface - an array satisfies `IEnumerable<T>`,
+`IList<T>`, `ICollection<T>` and `IReadOnlyList<T>`. The only remaining `MakeGenericType` closes
+`Dictionary<,>` for an interface-typed destination; it is isolated in one method, guarded by
+`RuntimeFeature.IsDynamicCodeSupported`, and reports an actionable message rather than failing
+inside the runtime. `RequiresDynamicCode` was then removed from the mapping surface.
+
+`RequiresUnreferencedCode` stays. It is real: the fallback recurses into nested and collection
+members using each value's runtime type, so the members it reaches cannot be named statically.
+
+Two further defects surfaced while making the change:
+
+- A concrete destination collection that does not implement `IList` - `HashSet<T>`, for example -
+  was silently mapped into a `List<T>` and then assigned, which fails later with an error naming
+  neither the property nor the type. It is now rejected up front with a message that names both.
+- Three tests asserted the old annotations were *present*. They encoded the defect, so each now
+  asserts the narrower contract. `CollectionMaterialisationTests` pins every destination shape the
+  rewrite touches, because this changed core behaviour rather than only metadata.
+
+### The analyzer cannot see interceptors
+
+`samples/AotBenchmark` still suppresses `IL2026` at its two mapping call sites. This is a
+documented analyzer limitation, not a waiver. AutoMappic rewrites those call sites with
+`[InterceptsLocation]`, so the shipped IL calls a generated static method and never reaches the
+annotated fallback - but the trimming analyzer runs on the semantic model *before* the compiler
+applies interceptors, so it resolves the call to `IMapper.Map` and cannot observe the
+substitution. Every interceptor-based library has this problem.
+
+The claim is verified rather than asserted. The `aot-publish-and-run` job publishes with
+`PublishAot=true` and executes the resulting native binary, so ILC analyses the post-interception
+IL. Interception is also directly observable: build with `-p:EmitCompilerGeneratedFiles=true` and
+both call sites appear as `InterceptsLocation` entries in `AutoMappic.Interceptors.g.cs`.
+
 ## Supported frameworks
 
 AutoMappic multi-targets `net8.0` (LTS) and `net10.0` (current); `net8.0` was previously skipped

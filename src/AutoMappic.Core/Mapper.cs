@@ -50,7 +50,6 @@ public sealed class Mapper : IMapper, IDisposable
 
     /// <inheritdoc />
     [RequiresUnreferencedCode("Object mapping via runtime Mapper requires reflection.")]
-    [RequiresDynamicCode("Object mapping via runtime Mapper requires dynamic code generation.")]
     public TDestination Map<TDestination>(object source)
     {
         if (source is null) return default!;
@@ -59,7 +58,6 @@ public sealed class Mapper : IMapper, IDisposable
 
     /// <inheritdoc />
     [RequiresUnreferencedCode("Object mapping via runtime Mapper requires reflection.")]
-    [RequiresDynamicCode("Object mapping via runtime Mapper requires dynamic code generation.")]
     public TDestination Map<TSource, TDestination>(TSource source)
     {
         if (source is null) return default!;
@@ -68,7 +66,6 @@ public sealed class Mapper : IMapper, IDisposable
 
     /// <inheritdoc />
     [RequiresUnreferencedCode("Object mapping via runtime Mapper requires reflection.")]
-    [RequiresDynamicCode("Object mapping via runtime Mapper requires dynamic code generation.")]
     public TDestination Map<TSource, TDestination>(TSource source, TDestination destination)
     {
         ArgumentNullException.ThrowIfNull(source);
@@ -78,7 +75,6 @@ public sealed class Mapper : IMapper, IDisposable
 
     /// <inheritdoc />
     [RequiresUnreferencedCode("Object mapping via runtime Mapper requires reflection.")]
-    [RequiresDynamicCode("Object mapping via runtime Mapper requires dynamic code generation.")]
     public async global::System.Threading.Tasks.Task<TDestination> MapAsync<TDestination>(object source, global::System.Threading.CancellationToken ct = default)
     {
         try
@@ -94,7 +90,6 @@ public sealed class Mapper : IMapper, IDisposable
 
     /// <inheritdoc />
     [RequiresUnreferencedCode("Object mapping via runtime Mapper requires reflection.")]
-    [RequiresDynamicCode("Object mapping via runtime Mapper requires dynamic code generation.")]
     public async global::System.Threading.Tasks.Task<TDestination> MapAsync<TSource, TDestination>(TSource source, global::System.Threading.CancellationToken ct = default)
     {
         try
@@ -110,7 +105,6 @@ public sealed class Mapper : IMapper, IDisposable
 
     /// <inheritdoc />
     [RequiresUnreferencedCode("Object mapping via runtime Mapper requires reflection.")]
-    [RequiresDynamicCode("Object mapping via runtime Mapper requires dynamic code generation.")]
     public async global::System.Threading.Tasks.Task<TDestination> MapAsync<TSource, TDestination>(TSource source, TDestination destination, global::System.Threading.CancellationToken ct = default)
     {
         try
@@ -127,7 +121,6 @@ public sealed class Mapper : IMapper, IDisposable
 
     /// <summary>Internal core mapping logic used for recursive resolution and fallback mapping.</summary>
     [RequiresUnreferencedCode("Object mapping via runtime Mapper requires reflection.")]
-    [RequiresDynamicCode("Object mapping via runtime Mapper requires dynamic code generation.")]
     public object MapCore(Type sourceType, Type destType, object source, object? destination)
     {
         return MapCoreAsync(sourceType, destType, source, destination).GetAwaiter().GetResult();
@@ -135,7 +128,6 @@ public sealed class Mapper : IMapper, IDisposable
 
     /// <summary>Asynchronous core mapping logic.</summary>
     [RequiresUnreferencedCode("Object mapping via runtime Mapper requires reflection.")]
-    [RequiresDynamicCode("Object mapping via runtime Mapper requires dynamic code generation.")]
     public async global::System.Threading.Tasks.Task<object> MapCoreAsync(Type sourceType, Type destType, object source, object? destination)
     {
         if (destType.IsAssignableFrom(sourceType))
@@ -159,26 +151,31 @@ public sealed class Mapper : IMapper, IDisposable
         if (IsCollection(destType, out var destItemType) && IsCollection(sourceType, out var sourceItemType))
         {
             var sourceList = (System.Collections.IEnumerable)source!;
-            var resultList = (System.Collections.IList)Activator.CreateInstance(typeof(List<>).MakeGenericType(destItemType!))!;
+
+            // Staged in a non-generic list so that no closed generic type has to be constructed
+            // at runtime. Building List<destItemType> via MakeGenericType would require dynamic
+            // code whenever destItemType is a value type, which Native AOT cannot provide - and
+            // the destination type is already closed here, so it was never necessary.
+            var staged = new List<object?>();
 
             foreach (var item in sourceList!)
             {
                 if (item is null)
                 {
-                    resultList.Add(null);
+                    staged.Add(null);
                     continue;
                 }
 
                 if (destItemType.IsAssignableFrom(item.GetType()))
                 {
-                    resultList.Add(item);
+                    staged.Add(item);
                 }
                 else
                 {
                     try
                     {
                         var mapped = MapCore(item.GetType(), destItemType, item, null);
-                        resultList.Add(mapped);
+                        staged.Add(mapped);
                     }
                     catch (AutoMappicException ex)
                     {
@@ -189,13 +186,32 @@ public sealed class Mapper : IMapper, IDisposable
                 }
             }
 
-            if (destType.IsArray)
+            // An array satisfies IEnumerable<T>, IReadOnlyList<T>, IList<T> and ICollection<T>,
+            // so it serves every interface-typed destination as well as an explicit array.
+            if (destType.IsArray || destType.IsInterface)
             {
-                var array = Array.CreateInstance(destItemType, resultList.Count);
-                resultList.CopyTo(array, 0);
+                var array = Array.CreateInstance(destItemType, staged.Count);
+                for (var i = 0; i < staged.Count; i++)
+                {
+                    array.SetValue(staged[i], i);
+                }
                 return array;
             }
-            return resultList;
+
+            if (Activator.CreateInstance(destType) is not System.Collections.IList concrete)
+            {
+                throw new AutoMappicException(
+                    $"AutoMappic: Cannot populate the collection type '{destType.Name}' in the runtime fallback, "
+                    + "because it does not implement IList. Declare the mapping in a Profile so the source generator "
+                    + $"emits it at compile time, or type the destination as {destItemType.Name}[], "
+                    + $"List<{destItemType.Name}> or one of the collection interfaces.");
+            }
+
+            foreach (var item in staged)
+            {
+                concrete.Add(item);
+            }
+            return concrete;
         }
 
         var key = (sourceType, destType);
@@ -249,6 +265,52 @@ public sealed class Mapper : IMapper, IDisposable
             _mappingStack.Value?.Remove(source!);
         }
     }
+
+    /// <summary>
+    ///   Creates a dictionary instance assignable to <paramref name="dictType" /> without
+    ///   constructing a closed generic type at runtime wherever that can be avoided.
+    /// </summary>
+    /// <remarks>
+    ///   When the destination is a concrete type it is already closed, so it can simply be
+    ///   activated. Only an interface-typed destination needs <c>Dictionary&lt;,&gt;</c> to be
+    ///   closed here. That is safe under Native AOT for reference type arguments, because the
+    ///   runtime shares one canonical instantiation for all of them; a value type argument
+    ///   genuinely needs code that AOT cannot generate, so it is detected up front and reported
+    ///   with an actionable message rather than failing obscurely deep inside the runtime.
+    /// </remarks>
+    private static System.Collections.IDictionary CreateDictionary(
+        [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicParameterlessConstructor)] Type dictType,
+        Type keyType,
+        Type valueType)
+    {
+        if (!dictType.IsInterface && !dictType.IsAbstract)
+        {
+            return (System.Collections.IDictionary)Activator.CreateInstance(dictType)!;
+        }
+
+        if (!global::System.Runtime.CompilerServices.RuntimeFeature.IsDynamicCodeSupported
+            && (keyType.IsValueType || valueType.IsValueType))
+        {
+            throw new AutoMappicException(
+                $"AutoMappic: Cannot build a Dictionary<{keyType.Name}, {valueType.Name}> for the interface-typed "
+                + $"destination '{dictType.Name}' in a Native AOT application, because a generic instantiation over a "
+                + "value type cannot be created at runtime. Declare the mapping in a Profile so the source generator "
+                + "emits it at compile time, or type the destination property as a concrete Dictionary<,>.");
+        }
+
+        return (System.Collections.IDictionary)Activator.CreateInstance(MakeDictionaryType(keyType, valueType))!;
+    }
+
+    [global::System.Diagnostics.CodeAnalysis.UnconditionalSuppressMessage(
+        "AotAnalysis", "IL3050:RequiresDynamicCode",
+        Justification = "CreateDictionary rejects value type arguments up front when dynamic code is unavailable. "
+            + "Reference type arguments share a canonical instantiation, which Native AOT already provides.")]
+    [global::System.Diagnostics.CodeAnalysis.UnconditionalSuppressMessage(
+        "TrimAnalysis", "IL2055:MakeGenericType",
+        Justification = "Dictionary<,> is referenced statically by this assembly, so the trimmer keeps it and its "
+            + "public parameterless constructor.")]
+    private static Type MakeDictionaryType(Type keyType, Type valueType)
+        => typeof(Dictionary<,>).MakeGenericType(keyType, valueType);
 
     private static Func<Mapper, object, object?, global::System.Threading.Tasks.Task<object>> BuildFallbackDelegate(IMappingExpression mapping)
     {
@@ -378,7 +440,7 @@ public sealed class Mapper : IMapper, IDisposable
                     else if (IsDictionary(destProp.PropertyType, out var dK, out var dV) && IsDictionary(srcProp.PropertyType, out var sK, out var sV))
                     {
                         var sourceDict = (System.Collections.IDictionary)val;
-                        var resultDict = (System.Collections.IDictionary)Activator.CreateInstance(typeof(Dictionary<,>).MakeGenericType(dK, dV))!;
+                        var resultDict = CreateDictionary(destProp.PropertyType, dK, dV);
 
                         foreach (System.Collections.DictionaryEntry entry in sourceDict)
                         {

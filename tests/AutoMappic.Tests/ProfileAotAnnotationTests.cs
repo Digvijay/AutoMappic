@@ -103,12 +103,23 @@ public class ProfileAotAnnotationTests
     }
 
     /// <summary>
-    ///   The reflection-backed mapper genuinely constructs closed generic types at runtime, so
-    ///   its annotations must stay. This is the API that is not AOT-safe, and it must keep
-    ///   saying so.
+    ///   The reflection-backed mapper still reflects over members a trimmer cannot see, so
+    ///   <c>RequiresUnreferencedCode</c> stays. It no longer constructs closed generic types on
+    ///   the reachable path, so <c>RequiresDynamicCode</c> goes.
     /// </summary>
+    /// <remarks>
+    ///   The premise this test used to assert - that the mapper "genuinely constructs closed
+    ///   generic types at runtime" - was true of two lines only: <c>MakeGenericType</c> calls
+    ///   building <c>List&lt;&gt;</c> and <c>Dictionary&lt;,&gt;</c>. Both sites already had the
+    ///   closed destination type in hand, so neither call was necessary, and both are gone. What
+    ///   remains is plain reflection, which Native AOT supports.
+    ///
+    ///   Keeping a requirement the code does not have is not the safe choice. It made every
+    ///   consumer's AOT build report an unfixable error, which trains people to suppress the
+    ///   whole category - including the warnings that are real.
+    /// </remarks>
     [Fact]
-    public void IMapper_map_methods_remain_annotated()
+    public void IMapper_map_methods_declare_only_the_requirement_that_is_real()
     {
         var methods = typeof(IMapper)
             .GetMethods()
@@ -119,8 +130,8 @@ public class ProfileAotAnnotationTests
 
         foreach (var method in methods)
         {
-            Assert.NotNull(method.GetCustomAttribute<RequiresDynamicCodeAttribute>());
             Assert.NotNull(method.GetCustomAttribute<RequiresUnreferencedCodeAttribute>());
+            Assert.Null(method.GetCustomAttribute<RequiresDynamicCodeAttribute>());
         }
     }
 }
