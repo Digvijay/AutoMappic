@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Removes AutoMappic's reflective mapping fallback from trimmed and Native AOT applications.
+
+  AutoMappic generates mappings at compile time. The reflective fallback only runs for mappings
+  the generator could not see, but Mapper's constructor used to build a fallback delegate for
+  every registered mapping, which rooted the entire reflective engine in any application that
+  created a mapper - carrying dead code into the binary and making whole-program trim analysis
+  impossible for a consumer to satisfy.
+
+  Stubbing the getter to false lets the trimmer constant-fold the guard, drop the branch that
+  builds the fallback, and remove the reflective engine entirely. Because the code is gone before
+  trim analysis runs, it also produces no warnings. This is the mechanism System.Text.Json uses
+  for IsReflectionEnabledByDefault.
+
+  A trimmed application that genuinely needs the fallback can re-enable it with
+  <RuntimeHostConfigurationOption Include="AutoMappic.IsReflectionFallbackEnabled" Value="true" />,
+  which also keeps the code from being substituted away.
+-->
+<linker>
+  <assembly fullname="AutoMappic.Core">
+    <type fullname="AutoMappic.AutoMappicFeatures">
+      <method signature="System.Boolean get_IsReflectionFallbackEnabled()" body="stub" value="false" />
+    </type>
+  </assembly>
+</linker>

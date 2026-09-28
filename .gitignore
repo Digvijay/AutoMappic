@@ -60,12 +60,18 @@ TestResults/
 *.trx
 *.coveragereview
 *.coverage
-*.xml
 *.lcov
-*.txt
-*.log
 test_results.log
 full_build_errors.txt
+
+# Test and build logs. These were previously blanket '*.xml', '*.txt' and '*.log' rules,
+# which silently excluded source files: ILLink.Substitutions.xml is load-bearing for
+# trimming and was ignored by the '*.xml' rule, so it built fine locally and failed CI
+# with CS1566. Keep these scoped to generated output.
+*.log
+coverage*.xml
+TestResults*.xml
+*.binlog
 build.log
 build2.log
 

@@ -700,6 +700,21 @@ types by reflection on both `IMapperConfigurationExpression` and `MapperConfigur
 it now declares `[RequiresUnreferencedCode]` on both and points callers at `AddProfile<TProfile>()`,
 which a trimmer can follow.
 
+### The substitutions file was excluded by .gitignore
+
+The first push of this fix failed CI with `CS1566: Error reading resource
+'ILLink.Substitutions.xml'`. The file existed locally and every local build, test run and sample
+verification passed against it - but `.gitignore` carried a blanket `*.xml` rule under a
+"Testing" heading, intended for test-result output and applied repository-wide, so the file was
+never committed.
+
+This is the exact failure this feature depends on avoiding: the substitution silently not
+applying. Here it failed loudly because the resource is referenced by name and the compiler
+cannot find it, which is why the `EmbeddedResource` reference is worth more than a copy step.
+
+The blanket `*.xml`, `*.txt` and `*.log` rules are now scoped to the generated output they were
+meant for. A source file should never be ignorable by a rule written for test artefacts.
+
 ## Supported frameworks
 
 AutoMappic multi-targets `net8.0` (LTS) and `net10.0` (current); `net8.0` was previously skipped
@@ -713,4 +728,5 @@ release.
 
 Security-relevant issues should follow [SECURITY.md](../SECURITY.md) rather than being filed as
 public issues.
+
 
