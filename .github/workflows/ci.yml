@@ -21,7 +21,7 @@ jobs:
         fetch-depth: 0
 
     - name: Setup .NET
-      uses: actions/setup-dotnet@v6
+      uses: actions/setup-dotnet@v5
       with:
         # 8.0.x is needed as well as 10.0.x: AutoMappic.Core ships a net8.0
         # target, so there are tests to execute on it.
